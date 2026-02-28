@@ -1,5 +1,5 @@
 name: multitasking
-version: 1.0.0
+version: 1.1.0
 description: Cooperative multitasking using asynchronous tasks, with support for forced task termination with `onExit` handlers.
 homepage: https://github.com/mezoni/multitasking
 environment:

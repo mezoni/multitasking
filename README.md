@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks, with support for forced task termination with `onExit` handlers.
 
-Version: 1.0.0
+Version: 1.1.0
 
 ## About this software
 
