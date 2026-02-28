@@ -122,7 +122,7 @@ import 'dart:async';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = await Task.run<int>(() => throw 'Error');
+  final task = Task.run<int>(() => throw 'Error');
 
   print('Do some work');
   await Future<void>.delayed(Duration(seconds: 1));
@@ -167,7 +167,7 @@ import 'dart:async';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = await Task.run<int>(() {
+  final task = Task.run<int>(() {
     Object? handle;
 
     Task.onExit((task) {
@@ -218,7 +218,7 @@ import 'dart:async';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = await Task.run<int>(name: 'my task', () {
+  final task = Task.run<int>(name: 'my task', () {
     return 1;
   });
 
@@ -267,7 +267,7 @@ import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
   final controller = StreamController<int>();
-  final master = await Task.run<void>(name: 'master', () async {
+  final master = Task.run<void>(name: 'master', () async {
     Task.onExit((task) {
       print('Exit $task');
       if (!controller.isClosed) {
@@ -286,7 +286,7 @@ Future<void> main() async {
   });
 
   final stream = controller.stream;
-  final slave = await Task.run<void>(name: 'slave', () async {
+  final slave = Task.run<void>(name: 'slave', () async {
     Task.onExit((task) {
       print('Exit $task');
     });
@@ -354,7 +354,8 @@ Future<void> main() async {
     print('done');
   });
 
-  await task.start();
+  task.start();
+  await Task.sleep();
   print('Stop $task with state \'${task.state.name}\'');
   task.stop();
   try {
@@ -381,7 +382,7 @@ On exit: Task('my task', 0), state: 'stopped'
 Big bada boom?
 TaskStoppedError
 #0      Task.stop (package:multitasking/src/task.dart:211:7)
-#1      main (file:///home/andrew/prj/multitasking/example/example_task_stop_simple.dart:19:8)
+#1      main (file:///home/andrew/prj/multitasking/example/example_task_stop_simple.dart:20:8)
 <asynchronous suspension>
 
 Oh no, it was just a faint hiss...
@@ -414,7 +415,7 @@ import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
   final group = <Task<int>>[];
-  final parent = await Task.run<void>(name: 'Parent', () async {
+  final parent = Task.run<void>(name: 'Parent', () async {
     Task.onExit((me) {
       print('On exit: $me (${me.state.name})');
       if (me.state != TaskState.completed) {
@@ -429,7 +430,7 @@ Future<void> main() async {
     });
 
     for (var i = 0; i < 3; i++) {
-      final t = await Task.run<int>(name: 'Child $i', () async {
+      final t = Task.run<int>(name: 'Child $i', () async {
         Task.onExit((task) {
           print('On exit: $task (${task.state.name})');
         });
@@ -472,6 +473,7 @@ Task('Child 1', 3) works: 0 of 4
 Task('Child 2', 4) works: 0 of 4
 Task('Child 0', 2) works: 1 of 4
 Task('Child 1', 3) works: 1 of 4
+Task('Child 2', 4) works: 1 of 4
 Stopping Task('Parent', 0)
 On exit: Task('Parent', 0) (stopped)
 Parent stops 'Child 0' (running)
@@ -521,7 +523,7 @@ Future<void> main() async {
     stop(parent);
   }
 
-  parent = await Task.run<void>(name: 'Parent', () async {
+  parent = Task.run<void>(name: 'Parent', () async {
     Task.onExit((task) {
       print('On exit: $task (${task.state.name})');
       onExit(task);
@@ -553,7 +555,8 @@ Future<void> main() async {
     }
 
     for (final task in group) {
-      await task.start();
+      task.start();
+      await Task.sleep();
     }
 
     await Task.waitAll(group);
@@ -604,7 +607,7 @@ import 'dart:async';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = await Task.run(name: 'task with timer', () async {
+  final task = Task.run(name: 'task with timer', () async {
     Timer.periodic(Duration(milliseconds: 500), (_) {
       print('tick');
     });
@@ -648,7 +651,7 @@ import 'dart:async';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = await Task.run(name: 'task with timer', () async {
+  final task = Task.run(name: 'task with timer', () async {
     scheduleMicrotask();
     await Task.sleep(1500);
   });

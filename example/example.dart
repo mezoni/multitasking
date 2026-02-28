@@ -4,7 +4,7 @@ import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
   final controller = StreamController<int>();
-  final master = await Task.run<void>(name: 'master', () async {
+  final master = Task.run<void>(name: 'master', () async {
     Task.onExit((task) {
       print('Exit $task');
       if (!controller.isClosed) {
@@ -23,7 +23,7 @@ Future<void> main() async {
   });
 
   final stream = controller.stream;
-  final slave = await Task.run<void>(name: 'slave', () async {
+  final slave = Task.run<void>(name: 'slave', () async {
     Task.onExit((task) {
       print('Exit $task');
     });

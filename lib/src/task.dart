@@ -171,7 +171,7 @@ final class Task<T> with _FutureMixin<T> {
   TaskState get state => _state;
 
   /// Starts execution of the task.
-  Future<void> start() async {
+  void start() async {
     if (_state != TaskState.created) {
       throw StateError('Task has already been started: ${toString()}');
     }
@@ -289,11 +289,9 @@ final class Task<T> with _FutureMixin<T> {
 
   /// Creates and starts a task with the specified [action] callback and
   /// [name].
-  @useResult
-  static Future<Task<T>> run<T>(FutureOr<T> Function() action,
-      {String? name}) async {
+  static Task<T> run<T>(FutureOr<T> Function() action, {String? name}) {
     final task = Task<T>(action, name: name);
-    await task.start();
+    task.start();
     return task;
   }
 

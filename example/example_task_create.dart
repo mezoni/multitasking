@@ -6,8 +6,7 @@ Future<void> main() async {
   final tasks = <Task<int>>[];
   for (var i = 0; i < 4; i++) {
     print('Creating task');
-    await Task.sleep();
-    tasks.add(await Task.run(name: '', () async {
+    tasks.add(Task.run(name: '', () async {
       Task.onExit((task) {
         print('On exit: $task');
         if (task.state == TaskState.completed) {
@@ -23,6 +22,8 @@ Future<void> main() async {
 
       return result;
     }));
+
+    await Task.sleep();
   }
 
   try {

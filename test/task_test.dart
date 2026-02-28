@@ -20,7 +20,7 @@ void _testCompletion() {
     var exit10 = false;
     Timer? timer1;
     Timer? timer2;
-    final t1 = await Task.run<int>(() async {
+    final t1 = Task.run<int>(() async {
       Task.onExit((task) {
         exit10 = true;
       });
@@ -51,7 +51,7 @@ void _testFailed() {
   const error10 = 'Error10';
   test('Task failure: Exception in body', () async {
     var exit10 = false;
-    final t1 = await Task.run<int>(() async {
+    final t1 = Task.run<int>(() async {
       Task.onExit((task) {
         exit10 = true;
       });
@@ -73,7 +73,7 @@ void _testFailed() {
 
   test('Task failure: Exception in timer', () async {
     var exit10 = false;
-    final t1 = await Task.run<int>(() async {
+    final t1 = Task.run<int>(() async {
       Task.onExit((task) {
         exit10 = true;
       });
@@ -105,7 +105,7 @@ void _testStop() {
     var exit10 = false;
     Timer? timer1;
     Timer? timer2;
-    final t1 = await Task.run<int>(() async {
+    final t1 = Task.run<int>(() async {
       Task.onExit((task) {
         exit10 = true;
       });
@@ -152,7 +152,7 @@ void _testStop() {
     var ticks2 = 0;
     Timer? timer1;
     Timer? timer2;
-    final t1 = await Task.run<int>(() async {
+    final t1 = Task.run<int>(() async {
       Task.onExit((task) {
         exit10 = true;
       });
@@ -194,7 +194,7 @@ void _testStop() {
     var count10 = 0;
     var count11 = 0;
     var exit10 = false;
-    final t1 = await Task.run<int>(() async {
+    final t1 = Task.run<int>(() async {
       Task.onExit((task) {
         exit10 = true;
       });
@@ -233,7 +233,7 @@ void _testWaitAll() {
   test('Task.wait.All(): success', () async {
     final tasks = <Task<int>>[];
     for (var i = 0; i < 4; i++) {
-      final t = await Task.run<int>(name: 'task $i', () async {
+      final t = Task.run<int>(name: 'task $i', () async {
         await Task.sleep(100);
         return i;
       });
@@ -266,7 +266,7 @@ void _testWaitAll() {
 
     final tasks = <Task<int>>[];
     for (var i = 0; i < 4; i++) {
-      final t = await Task.run<int>(name: 'task $i', () async {
+      final t = Task.run<int>(name: 'task $i', () async {
         await Task.sleep(100);
         if (i % 2 == 0) {
           return i;

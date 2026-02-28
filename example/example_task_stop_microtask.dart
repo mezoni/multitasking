@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = await Task.run(name: 'task with timer', () async {
+  final task = Task.run(name: 'task with timer', () async {
     scheduleMicrotask();
     await Task.sleep(1500);
   });

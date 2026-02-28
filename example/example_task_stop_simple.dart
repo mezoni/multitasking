@@ -14,7 +14,8 @@ Future<void> main() async {
     print('done');
   });
 
-  await task.start();
+  task.start();
+  await Task.sleep();
   print('Stop $task with state \'${task.state.name}\'');
   task.stop();
   try {

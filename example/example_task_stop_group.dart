@@ -4,7 +4,7 @@ import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
   final group = <Task<int>>[];
-  final parent = await Task.run<void>(name: 'Parent', () async {
+  final parent = Task.run<void>(name: 'Parent', () async {
     Task.onExit((me) {
       print('On exit: $me (${me.state.name})');
       if (me.state != TaskState.completed) {
@@ -19,7 +19,7 @@ Future<void> main() async {
     });
 
     for (var i = 0; i < 3; i++) {
-      final t = await Task.run<int>(name: 'Child $i', () async {
+      final t = Task.run<int>(name: 'Child $i', () async {
         Task.onExit((task) {
           print('On exit: $task (${task.state.name})');
         });

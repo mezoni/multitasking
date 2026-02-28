@@ -22,7 +22,7 @@ Future<void> main() async {
     stop(parent);
   }
 
-  parent = await Task.run<void>(name: 'Parent', () async {
+  parent = Task.run<void>(name: 'Parent', () async {
     Task.onExit((task) {
       print('On exit: $task (${task.state.name})');
       onExit(task);
@@ -54,7 +54,8 @@ Future<void> main() async {
     }
 
     for (final task in group) {
-      await task.start();
+      task.start();
+      await Task.sleep();
     }
 
     await Task.waitAll(group);

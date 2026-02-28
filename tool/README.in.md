@@ -16,10 +16,7 @@ The tasks is implemented using the following standard core classes:
 
 ## Practical use
 
-Tasks are executed asynchronously and cooperatively.\
 Tasks are very lightweight objects. The actions performed by tasks are not much slower than those performed by futures.\
-Provided that these are not elementary actions like (a + b).\
-
 Tasks can be used together with other software that implements additional functionality.\
 For example, in combination with software that implements the preemptive multitasking (starting and stopping by request).\
 Tasks can be used as building blocks with helper functions to implement complex algorithms.
