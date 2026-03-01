@@ -245,15 +245,6 @@ if (token.isCancelled) {
 }
 ```
 
-```dart
-try {
-  token.throwIfCancelled();
-} finally {
-  // Handle cancellation
-  rethrow;
-}
-```
-
 Remark:  
 The terms `parent task` and `child task` are rather arbitrary, since there is no real relationship between these tasks.  
 They are used to simplify the logical understanding of the interaction of tasks.  
@@ -438,32 +429,30 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
 Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Close client
 Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(0): cancelled
+No data
 ----------------------------------------
 Task(2): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
-Task(3): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(3): cancelled
+No data
 ----------------------------------------
 Task(4): cancelled
 No data
 ----------------------------------------
-Task(5): cancelled
-No data
+Task(5): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 
 ```
 

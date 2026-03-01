@@ -119,15 +119,6 @@ if (token.isCancelled) {
 }
 ```
 
-```dart
-try {
-  token.throwIfCancelled();
-} finally {
-  // Handle cancellation
-  rethrow;
-}
-```
-
 Remark:  
 The terms `parent task` and `child task` are rather arbitrary, since there is no real relationship between these tasks.  
 They are used to simplify the logical understanding of the interaction of tasks.  
