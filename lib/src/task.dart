@@ -39,16 +39,6 @@ typedef AnyTask = Task<Object?>;
 /// - `task.whenComplete()` (inherited from [Future])
 ///
 /// It all comes down to the fact that when accessing the [future] field of a task, an instance of the [Future] object is created and at that moment its life cycle begins.
-///
-/// **Each task runs in its own zone. When the computation action completes, the task zone deactivated**:
-///
-/// This includes the following:
-///
-/// - All active timers are deactivated
-/// - All created timers are deactivated immediately after they are created
-/// - Any pending callbacks will be executed as the empty action callbacks
-/// - All micro tasks scheduling calls are replaced with empty action callbacks
-/// - In all the `registerCallback` methods, the callback is replaced with a callback with the exception of [TaskStoppedError].
 final class Task<T> with _FutureMixin<T> {
   static const Duration _zeroDuration = Duration(seconds: 0);
 
@@ -73,8 +63,7 @@ final class Task<T> with _FutureMixin<T> {
   /// Returns the currently running task.
   ///
   /// If no explicit task is currently running, the synthetic task `main()` is
-  /// returned. The `main()` task is an always `running` task (root task) that
-  /// cannot be stopped.
+  /// returned.
   @awaitNotRequired
   static AnyTask get current => _current;
 
@@ -86,13 +75,13 @@ final class Task<T> with _FutureMixin<T> {
 
   FutureOr<T> Function()? _action;
 
-  FutureOr<void> Function(AnyTask task)? _onExit;
-
   Future<T>? _future;
 
   TaskZoneInterceptor<T>? _interceptor;
 
   bool _isCompleted = false;
+
+  FutureOr<void> Function(AnyTask task)? _onExit;
 
   TaskState _state = TaskState.created;
 
@@ -100,12 +89,15 @@ final class Task<T> with _FutureMixin<T> {
 
   /// Creates a task with the specified [action] callback and [name].
   Task(FutureOr<T> Function() action, {this.name}) : _action = action {
-    _main;
     _interceptor = TaskZoneInterceptor(
         enter: _enter,
         leave: _leave,
         onError: (error, stackTrace) {
-          _complete(TaskState.failed, ErrorResult(error, stackTrace));
+          if (error is TaskCanceledError) {
+            _complete(TaskState.cancelled, ErrorResult(error, stackTrace));
+          } else {
+            _complete(TaskState.failed, ErrorResult(error, stackTrace));
+          }
         });
   }
 
@@ -192,26 +184,12 @@ final class Task<T> with _FutureMixin<T> {
       try {
         final value = await action();
         _complete(TaskState.completed, ValueResult(value));
+      } on TaskCanceledError catch (e, s) {
+        _complete(TaskState.cancelled, ErrorResult(e, s));
       } catch (e, s) {
         _complete(TaskState.failed, ErrorResult(e, s));
       }
     }));
-  }
-
-  /// Initializes the actions necessary to stopping the task.
-  ///
-  /// Unlike terminating a task gracefully, stopping a task results in the loss
-  /// of unsaved changes or data.
-  void stop() {
-    if (identical(this, _main)) {
-      throw StateError('Task \'$this\' is the root task and cannot be stopped');
-    }
-
-    try {
-      throw TaskStoppedError();
-    } catch (error, stackTrace) {
-      _complete(TaskState.stopped, ErrorResult(error, stackTrace));
-    }
   }
 
   @override
@@ -226,11 +204,6 @@ final class Task<T> with _FutureMixin<T> {
   void _complete(TaskState state, Result<T> result) {
     if (_isCompleted) {
       return;
-    }
-
-    final interceptor = _interceptor;
-    if (interceptor != null) {
-      interceptor.deactivate();
     }
 
     _isCompleted = true;
@@ -368,6 +341,9 @@ final class Task<T> with _FutureMixin<T> {
 
 /// Represents the state of a task.
 enum TaskState {
+  /// The task was cancelled (by throwing an exception [TaskCanceledError]).
+  cancelled,
+
   /// The task was completed successfully.
   completed,
 
@@ -379,9 +355,6 @@ enum TaskState {
 
   /// The task is running.
   running,
-
-  /// The task was stopped (was not completed).
-  stopped
 }
 
 mixin _FutureMixin<T> implements Future<T> {

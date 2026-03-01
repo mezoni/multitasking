@@ -1,3 +1,12 @@
+## 2.0.0
+
+- Breaking change: Removed support for unsafe task termination.
+- Added support for safe task cancellation.
+
+## 1.2.0
+
+- Minor corrections have been made to the examples.
+
 ## 1.1.0
 
 - Fixed a bug that did not take into account that in Dart, a function cannot return a `Future<Future<T>>` result. Dart automatically `flattens` this value to `Future<T>`.

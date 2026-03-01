@@ -1,12 +1,19 @@
 # Multitasking
 
-Cooperative multitasking using asynchronous tasks, with support for forced task termination with `onExit` handlers.
+Cooperative multitasking using asynchronous tasks.
 
-Version: 1.1.0
+Version: 2.0.0
+
+[![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
+[![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
+[![GitHub Issues](https://img.shields.io/github/issues/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/issues)
+[![GitHub Forks](https://img.shields.io/github/forks/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/forks)
+[![GitHub Stars](https://img.shields.io/github/stars/mezoni/v.svg)](https://github.com/mezoni/multitasking/stargazers)
+[![GitHub License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://raw.githubusercontent.com/mezoni/multitasking/main/LICENSE)
 
 ## About this software
 
-Cooperative multitasking using asynchronous tasks, with support for forced task termination with `onExit` handlers.  
+Cooperative multitasking using asynchronous tasks.  
 The tasks is implemented using the following standard core classes:  
 
 - [Zone](https://api.dart.dev/dart-async/Zone-class.html)
@@ -16,13 +23,7 @@ The tasks is implemented using the following standard core classes:
 
 ## Practical use
 
-Tasks are executed asynchronously and cooperatively.\
-Tasks are very lightweight objects. The actions performed by tasks are not much slower than those performed by futures.\
-Provided that these are not elementary actions like (a + b).\
-
-Tasks can be used together with other software that implements additional functionality.\
-For example, in combination with software that implements the preemptive multitasking (starting and stopping by request).\
-Tasks can be used as building blocks with helper functions to implement complex algorithms.
+Tasks are very lightweight objects. The actions performed by tasks are not much slower than those performed by futures.
 
 A [Task] is an object representing some operation that will complete in the future.\
 Tasks are executed asynchronously and cooperatively.\
@@ -54,16 +55,6 @@ Exceptions in task can be observed in one of the following ways:
 - `task.whenComplete()` (inherited from [Future])
 
 It all comes down to the fact that when accessing the [future] field of a task, an instance of the [Future] object is created and at that moment its life cycle begins.
-
-**Each task runs in its own zone. When the computation action completes, the task zone deactivated**:
-
-This includes the following:
-
-- All active timers are deactivated
-- All created timers are deactivated immediately after they are created
-- Any pending callbacks will be executed as the empty action callbacks
-- All micro tasks scheduling calls are replaced with empty action callbacks
-- In all the `registerCallback` methods, the callback is replaced with a callback with the exception of [TaskStoppedError].
 
 ## Examples of the main features of the `Task`
 
@@ -235,30 +226,44 @@ my task
 
 ```
 
-**The task can be stopped.**
+**The task can be cancelled using a cancellation token.**
 
-The execution of asynchronous task code can be stopped.  
-⚠️ Important information:  
-The execution of synchronous task code cannot be stopped.
+Canceling a task is a normal action that is supported by the implementation of the mechanism of task functioning.  
+Canceling a task is safe for the task and the runtime. But that does not  mean it is safe for the application.  
+For this reason, task cancellation is only performed in cases where the developer explicitly allows for cancellation.  
 
-A  task is stopped at an unpredictable execution point. If possible, it is recommended to stop task in a more gentle way.  
-But if it is still absolutely necessary to stop the task, then why not use this method?
+There are different ways to handle task cancellation.
+
+```dart
+token.throwIfCancelled();
+```
+
+```dart
+if (token.isCancelled) {
+  // Handle cancellation
+  throw TaskCanceledError();
+}
+```
+
+```dart
+try {
+  token.throwIfCancelled();
+} finally {
+  // Handle cancellation
+  rethrow;
+}
+```
 
 Remark:  
 The terms `parent task` and `child task` are rather arbitrary, since there is no real relationship between these tasks.  
 They are used to simplify the logical understanding of the interaction of tasks.  
 The interaction logic is completely determined by the developer.
 
-Brief scenario:
+**The task can be cancelled as a group of tasks.**
 
-1. Create task with `StreamController controller` and start an infinite loop
-2. Create task that subscribes to `controller.stream` using an `await for` statement
-3. Stop controller task
-4. Stop subscriber task
+Example of cancelled a group of tasks in case of any failure in any task.  
 
-Example of stopping these tasks:
-
-[example/example_task_stop_stream.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_stop_stream.dart)
+[example/example_task_cancel_group_by_failure.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_group_by_failure.dart)
 
 ```dart
 import 'dart:async';
@@ -266,261 +271,15 @@ import 'dart:async';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final controller = StreamController<int>();
-  final master = Task.run<void>(name: 'master', () async {
-    Task.onExit((task) {
-      print('Exit $task');
-      if (!controller.isClosed) {
-        print('$task closing controller');
-        controller.close();
-      }
-    });
-
-    var i = 0;
-    Timer.periodic(Duration(seconds: 1), (timer) {
-      controller.add(i++);
-    });
-
-    // Wait  forever
-    await Completer<void>().future;
-  });
-
-  final stream = controller.stream;
-  final slave = Task.run<void>(name: 'slave', () async {
-    Task.onExit((task) {
-      print('Exit $task');
-    });
-
-    await for (final value in stream) {
-      print(value);
-      await Task.sleep();
-    }
-  });
-
-  Timer(Duration(seconds: 3), () {
-    print('Stop $slave');
-    slave.stop();
-    print('Stop $master');
-    master.stop();
-  });
-
-  try {
-    await Task.waitAll([master, slave]);
-  } catch (e) {
-    print(e);
-  }
-
-  print('Tasks stopped');
-}
-
-```
-
-Output:
-
-```txt
-0
-1
-2
-Stop Task('slave', 2)
-Exit Task('slave', 2)
-Stop Task('master', 0)
-Exit Task('master', 0)
-Task('master', 0) closing controller
-One or more errors occurred. (TaskStoppedError) (TaskStoppedError)
-Tasks stopped
-
-```
-
-Example from this source: [CancelableOperation and CancelableCompleter should cancel/kill delayed Futures](https://github.com/dart-lang/language/issues/1629)
-
-Example based on what is described in the source:
-
-[example/example_task_stop_simple.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_stop_simple.dart)
-
-```dart
-import 'dart:async';
-
-import 'package:multitasking/multitasking.dart';
-
-Future<void> main() async {
-  const duration = Duration(seconds: 5);
-  final task = Task(name: 'my task', () async {
-    Task.onExit((task) {
-      print('On exit: $task, state: \'${task.state.name}\'');
-    });
-
-    print('running...');
-    await Future<void>.delayed(duration);
-    print('done');
-  });
-
-  task.start();
-  await Task.sleep();
-  print('Stop $task with state \'${task.state.name}\'');
-  task.stop();
-  try {
-    await task;
-  } catch (e, s) {
-    print('Big bada boom?');
-    print('$e\n$s');
-    print('Oh no, it was just a faint hiss...');
-  }
-
-  print('Waiting ${duration.inSeconds} sec. to see what happens...');
-  await Future<void>.delayed(duration);
-  print('Continue to work');
-}
-
-```
-
-Output:
-
-```txt
-running...
-Stop Task('my task', 0) with state 'running'
-On exit: Task('my task', 0), state: 'stopped'
-Big bada boom?
-TaskStoppedError
-#0      Task.stop (package:multitasking/src/task.dart:211:7)
-#1      main (file:///home/andrew/prj/multitasking/example/example_task_stop_simple.dart:20:8)
-<asynchronous suspension>
-
-Oh no, it was just a faint hiss...
-Waiting 5 sec. to see what happens...
-Continue to work
-
-```
-
-**The task can be stopped as a group of tasks.**
-
-The parent task can stop child tasks at its discretion.  
-During development, this can be done as required for logical operation.
-
-Brief scenario:
-
-1. Create a parent task
-2. Create child tasks in the body of the parent task
-3. Wait all child tasks in the body of the parent task (it will fails if any child task fails)
-4. Add a `onExit` handler to the parent task that will stop the child tasks when the parent task completes unsuccessfully
-5. Stop the parent task by timer
-
-An example of stopping a task group by stopping the parent task:
-
-[example/example_task_stop_group.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_stop_group.dart)
-
-```dart
-import 'dart:async';
-
-import 'package:multitasking/multitasking.dart';
-
-Future<void> main() async {
-  final group = <Task<int>>[];
-  final parent = Task.run<void>(name: 'Parent', () async {
-    Task.onExit((me) {
-      print('On exit: $me (${me.state.name})');
-      if (me.state != TaskState.completed) {
-        for (var i = 0; i < group.length; i++) {
-          final task = group[i];
-          if (!task.isTerminated) {
-            print('${me.name} stops \'${task.name}\' (${task.state.name})');
-            task.stop();
-          }
-        }
-      }
-    });
-
-    for (var i = 0; i < 3; i++) {
-      final t = Task.run<int>(name: 'Child $i', () async {
-        Task.onExit((task) {
-          print('On exit: $task (${task.state.name})');
-        });
-
-        var result = 0;
-        for (var i = 0; i < 5; i++) {
-          print('${Task.current} works: $i of 4');
-          result++;
-          await Future<void>.delayed(Duration(seconds: 2));
-        }
-
-        return result;
-      });
-
-      group.add(t);
-    }
-
-    await Task.waitAll(group);
-  });
-
-  Timer(Duration(seconds: 2), () {
-    print('Stopping $parent');
-    parent.stop();
-  });
-
-  try {
-    await parent;
-  } catch (e) {
-    //
-  }
-}
-
-```
-
-Output:
-
-```txt
-Task('Child 0', 2) works: 0 of 4
-Task('Child 1', 3) works: 0 of 4
-Task('Child 2', 4) works: 0 of 4
-Task('Child 0', 2) works: 1 of 4
-Task('Child 1', 3) works: 1 of 4
-Task('Child 2', 4) works: 1 of 4
-Stopping Task('Parent', 0)
-On exit: Task('Parent', 0) (stopped)
-Parent stops 'Child 0' (running)
-On exit: Task('Child 0', 2) (stopped)
-Parent stops 'Child 1' (running)
-On exit: Task('Child 1', 3) (stopped)
-Parent stops 'Child 2' (running)
-On exit: Task('Child 2', 4) (stopped)
-
-```
-
-Example of stopping a group of tasks in case of any failure in any task.  
-The example may seem complicated to implement, but it can be implemented in a function or helper class.  
-
-Brief scenario:
-
-1. Create a parent task
-2. Create child tasks in the body of the parent task
-3. Wait all child tasks in the body of the parent task (it will fails if any child task fails)
-4. Add a `onExit` handler to the parent task and to all child tasks that will stop the all tasks if any task fails.
-5. Throw an exception in a child task
-
-[example/example_task_stop_group_by_failure.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_stop_group_by_failure.dart)
-
-```dart
-import 'dart:async';
-
-import 'package:multitasking/multitasking.dart';
-
-Future<void> main() async {
+  final cts = CancellationTokenSource();
+  final token = cts.token;
   late AnyTask parent;
   final group = <Task<int>>[];
 
   void onExit(AnyTask task) {
-    void stop(AnyTask task) {
-      if (!task.isTerminated) {
-        task.stop();
-      }
-    }
-
     if (task.state != TaskState.completed) {
-      for (final task in group) {
-        stop(task);
-      }
+      cts.cancel();
     }
-
-    stop(parent);
   }
 
   parent = Task.run<void>(name: 'Parent', () async {
@@ -529,7 +288,7 @@ Future<void> main() async {
       onExit(task);
     });
 
-    for (var i = 0; i < 3; i++) {
+    for (var i = 1; i <= 3; i++) {
       final t = Task<int>(name: 'Child $i', () async {
         Task.onExit((task) {
           print('On exit: $task (${task.state.name})');
@@ -541,6 +300,9 @@ Future<void> main() async {
         for (var i = 0; i < 5; i++) {
           print('${Task.current} works: $i of 4');
           result++;
+
+          token.throwIfCancelled();
+
           await Future<void>.delayed(Duration(seconds: 2));
           if (n == 1) {
             throw 'Failure in ${Task.current}';
@@ -565,7 +327,7 @@ Future<void> main() async {
   try {
     await parent;
   } catch (e) {
-    //
+    print(e);
   }
 }
 
@@ -574,51 +336,95 @@ Future<void> main() async {
 Output:
 
 ```txt
-Task('Child 0', 2) works: 0 of 4
-Task('Child 1', 3) works: 0 of 4
-Task('Child 2', 4) works: 0 of 4
-Task('Child 0', 2) works: 1 of 4
-On exit: Task('Child 1', 3) (failed)
-On exit: Task('Child 0', 2) (stopped)
-On exit: Task('Child 2', 4) (stopped)
-On exit: Task('Parent', 0) (stopped)
+Task('Child 1', 2) works: 0 of 4
+Task('Child 2', 3) works: 0 of 4
+Task('Child 3', 4) works: 0 of 4
+On exit: Task('Child 1', 2) (failed)
+Task('Child 2', 3) works: 1 of 4
+On exit: Task('Child 2', 3) (cancelled)
+Task('Child 3', 4) works: 1 of 4
+On exit: Task('Child 3', 4) (cancelled)
+On exit: Task('Parent', 0) (failed)
+One or more errors occurred. (Failure in Task('Child 1', 2)) (TaskCanceledError) (TaskCanceledError)
 
 ```
 
-**When a task completes executing its action body, it completely disables everything that can be disabled.**
+Example of cancelled a group of tasks while working with the network.  
 
-The main job of a task is to execute an action. Everything else is secondary.  
-This statement is true for the zone in which the `task action` are executed.  
-Each task is executed in its own zone and, accordingly, cannot in any way affect on other tasks.
-
-Brief scenario:
-
-1. Create a task
-2. Create a periodic timer in the task body
-3. See what happens when task complete
-
-Example with periodic timer:
-
-[example/example_task_stop_periodic_timer.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_stop_periodic_timer.dart)
+[example/example_task_cancel_network.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_network.dart)
 
 ```dart
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = Task.run(name: 'task with timer', () async {
-    Timer.periodic(Duration(milliseconds: 500), (_) {
-      print('tick');
+  final cts = CancellationTokenSource();
+  final token = cts.token;
+  final tasks = <Task<String>>[];
+  final rss = <String>[
+    'https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml',
+    'https://rss.nytimes.com/services/xml/rss/nyt/Science.xml',
+    'https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml',
+    'https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml',
+    'https://rss.nytimes.com/services/xml/rss/nyt/Music.xml'
+  ];
+  for (var i = 0; i < rss.length; i++) {
+    final task = Task.run(() async {
+      final uri = rss[i];
+      final url = Uri.parse(uri);
+      String? raw;
+      print('Fetching feed: $url');
+      final client = HttpClient();
+
+      token.throwIfCancelled();
+
+      try {
+        final request = await client.getUrl(url);
+        final response = await request.close();
+        if (response.statusCode == HttpStatus.ok) {
+          raw = await response.transform(utf8.decoder).join();
+        } else {
+          throw 'HTTP error: ${response.statusCode}';
+        }
+      } finally {
+        print('Close client');
+        client.close();
+      }
+
+      token.throwIfCancelled();
+
+      final result = raw;
+      print('Processing feed: $url');
+      await Future<void>.delayed(Duration(seconds: 1));
+      return result;
     });
 
-    await Task.sleep(1500);
-  });
+    tasks.add(task);
+  }
 
-  await task;
-  print('$task ${task.state.name}');
-  await Task.sleep(1500);
-  print('Let\'s wait and see what happens.');
+  Timer(Duration(seconds: 4), cts.cancel);
+
+  try {
+    await Task.waitAll(tasks);
+  } catch (e) {
+    print(e);
+  }
+
+  for (final task in tasks) {
+    print('-' * 40);
+    print('$task: ${task.state.name}');
+    if (task.state == TaskState.completed) {
+      final value = await task;
+      final text = '$value';
+      final length = text.length < 80 ? text.length : 80;
+      print('Data ${text.substring(0, length)}');
+    } else {
+      print('No data');
+    }
+  }
 }
 
 ```
@@ -626,51 +432,129 @@ Future<void> main() async {
 Output:
 
 ```txt
-tick
-tick
-tick
-Task('task with timer', 0) completed
-Let's wait and see what happens.
+Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
+Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
+Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
+Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
+Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Close client
+Close client
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
+----------------------------------------
+Task(0): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
+----------------------------------------
+Task(2): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
+----------------------------------------
+Task(3): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
+----------------------------------------
+Task(4): cancelled
+No data
+----------------------------------------
+Task(5): cancelled
+No data
 
 ```
 
-Brief scenario:
+Another example of cancelled a group of tasks while working with the network.  
 
-1. Create a task
-2. In the task body, schedule a microtask that will create a timer.
-3. In the timer callback function, schedule a microtask that will create the timer.
-4. See what happens when task complete
-
-Example with periodic timer:
-
-[example/example_task_stop_microtask.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_stop_microtask.dart)
+[example/example_task_cancel_long_network.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_long_network.dart)
 
 ```dart
 import 'dart:async';
+import 'dart:io';
 
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = Task.run(name: 'task with timer', () async {
-    scheduleMicrotask();
-    await Task.sleep(1500);
-  });
+  final cts = CancellationTokenSource();
+  final token = cts.token;
+  final list = [
+    (
+      '3.11.1',
+      'https://storage.googleapis.com/dart-archive/channels/stable/release/3.11.1/sdk/dartsdk-windows-x64-release.zip'
+    ),
+    (
+      '3.10.9',
+      'https://storage.googleapis.com/dart-archive/channels/stable/release/3.10.9/sdk/dartsdk-windows-x64-release.zip'
+    )
+  ];
 
-  await task;
-  print('$task ${task.state.name}');
-  await Task.sleep(1500);
-  print('Let\'s wait and see what happens.');
+  final tasks = <AnyTask>[];
+  for (final element in list) {
+    final url = Uri.parse(element.$2);
+    final filename = element.$1;
+    final task = _download(url, filename, token);
+    tasks.add(task);
+  }
+
+  // User request to cancel
+  Timer(Duration(seconds: 2), cts.cancel);
+
+  try {
+    await Task.waitAll(tasks);
+  } catch (e) {
+    print(e);
+  }
+
+  for (final task in tasks) {
+    if (task.state == TaskState.completed) {
+      final filename = await task;
+      print('Done: $filename');
+    }
+  }
 }
 
-void createTimer() {
-  Timer(Duration(milliseconds: 500), () {
-    print('tick');
-    scheduleMicrotask();
-  });
-}
+Task<String> _download(Uri uri, String filename, CancellationToken token) {
+  return Task.run(() async {
+    final client = HttpClient();
+    final bytes = <int>[];
 
-void scheduleMicrotask() {
-  Zone.current.scheduleMicrotask(createTimer);
+    token.throwIfCancelled();
+    token.addHandler(Task.current, (task) {
+      // If [force] is `true` any active/ connections will be closed to
+      // immediately release all resources.
+      client.close(force: true);
+    });
+
+    try {
+      final request = await client.getUrl(uri);
+      final response = await request.close();
+      if (response.statusCode == HttpStatus.ok) {
+        await for (final event in response) {
+          if (token.isCancelled) {
+            client.close(force: true);
+            break;
+          }
+
+          bytes.addAll(event);
+        }
+      } else {
+        throw 'HTTP error: ${response.statusCode}';
+      }
+    } finally {
+      print('Close client');
+      token.removeHandler(Task.current);
+      client.close();
+    }
+
+    token.throwIfCancelled();
+
+    // Save file to disk
+    await Future<void>.delayed(Duration(seconds: 1));
+    return filename;
+  });
 }
 
 ```
@@ -678,9 +562,8 @@ void scheduleMicrotask() {
 Output:
 
 ```txt
-tick
-tick
-Task('task with timer', 0) completed
-Let's wait and see what happens.
+Close client
+Close client
+One or more errors occurred. (HttpException: Connection closed while receiving data, uri = https://storage.googleapis.com/dart-archive/channels/stable/release/3.11.1/sdk/dartsdk-windows-x64-release.zip) (HttpException: Connection closed while receiving data, uri = https://storage.googleapis.com/dart-archive/channels/stable/release/3.10.9/sdk/dartsdk-windows-x64-release.zip)
 
 ```

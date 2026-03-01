@@ -19,10 +19,6 @@ import 'time_utils.dart';
 class CountingSemaphore {
   static const _maxInt = 0x7fffffffffffffff;
 
-  static final Future<bool> _false = Future.value(false);
-
-  static final Future<bool> _true = Future.value(true);
-
   int _count = 0;
 
   final int _maxCount;
@@ -46,7 +42,7 @@ class CountingSemaphore {
   Future<void> acquire() {
     if (_count > 0) {
       _count--;
-      return _true;
+      return Future.value();
     }
 
     final node = _Node();
@@ -65,7 +61,7 @@ class CountingSemaphore {
       final timer = node.timer;
       if (timer == null) {
         completer.complete(true);
-        return _true;
+        return Future.value();
       }
 
       timer.cancel();
@@ -81,7 +77,7 @@ class CountingSemaphore {
     }
 
     _count++;
-    return _true;
+    return Future.value();
   }
 
   /// Tries to acquire a permit from this semaphore and waits until the
@@ -104,11 +100,11 @@ class CountingSemaphore {
 
     if (_count > 0) {
       _count--;
-      return _true;
+      return Future.value(true);
     }
 
     if (timeout.inMicroseconds == 0) {
-      return _false;
+      return Future.value(false);
     }
 
     final node = _Node();

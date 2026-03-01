@@ -1,12 +1,19 @@
 # Multitasking
 
-Cooperative multitasking using asynchronous tasks, with support for forced task termination with `onExit` handlers.
+Cooperative multitasking using asynchronous tasks.
 
-Version: 1.0.0
+Version: 2.0.0
+
+[![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
+[![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
+[![GitHub Issues](https://img.shields.io/github/issues/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/issues)
+[![GitHub Forks](https://img.shields.io/github/forks/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/forks)
+[![GitHub Stars](https://img.shields.io/github/stars/mezoni/v.svg)](https://github.com/mezoni/multitasking/stargazers)
+[![GitHub License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://raw.githubusercontent.com/mezoni/multitasking/main/LICENSE)
 
 ## About this software
 
-Cooperative multitasking using asynchronous tasks, with support for forced task termination with `onExit` handlers.  
+Cooperative multitasking using asynchronous tasks.  
 The tasks is implemented using the following standard core classes:  
 
 - [Zone](https://api.dart.dev/dart-async/Zone-class.html)
@@ -16,10 +23,7 @@ The tasks is implemented using the following standard core classes:
 
 ## Practical use
 
-Tasks are very lightweight objects. The actions performed by tasks are not much slower than those performed by futures.\
-Tasks can be used together with other software that implements additional functionality.\
-For example, in combination with software that implements the preemptive multitasking (starting and stopping by request).\
-Tasks can be used as building blocks with helper functions to implement complex algorithms.
+Tasks are very lightweight objects. The actions performed by tasks are not much slower than those performed by futures.
 
 A [Task] is an object representing some operation that will complete in the future.\
 Tasks are executed asynchronously and cooperatively.\
@@ -51,16 +55,6 @@ Exceptions in task can be observed in one of the following ways:
 - `task.whenComplete()` (inherited from [Future])
 
 It all comes down to the fact that when accessing the [future] field of a task, an instance of the [Future] object is created and at that moment its life cycle begins.
-
-**Each task runs in its own zone. When the computation action completes, the task zone deactivated**:
-
-This includes the following:
-
-- All active timers are deactivated
-- All created timers are deactivated immediately after they are created
-- Any pending callbacks will be executed as the empty action callbacks
-- All micro tasks scheduling calls are replaced with empty action callbacks
-- In all the `registerCallback` methods, the callback is replaced with a callback with the exception of [TaskStoppedError].
 
 ## Examples of the main features of the `Task`
 
@@ -106,102 +100,55 @@ BEGIN_EXAMPLE
 example_task_name
 END_EXAMPLE
 
-**The task can be stopped.**
+**The task can be cancelled using a cancellation token.**
 
-The execution of asynchronous task code can be stopped.  
-⚠️ Important information:  
-The execution of synchronous task code cannot be stopped.
+Canceling a task is a normal action that is supported by the implementation of the mechanism of task functioning.  
+Canceling a task is safe for the task and the runtime. But that does not  mean it is safe for the application.  
+For this reason, task cancellation is only performed in cases where the developer explicitly allows for cancellation.  
 
-A  task is stopped at an unpredictable execution point. If possible, it is recommended to stop task in a more gentle way.  
-But if it is still absolutely necessary to stop the task, then why not use this method?
+There are different ways to handle task cancellation.
+
+```dart
+token.throwIfCancelled();
+```
+
+```dart
+if (token.isCancelled) {
+  // Handle cancellation
+  throw TaskCanceledError();
+}
+```
+
+```dart
+try {
+  token.throwIfCancelled();
+} finally {
+  // Handle cancellation
+  rethrow;
+}
+```
 
 Remark:  
 The terms `parent task` and `child task` are rather arbitrary, since there is no real relationship between these tasks.  
 They are used to simplify the logical understanding of the interaction of tasks.  
 The interaction logic is completely determined by the developer.
 
-Brief scenario:
+**The task can be cancelled as a group of tasks.**
 
-1. Create task with `StreamController controller` and start an infinite loop
-2. Create task that subscribes to `controller.stream` using an `await for` statement
-3. Stop controller task
-4. Stop subscriber task
-
-Example of stopping these tasks:
+Example of cancelled a group of tasks in case of any failure in any task.  
 
 BEGIN_EXAMPLE
-example_task_stop_stream
+example_task_cancel_group_by_failure
 END_EXAMPLE
 
-Example from this source: [CancelableOperation and CancelableCompleter should cancel/kill delayed Futures](https://github.com/dart-lang/language/issues/1629)
-
-Example based on what is described in the source:
+Example of cancelled a group of tasks while working with the network.  
 
 BEGIN_EXAMPLE
-example_task_stop_simple
+example_task_cancel_network
 END_EXAMPLE
 
-**The task can be stopped as a group of tasks.**
-
-The parent task can stop child tasks at its discretion.  
-During development, this can be done as required for logical operation.
-
-Brief scenario:
-
-1. Create a parent task
-2. Create child tasks in the body of the parent task
-3. Wait all child tasks in the body of the parent task (it will fails if any child task fails)
-4. Add a `onExit` handler to the parent task that will stop the child tasks when the parent task completes unsuccessfully
-5. Stop the parent task by timer
-
-An example of stopping a task group by stopping the parent task:
+Another example of cancelled a group of tasks while working with the network.  
 
 BEGIN_EXAMPLE
-example_task_stop_group
-END_EXAMPLE
-
-Example of stopping a group of tasks in case of any failure in any task.  
-The example may seem complicated to implement, but it can be implemented in a function or helper class.  
-
-Brief scenario:
-
-1. Create a parent task
-2. Create child tasks in the body of the parent task
-3. Wait all child tasks in the body of the parent task (it will fails if any child task fails)
-4. Add a `onExit` handler to the parent task and to all child tasks that will stop the all tasks if any task fails.
-5. Throw an exception in a child task
-
-BEGIN_EXAMPLE
-example_task_stop_group_by_failure
-END_EXAMPLE
-
-**When a task completes executing its action body, it completely disables everything that can be disabled.**
-
-The main job of a task is to execute an action. Everything else is secondary.  
-This statement is true for the zone in which the `task action` are executed.  
-Each task is executed in its own zone and, accordingly, cannot in any way affect on other tasks.
-
-Brief scenario:
-
-1. Create a task
-2. Create a periodic timer in the task body
-3. See what happens when task complete
-
-Example with periodic timer:
-
-BEGIN_EXAMPLE
-example_task_stop_periodic_timer
-END_EXAMPLE
-
-Brief scenario:
-
-1. Create a task
-2. In the task body, schedule a microtask that will create a timer.
-3. In the timer callback function, schedule a microtask that will create the timer.
-4. See what happens when task complete
-
-Example with periodic timer:
-
-BEGIN_EXAMPLE
-example_task_stop_microtask
+example_task_cancel_long_network
 END_EXAMPLE

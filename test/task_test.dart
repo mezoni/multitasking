@@ -5,46 +5,12 @@ import 'package:multitasking/src/errors.dart';
 import 'package:test/test.dart';
 
 void main() {
-  _testStop();
-  _testCompletion();
   _testFailed();
   _testWaitAll();
 }
 
 Future<void> _delay(int milliseconds) {
   return Future.delayed(Duration(milliseconds: milliseconds));
-}
-
-void _testCompletion() {
-  test('Task completion', () async {
-    var exit10 = false;
-    Timer? timer1;
-    Timer? timer2;
-    final t1 = Task.run<int>(() async {
-      Task.onExit((task) {
-        exit10 = true;
-      });
-
-      timer1 = Timer.periodic(Duration(milliseconds: 200), (timer) {
-        //
-      });
-
-      timer2 = Timer(Duration(milliseconds: 200), () {
-        //
-      });
-
-      await _delay(100);
-      return 1;
-    });
-
-    await t1;
-
-    expect(exit10, true, reason: 'exit10 != true');
-    expect(timer1 != null, true, reason: 'timer1 == null');
-    expect(timer2 != null, true, reason: 'timer2 == null');
-    expect(!timer1!.isActive, true, reason: 'timer1.isActive');
-    expect(!timer2!.isActive, true, reason: 'timer2.isActive');
-  });
 }
 
 void _testFailed() {
@@ -95,137 +61,6 @@ void _testFailed() {
 
     expect(exit10, true, reason: 'exit10 != true');
     expect(error, error10, reason: 'error != $error10');
-  });
-}
-
-void _testStop() {
-  test('Task.stop()', () async {
-    var count10 = 0;
-    var count11 = 0;
-    var exit10 = false;
-    Timer? timer1;
-    Timer? timer2;
-    final t1 = Task.run<int>(() async {
-      Task.onExit((task) {
-        exit10 = true;
-      });
-
-      timer1 = Timer.periodic(Duration(milliseconds: 100), (timer) {
-        count10++;
-      });
-
-      timer2 = Timer(Duration(milliseconds: 200), () {
-        count10++;
-      });
-
-      await _delay(200);
-      return 1;
-    });
-
-    Timer(Duration(milliseconds: 150), () {
-      count11 = count10;
-      t1.stop();
-    });
-
-    Object? error;
-    try {
-      await t1;
-    } catch (e) {
-      error = e;
-    }
-
-    await _delay(200);
-
-    expect(count10 > 0, true, reason: 'count10 = 0');
-    expect(count10, count11, reason: 'count0 != count11');
-    expect(exit10, true, reason: 'exit10 != true');
-    expect(timer1 != null, true, reason: 'timer1 == null');
-    expect(timer2 != null, true, reason: 'timer2 == null');
-    expect(!timer1!.isActive, true, reason: 'timer1.isActive');
-    expect(!timer2!.isActive, true, reason: 'timer2.isActive');
-    expect(error, isA<TaskStoppedError>(), reason: 'exit10 != true');
-  });
-
-  test('Task.stop(): Deactivate timer callbacks', () async {
-    var exit10 = false;
-    var ticks1 = 0;
-    var ticks2 = 0;
-    Timer? timer1;
-    Timer? timer2;
-    final t1 = Task.run<int>(() async {
-      Task.onExit((task) {
-        exit10 = true;
-      });
-
-      timer1 = Timer.periodic(Duration(milliseconds: 300), (timer) {
-        ticks1++;
-      });
-
-      timer2 = Timer(Duration(milliseconds: 300), () {
-        ticks2++;
-      });
-
-      await _delay(200);
-      return 1;
-    });
-
-    Timer(Duration(milliseconds: 150), t1.stop);
-
-    Object? error;
-    try {
-      await t1;
-    } catch (e) {
-      error = e;
-    }
-
-    await _delay(500);
-
-    expect(exit10, true, reason: 'exit10 != true');
-    expect(timer1 != null, true, reason: 'timer1 == null');
-    expect(timer2 != null, true, reason: 'timer2 == null');
-    expect(!timer1!.isActive, true, reason: 'timer1.isActive');
-    expect(!timer2!.isActive, true, reason: 'timer2.isActive');
-    expect(ticks1, 0, reason: 'ticks1, != 0');
-    expect(ticks2, 0, reason: 'ticks2 != 0');
-    expect(error, isA<TaskStoppedError>(), reason: 'exit10 != true');
-  });
-
-  test('Task.stop() await Future.delayed()', () async {
-    var count10 = 0;
-    var count11 = 0;
-    var exit10 = false;
-    final t1 = Task.run<int>(() async {
-      Task.onExit((task) {
-        exit10 = true;
-      });
-
-      await _delay(100);
-      count10++;
-      await _delay(100);
-      count10++;
-      await _delay(100);
-      count10++;
-      return 1;
-    });
-
-    Timer(Duration(milliseconds: 150), () {
-      count11 = count10;
-      t1.stop();
-    });
-
-    Object? error;
-    try {
-      await t1;
-    } catch (e) {
-      error = e;
-    }
-
-    await _delay(300);
-
-    expect(count10 > 0, true, reason: 'count10 == 0');
-    expect(count10, count11, reason: 'count0 != count11');
-    expect(exit10, true, reason: 'exit10 != true');
-    expect(error, isA<TaskStoppedError>(), reason: 'exit10 != true');
   });
 }
 

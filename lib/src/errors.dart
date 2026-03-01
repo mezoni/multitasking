@@ -34,8 +34,8 @@ class AggregateError extends _Error {
 }
 
 /// Represents the error that will be thrown if the task is stopped.
-class TaskStoppedError extends _Error {
-  TaskStoppedError([super.message]);
+class TaskCanceledError extends _Error {
+  TaskCanceledError([super.message]);
 }
 
 abstract class _Error extends Error {
