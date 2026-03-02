@@ -3,7 +3,7 @@ import 'dart:collection';
 
 import 'package:meta/meta.dart';
 
-import 'time_utils.dart';
+import '../src/time_utils.dart';
 
 /// A [CountingSemaphore] is a synchronization primitive that maintains a
 /// counter that represents the number of available permits.
@@ -17,7 +17,11 @@ import 'time_utils.dart';
 /// If any caller were blocked, one is woken up to acquire permit.\
 /// Otherwise, the counter is incremented.
 class CountingSemaphore {
-  static const _maxInt = 0x7fffffffffffffff;
+  static final Future<bool> _false = Future.value(true);
+
+  static final Future<bool> _true = Future.value(true);
+
+  static final Future<void> _void = Future.value();
 
   int _count = 0;
 
@@ -25,8 +29,7 @@ class CountingSemaphore {
 
   final LinkedList<_Node> _queue = LinkedList();
 
-  CountingSemaphore(int initialCount, {int maxCount = _maxInt})
-      : _maxCount = maxCount {
+  CountingSemaphore(int initialCount, int maxCount) : _maxCount = maxCount {
     if (maxCount < 0) {
       throw RangeError.range(maxCount, 0, null, 'maxCount');
     }
@@ -42,7 +45,7 @@ class CountingSemaphore {
   Future<void> acquire() {
     if (_count > 0) {
       _count--;
-      return Future.value();
+      return _true;
     }
 
     final node = _Node();
@@ -61,7 +64,7 @@ class CountingSemaphore {
       final timer = node.timer;
       if (timer == null) {
         completer.complete(true);
-        return Future.value();
+        return _void;
       }
 
       timer.cancel();
@@ -77,7 +80,7 @@ class CountingSemaphore {
     }
 
     _count++;
-    return Future.value();
+    return _void;
   }
 
   /// Tries to acquire a permit from this semaphore and waits until the
@@ -100,11 +103,11 @@ class CountingSemaphore {
 
     if (_count > 0) {
       _count--;
-      return Future.value(true);
+      return _true;
     }
 
     if (timeout.inMicroseconds == 0) {
-      return Future.value(false);
+      return _false;
     }
 
     final node = _Node();

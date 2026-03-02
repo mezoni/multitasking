@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:async/async.dart';
 import 'package:meta/meta.dart';
 
+import 'cancellation.dart';
 import 'errors.dart';
 import 'task_zone_interceptor.dart';
 
@@ -70,6 +71,8 @@ final class Task<T> with _FutureMixin<T> {
   /// Returns a unique integer identifier for the task.
   final int id = _taskId++;
 
+  ErrorResult? _exception;
+
   /// Returns the task name.
   final String? name;
 
@@ -102,6 +105,8 @@ final class Task<T> with _FutureMixin<T> {
   }
 
   Task._raw(this._state, {this.name});
+
+  ErrorResult? get exception => _exception;
 
   /// Return the result of the task execution, wrapped in [Future].
   ///
@@ -215,9 +220,13 @@ final class Task<T> with _FutureMixin<T> {
           await onExit(this);
         }
       } finally {
+        if (result is ErrorResult) {
+          _exception = result;
+        }
+
         _taskCompleter.complete(result);
-        if (result.isError) {
-          _finalizer.attach(this, result.asError!, detach: this);
+        if (result is ErrorResult) {
+          _finalizer.attach(this, result.asError, detach: this);
         }
       }
     });
@@ -231,6 +240,43 @@ final class Task<T> with _FutureMixin<T> {
 
   void _leave(AnyTask task) {
     _current = task;
+  }
+
+  static Task<void> awaitFor<R>(
+      Stream<R> stream, CancellationToken token, bool Function(R) f) {
+    return Task.run(() {
+      final task = Task.current;
+      final completer = Completer<void>();
+
+      void onError(Object error, StackTrace stackTrace) {
+        token.removeHandler(task);
+        completer.completeError(error, stackTrace);
+      }
+
+      void onDone() {
+        token.removeHandler(task);
+        completer.complete();
+      }
+
+      var isSuccess = false;
+      StreamSubscription<R>? subscription;
+      subscription = stream.listen((event) {
+        isSuccess = f(event);
+        if (!isSuccess) {
+          subscription!.cancel();
+          onDone();
+        }
+      }, onDone: onDone, onError: onError, cancelOnError: true);
+
+      token.addHandler(task, (_) {
+        subscription!.cancel();
+        if (!completer.isCompleted) {
+          completer.completeError(TaskCanceledError(), StackTrace.current);
+        }
+      });
+
+      return completer.future;
+    });
   }
 
   /// Assigns a handler for the current task ([Task.current]) that will be

@@ -1,3 +1,11 @@
+## 2.1.0
+
+- Added example: `example_counting_semaphore.dart`
+- Added example: `example_task_cancel_await_for_stream.dart`
+- Added method: `static Task<void> awaitFor<R>(Stream<R> stream, CancellationToken token, bool Function(R) f)`
+- Added class: `CountingSemaphore`
+- Added class: `BinarySemaphore`
+
 ## 2.0.0
 
 - Breaking change: Removed support for unsafe task termination.

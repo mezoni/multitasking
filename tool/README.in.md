@@ -143,3 +143,30 @@ Another example of cancelled a group of tasks while working with the network.
 BEGIN_EXAMPLE
 example_task_cancel_long_network
 END_EXAMPLE
+
+Example of canceling the emulation of the `await for` statement.
+
+BEGIN_EXAMPLE
+example_task_cancel_await_for_stream_emulation
+END_EXAMPLE
+
+## Synchronization primitive
+
+Synchronization primitives are mechanisms that synchronize the execution of multiple operations by locking their execution and putting them into a waiting state.  
+In essence, these mechanisms imply either waiting for acquire the permit, followed by release this permit, or waiting for a signal without acquiring the permit. Or even waiting for a signal followed by acquiring the permit.
+
+**Counting semaphore.**
+
+A counting semaphore is a synchronization primitive that maintains a counter that represents the number of available permits.  
+Acquire:  
+If the counter is 0, the execution of the calling code is blocked until the count becomes greater than 0.  
+Otherwise, the counter is decremented, and the calling code acquires a permit.  
+Release:  
+If any calling code was blocked from executing, that code will continue executing and acquire the permit.  
+Otherwise, the counter is incremented.
+
+Example with a limit of no more than 3 simultaneously executed operations.
+
+BEGIN_EXAMPLE
+example_counting_semaphore
+END_EXAMPLE

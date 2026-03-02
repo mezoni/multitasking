@@ -1,4 +1,4 @@
-import 'package:multitasking/src/synchronization/binary_semaphore.dart';
+import 'package:multitasking/synchronization/binary_semaphore.dart';
 import 'package:test/test.dart';
 
 void main() {

@@ -429,30 +429,32 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Close client
 Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Close client
 Close client
-Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): cancelled
-No data
+Task(0): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(2): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
-Task(3): cancelled
-No data
+Task(3): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(4): cancelled
 No data
 ----------------------------------------
-Task(5): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(5): cancelled
+No data
 
 ```
 
@@ -554,5 +556,255 @@ Output:
 Close client
 Close client
 One or more errors occurred. (HttpException: Connection closed while receiving data, uri = https://storage.googleapis.com/dart-archive/channels/stable/release/3.11.1/sdk/dartsdk-windows-x64-release.zip) (HttpException: Connection closed while receiving data, uri = https://storage.googleapis.com/dart-archive/channels/stable/release/3.10.9/sdk/dartsdk-windows-x64-release.zip)
+
+```
+
+Example of canceling the emulation of the `await for` statement.
+
+[example/example_task_cancel_await_for_stream_emulation.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_await_for_stream_emulation.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main(List<String> args) async {
+  final controller = StreamController<int>.broadcast();
+
+  final stream = controller.stream;
+  final cts = CancellationTokenSource();
+  final token = cts.token;
+
+  var n = 0;
+  Timer.periodic(Duration(seconds: 1), (timer) {
+    print('Send event: $n');
+    controller.add(n++);
+    if (n > 5) {
+      print('Stopping the controller');
+      timer.cancel();
+      controller.close();
+    }
+  });
+
+  Timer(Duration(seconds: 3), () {
+    _message('Cancellation requested');
+    cts.cancel();
+  });
+
+  final tasks = <Task<int>>[];
+  for (var i = 0; i < 3; i++) {
+    final task = _doWork(stream, token, testBreak: i == 2);
+    tasks.add(task);
+  }
+
+  try {
+    await Task.waitAll(tasks);
+  } catch (e) {
+    print(e);
+  }
+
+  for (final task in tasks) {
+    if (task.state == TaskState.completed) {
+      final result = await task;
+      _message('Result of ${task.toString()}: $result');
+    }
+  }
+}
+
+Task<int> _doWork(Stream<int> stream, CancellationToken token,
+    {bool testBreak = false}) {
+  return Task.run(() async {
+    await Task.sleep();
+    final list = <int>[];
+    await Task.awaitFor(stream, token, (event) {
+      _message('Received event: $event');
+      list.add(event);
+      if (list.length == 1 && testBreak) {
+        _message('I want to break free...');
+        return false;
+      }
+
+      return true;
+    });
+
+    token.throwIfCancelled();
+
+    await Task.sleep();
+    _message('Processing data: $list');
+    if (testBreak) {
+      return list.length;
+    }
+
+    await Future<void>.delayed(Duration(seconds: 1));
+    return list.length;
+  });
+}
+
+void _message(String text) {
+  print('${Task.current}: $text');
+}
+
+```
+
+Output:
+
+```txt
+Send event: 0
+Task(4): Received event: 0
+Task(5): Received event: 0
+Task(6): Received event: 0
+Task(6): I want to break free...
+Task(3): Processing data: [0]
+Send event: 1
+Task(4): Received event: 1
+Task(5): Received event: 1
+Send event: 2
+Task(4): Received event: 2
+Task(5): Received event: 2
+Task('main()', 1): Cancellation requested
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
+Task('main()', 1): Result of Task(3): 1
+Send event: 3
+Send event: 4
+Send event: 5
+Stopping the controller
+
+```
+
+## Synchronization primitive
+
+Synchronization primitives are mechanisms that synchronize the execution of multiple operations by locking their execution and putting them into a waiting state.  
+In essence, these mechanisms imply either waiting for acquire the permit, followed by release this permit, or waiting for a signal without acquiring the permit. Or even waiting for a signal followed by acquiring the permit.
+
+**Counting semaphore.**
+
+A counting semaphore is a synchronization primitive that maintains a counter that represents the number of available permits.  
+Acquire:  
+If the counter is 0, the execution of the calling code is blocked until the count becomes greater than 0.  
+Otherwise, the counter is decremented, and the calling code acquires a permit.  
+Release:  
+If any calling code was blocked from executing, that code will continue executing and acquire the permit.  
+Otherwise, the counter is incremented.
+
+Example with a limit of no more than 3 simultaneously executed operations.
+
+[example/example_counting_semaphore.dart](https://github.com/mezoni/multitasking/blob/main/example/example_counting_semaphore.dart)
+
+```dart
+import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/synchronization/counting_semaphore.dart';
+
+Future<void> main(List<String> args) async {
+  final sem = CountingSemaphore(0, 3);
+  final tasks = <AnyTask>[];
+  _message('Round with asynchronous entry in the task body');
+  for (var i = 0; i < 7; i++) {
+    final task = Task.run(name: 'task $i', () async {
+      // Asynchronous entry
+      await Task.sleep();
+      _message('acquire');
+      await sem.acquire();
+      try {
+        _message('  acquired');
+
+        await Task.sleep();
+      } finally {
+        _message('release');
+        await sem.release();
+      }
+    });
+
+    tasks.add(task);
+  }
+
+  try {
+    await Task.waitAll(tasks);
+  } catch (e) {
+    print(e);
+  }
+
+  tasks.clear();
+  print('-' * 40);
+  _message('Round with synchronous entry in the task body');
+  for (var i = 0; i < 7; i++) {
+    final task = Task.run(name: 'task $i', () async {
+      // Synchronous entry
+      // await Task.sleep();
+      _message('acquire');
+      await sem.acquire();
+      try {
+        _message('  acquired');
+
+        await Task.sleep();
+      } finally {
+        _message('release');
+        await sem.release();
+      }
+    });
+
+    tasks.add(task);
+  }
+
+  try {
+    await Task.waitAll(tasks);
+  } catch (e) {
+    print(e);
+  }
+}
+
+void _message(String text) {
+  print('${Task.current.name}: $text');
+}
+
+```
+
+Output:
+
+```txt
+main(): Round with asynchronous entry in the task body
+task 0: acquire
+task 0:   acquired
+task 1: acquire
+task 1:   acquired
+task 2: acquire
+task 2:   acquired
+task 3: acquire
+task 4: acquire
+task 5: acquire
+task 6: acquire
+task 0: release
+task 3:   acquired
+task 1: release
+task 4:   acquired
+task 2: release
+task 5:   acquired
+task 3: release
+task 6:   acquired
+task 4: release
+task 5: release
+task 6: release
+----------------------------------------
+main(): Round with synchronous entry in the task body
+task 0: acquire
+task 1: acquire
+task 2: acquire
+task 3: acquire
+task 4: acquire
+task 5: acquire
+task 6: acquire
+task 0:   acquired
+task 1:   acquired
+task 2:   acquired
+task 0: release
+task 3:   acquired
+task 1: release
+task 4:   acquired
+task 2: release
+task 5:   acquired
+task 3: release
+task 6:   acquired
+task 4: release
+task 5: release
+task 6: release
 
 ```

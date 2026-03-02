@@ -14,7 +14,7 @@ import 'counting_semaphore.dart';
 /// count the number of times it is entered and leaved by task before
 /// releasing.
 class BinarySemaphore {
-  final CountingSemaphore _lock = CountingSemaphore(0, maxCount: 1);
+  final CountingSemaphore _lock = CountingSemaphore(0, 1);
 
   /// Acquires a permit from this semaphore.
   Future<void> acquire() {
