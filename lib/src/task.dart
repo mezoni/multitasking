@@ -319,7 +319,7 @@ final class Task<T> with _FutureMixin<T> {
   ///
   /// There is no guarantee that the time delay will match the specified one
   /// with high accuracy.
-  static Future<void> sleep([int milliseconds = 0]) {
+  static Future<void> sleep([int milliseconds = 0, CancellationToken? token]) {
     if (milliseconds < 0) {
       throw ArgumentError.value(
           milliseconds, 'milliseconds', 'Milliseconds must not be negative');
@@ -329,7 +329,23 @@ final class Task<T> with _FutureMixin<T> {
         ? _zeroDuration
         : Duration(milliseconds: milliseconds);
     final completer = Completer<void>();
-    Timer(duration, completer.complete);
+    void Function()? handler;
+    final timer = Timer(duration, () {
+      if (!completer.isCompleted) {
+        token?.removerHandler(handler);
+        completer.complete();
+      }
+    });
+
+    if (token != null) {
+      handler = token.addHandler(() {
+        timer.cancel();
+        if (!completer.isCompleted) {
+          completer.completeError(TaskCanceledError(), StackTrace.current);
+        }
+      });
+    }
+
     return completer.future;
   }
 

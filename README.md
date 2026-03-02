@@ -245,6 +245,56 @@ if (token.isCancelled) {
 }
 ```
 
+**The task can be cancelled during `Task.sleep()`.**
+
+All that is required for this is to pass the token as an argument to method `Task.sleep()`.
+
+Example of cancelling a task during task sleep`Task.sleep()`.
+
+[example/example_task_cancel_during_sleep.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_during_sleep.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main(List<String> args) async {
+  final cts = CancellationTokenSource();
+  final token = cts.token;
+
+  var count = 0;
+  final task = Task.run(() async {
+    while (true) {
+      count++;
+      await Task.sleep(0, token);
+    }
+  });
+
+  Timer(Duration(seconds: 1), cts.cancel);
+
+  try {
+    await task;
+  } catch (e) {
+    print(e);
+  }
+
+  _message('count: $count');
+}
+
+void _message(String text) {
+  print('${Task.current}: $text');
+}
+
+```
+
+Output:
+
+```txt
+TaskCanceledError
+Task('main()', 1): count: 380584
+
+```
+
 Remark:  
 The terms `parent task` and `child task` are rather arbitrary, since there is no real relationship between these tasks.  
 They are used to simplify the logical understanding of the interaction of tasks.  
@@ -429,32 +479,28 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
-Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
-Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
 Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
+Close client
+Close client
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(0): cancelled
+No data
 ----------------------------------------
-Task(2): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(2): cancelled
+No data
 ----------------------------------------
-Task(3): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(3): cancelled
+No data
 ----------------------------------------
 Task(4): cancelled
 No data
 ----------------------------------------
-Task(5): cancelled
-No data
+Task(5): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 
 ```
 
@@ -513,7 +559,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     final bytes = <int>[];
 
     token.throwIfCancelled();
-    token.addHandler(Task.current, (task) {
+    final handler = token.addHandler(() {
       // If [force] is `true` any active/ connections will be closed to
       // immediately release all resources.
       client.close(force: true);
@@ -536,7 +582,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
       }
     } finally {
       print('Close client');
-      token.removeHandler(Task.current);
+      token.removerHandler(handler);
       client.close();
     }
 

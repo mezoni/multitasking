@@ -119,6 +119,16 @@ if (token.isCancelled) {
 }
 ```
 
+**The task can be cancelled during `Task.sleep()`.**
+
+All that is required for this is to pass the token as an argument to method `Task.sleep()`.
+
+Example of cancelling a task during task sleep`Task.sleep()`.
+
+BEGIN_EXAMPLE
+example_task_cancel_during_sleep
+END_EXAMPLE
+
 Remark:  
 The terms `parent task` and `child task` are rather arbitrary, since there is no real relationship between these tasks.  
 They are used to simplify the logical understanding of the interaction of tasks.  
