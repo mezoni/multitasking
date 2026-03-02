@@ -9,6 +9,7 @@
 - Added class: `BinarySemaphore`.
 - Breaking change: The functionality of the `CancellationToken` handler has been changed. Performance and usability have been improved, and most importantly, the restriction on linking to a single task has been lifted.
 - Added example: `example_task_cancel_during_sleep.dart`.
+- Added example: `example_binary_semaphore.dart`.
 
 ## 2.0.0
 

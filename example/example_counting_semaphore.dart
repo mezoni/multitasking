@@ -13,7 +13,6 @@ Future<void> main(List<String> args) async {
       await sem.acquire();
       try {
         _message('  acquired');
-
         await Task.sleep();
       } finally {
         _message('release');

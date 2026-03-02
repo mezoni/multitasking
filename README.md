@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks.
 
-Version: 2.0.0
+Version: 2.1.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -291,7 +291,7 @@ Output:
 
 ```txt
 TaskCanceledError
-Task('main()', 1): count: 380584
+Task('main()', 1): count: 310710
 
 ```
 
@@ -479,28 +479,32 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
+Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Close client
 Close client
-Close client
-Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): cancelled
-No data
+Task(0): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
-Task(2): cancelled
-No data
+Task(2): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(3): cancelled
 No data
 ----------------------------------------
-Task(4): cancelled
-No data
-----------------------------------------
-Task(5): completed
+Task(4): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
+----------------------------------------
+Task(5): cancelled
+No data
 
 ```
 
@@ -717,7 +721,7 @@ Stopping the controller
 
 ```
 
-## Synchronization primitive
+## Synchronization primitives
 
 Synchronization primitives are mechanisms that synchronize the execution of multiple operations by locking their execution and putting them into a waiting state.  
 In essence, these mechanisms imply either waiting for acquire the permit, followed by release this permit, or waiting for a signal without acquiring the permit. Or even waiting for a signal followed by acquiring the permit.
@@ -752,7 +756,6 @@ Future<void> main(List<String> args) async {
       await sem.acquire();
       try {
         _message('  acquired');
-
         await Task.sleep();
       } finally {
         _message('release');
@@ -852,5 +855,79 @@ task 6:   acquired
 task 4: release
 task 5: release
 task 6: release
+
+```
+
+**Binary semaphore.**
+
+A [BinarySemaphore] is a synchronization primitive with an integer value restricted to 0 or 1, representing locked (0) or unlocked (1) states.
+
+Unlike a mutex, a semaphore is a counting-based synchronizer.  
+If a semaphore is locked, it will be locked even for the current task.
+
+If a mutex is locked by a task, it will not block this task. It will
+count the number of times it is entered and leaved by task before
+releasing.
+
+An example of using a binary semaphore as a locking mechanism:
+
+[example/example_binary_semaphore.dart](https://github.com/mezoni/multitasking/blob/main/example/example_binary_semaphore.dart)
+
+```dart
+import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/synchronization/binary_semaphore.dart';
+
+Future<void> main(List<String> args) async {
+  final sem = BinarySemaphore();
+  final tasks = <AnyTask>[];
+
+  for (var i = 0; i < 5; i++) {
+    final task = Task.run(name: 'task $i', () async {
+      await Task.sleep();
+      _message('acquire');
+      await sem.acquire();
+      try {
+        _message('  acquired');
+        await Task.sleep();
+      } finally {
+        _message('release');
+        await sem.release();
+      }
+    });
+
+    tasks.add(task);
+  }
+
+  try {
+    await Task.waitAll(tasks);
+  } catch (e) {
+    print(e);
+  }
+}
+
+void _message(String text) {
+  print('${Task.current.name}: $text');
+}
+
+```
+
+Output:
+
+```txt
+task 0: acquire
+task 0:   acquired
+task 1: acquire
+task 2: acquire
+task 3: acquire
+task 4: acquire
+task 0: release
+task 1:   acquired
+task 1: release
+task 2:   acquired
+task 2: release
+task 3:   acquired
+task 3: release
+task 4:   acquired
+task 4: release
 
 ```

@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks.
 
-Version: 2.0.0
+Version: 2.1.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -160,7 +160,7 @@ BEGIN_EXAMPLE
 example_task_cancel_await_for_stream_emulation
 END_EXAMPLE
 
-## Synchronization primitive
+## Synchronization primitives
 
 Synchronization primitives are mechanisms that synchronize the execution of multiple operations by locking their execution and putting them into a waiting state.  
 In essence, these mechanisms imply either waiting for acquire the permit, followed by release this permit, or waiting for a signal without acquiring the permit. Or even waiting for a signal followed by acquiring the permit.
@@ -179,4 +179,21 @@ Example with a limit of no more than 3 simultaneously executed operations.
 
 BEGIN_EXAMPLE
 example_counting_semaphore
+END_EXAMPLE
+
+**Binary semaphore.**
+
+A [BinarySemaphore] is a synchronization primitive with an integer value restricted to 0 or 1, representing locked (0) or unlocked (1) states.
+
+Unlike a mutex, a semaphore is a counting-based synchronizer.  
+If a semaphore is locked, it will be locked even for the current task.
+
+If a mutex is locked by a task, it will not block this task. It will
+count the number of times it is entered and leaved by task before
+releasing.
+
+An example of using a binary semaphore as a locking mechanism:
+
+BEGIN_EXAMPLE
+example_binary_semaphore
 END_EXAMPLE
