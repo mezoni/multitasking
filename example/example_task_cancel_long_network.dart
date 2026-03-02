@@ -48,7 +48,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     final bytes = <int>[];
 
     token.throwIfCancelled();
-    token.addHandler(Task.current, (task) {
+    final handler = token.addHandler(() {
       // If [force] is `true` any active/ connections will be closed to
       // immediately release all resources.
       client.close(force: true);
@@ -71,7 +71,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
       }
     } finally {
       print('Close client');
-      token.removeHandler(Task.current);
+      token.removerHandler(handler);
       client.close();
     }
 

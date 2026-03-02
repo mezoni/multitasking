@@ -1,3 +1,5 @@
+# Changelog
+
 ## 2.1.0
 
 - Added example: `example_counting_semaphore.dart`
@@ -5,6 +7,7 @@
 - Added method: `static Task<void> awaitFor<R>(Stream<R> stream, CancellationToken token, bool Function(R) f)`
 - Added class: `CountingSemaphore`
 - Added class: `BinarySemaphore`
+- Breaking change: The functionality of the `CancellationToken` handler has been changed. Performance and usability have been improved, and most importantly, the restriction on linking to a single task has been lifted.
 
 ## 2.0.0
 

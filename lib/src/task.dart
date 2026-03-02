@@ -245,16 +245,13 @@ final class Task<T> with _FutureMixin<T> {
   static Task<void> awaitFor<R>(
       Stream<R> stream, CancellationToken token, bool Function(R) f) {
     return Task.run(() {
-      final task = Task.current;
       final completer = Completer<void>();
 
       void onError(Object error, StackTrace stackTrace) {
-        token.removeHandler(task);
         completer.completeError(error, stackTrace);
       }
 
       void onDone() {
-        token.removeHandler(task);
         completer.complete();
       }
 
@@ -268,7 +265,7 @@ final class Task<T> with _FutureMixin<T> {
         }
       }, onDone: onDone, onError: onError, cancelOnError: true);
 
-      token.addHandler(task, (_) {
+      token.addHandler(() {
         subscription!.cancel();
         if (!completer.isCompleted) {
           completer.completeError(TaskCanceledError(), StackTrace.current);
