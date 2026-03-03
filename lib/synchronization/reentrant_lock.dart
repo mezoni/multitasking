@@ -4,7 +4,7 @@ import '../src/task/task.dart';
 import 'binary_semaphore.dart';
 import 'synchronizer.dart';
 
-class ReentrantLock<T> implements Synchronizer {
+class ReentrantLock implements Synchronizer {
   static final Future<void> _void = Future.value();
 
   int _count = 0;

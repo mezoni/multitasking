@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks with the ability to safely cancel task groups with nested tasks performing I/O wait or listen operations.
 
-Version: 2.3.0
+Version: 2.4.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -395,7 +395,7 @@ Output:
 
 ```txt
 TaskCanceledError
-Task('main()', 1): count: 377639
+Task('main()', 1): count: 267722
 
 ```
 
@@ -583,16 +583,14 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 Close client
 Close client
 Close client
 Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(0): cancelled
+No data
 ----------------------------------------
 Task(2): cancelled
 No data
@@ -1186,7 +1184,7 @@ import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/reentrant_lock.dart';
 
 Future<void> main(List<String> args) async {
-  final lock = ReentrantLock<Object>();
+  final lock = ReentrantLock();
   var count = 0;
 
   Future<void> func(int i) async {

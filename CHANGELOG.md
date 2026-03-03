@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.0
+
+- Breaking change: Removed type parameter from `ReentrantLock` class.
+
 ## 2.3.0
 
 - Added: Table of contents in file `README.md`.

@@ -2,7 +2,7 @@ import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/reentrant_lock.dart';
 
 Future<void> main(List<String> args) async {
-  final lock = ReentrantLock<Object>();
+  final lock = ReentrantLock();
   var count = 0;
 
   Future<void> func(int i) async {

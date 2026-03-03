@@ -205,7 +205,7 @@ void _testConditionVariable() {
 
 void _testReentrantLock() {
   test('ReentrantLock:', () async {
-    final m = ReentrantLock<int>();
+    final m = ReentrantLock();
     final list = <String>[];
     final tasks = <AnyTask>[];
     var counter = 0;
