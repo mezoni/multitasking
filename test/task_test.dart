@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:multitasking/multitasking.dart';
-import 'package:multitasking/src/errors.dart';
 import 'package:test/test.dart';
 
 void main() {

@@ -59,10 +59,10 @@ Future<void> main() async {
 
   for (final task in tasks) {
     print('-' * 40);
-    print('$task: ${task.state.name}');
+    print('${task.toString()}: ${task.state.name}');
     if (task.state == TaskState.completed) {
       final value = await task;
-      final text = '$value';
+      final text = value;
       final length = text.length < 80 ? text.length : 80;
       print('Data ${text.substring(0, length)}');
     } else {

@@ -83,7 +83,7 @@ class Task<T> implements Future<T> {
         final value = await _action();
         _complete(TaskState.completed, ValueResult(value));
       } catch (e, s) {
-        _complete(TaskState.completed, ErrorResult(e, s));
+        _complete(TaskState.failed, ErrorResult(e, s));
       }
     }));
   }
@@ -280,4 +280,15 @@ An example of using a binary semaphore as a locking mechanism:
 
 BEGIN_EXAMPLE
 example_binary_semaphore
+END_EXAMPLE
+
+**Condition variable.**
+
+A `ConditionVariable` is a synchronization primitive  that allows to wait for a particular condition to become true before proceeding.\
+It is always used in conjunction with a locking to safely manage access to the shared data and prevent race conditions.
+
+An example of using two condition variables in conjunction with a binary semaphore (as a synchronization mechanism).:
+
+BEGIN_EXAMPLE
+example_condition_variable
 END_EXAMPLE

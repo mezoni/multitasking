@@ -1,9 +1,8 @@
 import 'dart:async';
-import 'dart:collection';
 
 import 'package:meta/meta.dart';
 
-import '../src/time_utils.dart';
+import '../src/synchronization/wait_queue.dart';
 
 /// A [CountingSemaphore] is a synchronization primitive that maintains a
 /// counter that represents the number of available permits.
@@ -17,8 +16,6 @@ import '../src/time_utils.dart';
 /// If any caller were blocked, one is woken up to acquire permit.\
 /// Otherwise, the counter is incremented.
 class CountingSemaphore {
-  static final Future<bool> _false = Future.value(true);
-
   static final Future<bool> _true = Future.value(true);
 
   static final Future<void> _void = Future.value();
@@ -27,7 +24,7 @@ class CountingSemaphore {
 
   final int _maxCount;
 
-  final LinkedList<_Node> _queue = LinkedList();
+  final WaitQueue _queue = WaitQueue();
 
   CountingSemaphore(int initialCount, int maxCount) : _maxCount = maxCount {
     if (maxCount < 0) {
@@ -48,31 +45,14 @@ class CountingSemaphore {
       return _true;
     }
 
-    final node = _Node();
-    _queue.add(node);
-    final completer = node.completer;
-    return completer.future;
+    final waiter = _queue.enqueue();
+    return waiter as Future<void>;
   }
 
   /// Releases a permit.
   Future<void> release() {
-    int? now;
-    while (_queue.isNotEmpty) {
-      final node = _queue.first;
-      node.unlink();
-      final completer = node.completer;
-      final timer = node.timer;
-      if (timer == null) {
-        completer.complete(true);
-        return _void;
-      }
-
-      timer.cancel();
-      now ??= TimeUtils.elapsedMicroseconds;
-      final timeout = node.timeout!;
-      if (now - node.started >= timeout.inMicroseconds) {
-        completer.complete(false);
-      }
+    if (_queue.dequeue()) {
+      return _void;
     }
 
     if (_count + 1 > _maxCount) {
@@ -91,47 +71,13 @@ class CountingSemaphore {
   /// `false`.\
   /// If permit was acquired, returns `true`.
   @useResult
-  Future<bool> tryAcquire([Duration? timeout]) {
-    if (timeout != null) {
-      if (timeout.isNegative) {
-        throw ArgumentError.value(
-            timeout, 'timeout', 'Timeout must not be negative');
-      }
-    } else {
-      timeout = const Duration(seconds: 0);
-    }
-
+  Future<bool> tryAcquire(Duration timeout) {
     if (_count > 0) {
       _count--;
       return _true;
     }
 
-    if (timeout.inMicroseconds == 0) {
-      return _false;
-    }
-
-    final node = _Node();
-    _queue.add(node);
-    node.timer = Timer(timeout, () {
-      node.unlink();
-      node.timer = null;
-      node.timeout = null;
-      final completer = node.completer;
-      completer.complete(false);
-    });
-
-    node.started = TimeUtils.elapsedMicroseconds;
-    final completer = node.completer;
-    return completer.future;
+    final waiter = _queue.enqueue(timeout);
+    return waiter;
   }
-}
-
-base class _Node extends LinkedListEntry<_Node> {
-  final completer = Completer<bool>();
-
-  int started = 0;
-
-  Timer? timer;
-
-  Duration? timeout;
 }

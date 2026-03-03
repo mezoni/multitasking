@@ -83,7 +83,7 @@ class Task<T> implements Future<T> {
         final value = await _action();
         _complete(TaskState.completed, ValueResult(value));
       } catch (e, s) {
-        _complete(TaskState.completed, ErrorResult(e, s));
+        _complete(TaskState.failed, ErrorResult(e, s));
       }
     }));
   }
@@ -375,7 +375,7 @@ Output:
 
 ```txt
 TaskCanceledError
-Task('main()', 1): count: 300978
+Task('main()', 1): count: 332456
 
 ```
 
@@ -1013,5 +1013,130 @@ task 3:   acquired
 task 3: release
 task 4:   acquired
 task 4: release
+
+```
+
+**Condition variable.**
+
+A `ConditionVariable` is a synchronization primitive  that allows to wait for a particular condition to become true before proceeding.\
+It is always used in conjunction with a locking to safely manage access to the shared data and prevent race conditions.
+
+An example of using two condition variables in conjunction with a binary semaphore (as a synchronization mechanism).:
+
+[example/example_condition_variable.dart](https://github.com/mezoni/multitasking/blob/main/example/example_condition_variable.dart)
+
+```dart
+import 'dart:collection';
+
+import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/synchronization/binary_semaphore.dart';
+import 'package:multitasking/synchronization/condition_variable.dart';
+
+Future<void> main(List<String> args) async {
+  final lock = BinarySemaphore();
+  final notEmpty = ConditionVariable(lock);
+  final notFull = ConditionVariable(lock);
+  const capacity = 4;
+  final products = Queue<int>();
+  var productId = 0;
+  var produced = 0;
+  var consumed = 0;
+  const count = 2;
+
+  final producer = Task.run(name: 'producer', () async {
+    for (var i = 0; i < count; i++) {
+      await Future<void>.delayed(Duration(milliseconds: 100));
+      final product = productId++;
+      produced++;
+      _message('produced: $product');
+      _message('lock.acquire()');
+      await lock.acquire();
+      _message('lock.acquired)');
+      try {
+        while (products.length == capacity) {
+          _message('notFull.wait()');
+          await notFull.wait();
+        }
+
+        _message('added product: $product');
+        products.add(product);
+        _message('notEmpty.notifyAll()');
+        await notEmpty.notifyAll();
+      } finally {
+        await lock.release();
+        _message('lock.release()');
+      }
+    }
+  });
+
+  final consumer = Task.run(name: 'consumer', () async {
+    for (var i = 0; i < count; i++) {
+      int? product;
+      _message('lock.acquire()');
+      await lock.acquire();
+      _message('lock.acquired');
+      try {
+        while (products.isEmpty) {
+          _message('notEmpty.wait()');
+          await notEmpty.wait();
+        }
+
+        product = products.removeFirst();
+        _message('remove product: $product');
+        _message('notFull.notifyAll()');
+        await notFull.notifyAll();
+      } finally {
+        _message('lock.release()');
+        await lock.release();
+      }
+
+      await Future<void>.delayed(Duration(milliseconds: 100));
+      _message('consumed product: $product');
+      consumed++;
+    }
+  });
+
+  await Task.waitAll([consumer, producer]);
+
+  _message('produced: $produced');
+  _message('consumed: $consumed');
+}
+
+void _message(String text) {
+  print('${Task.current}: $text');
+}
+
+```
+
+Output:
+
+```txt
+Task('consumer', 2): lock.acquire()
+Task('consumer', 2): lock.acquired
+Task('consumer', 2): notEmpty.wait()
+Task('producer', 0): produced: 0
+Task('producer', 0): lock.acquire()
+Task('producer', 0): lock.acquired)
+Task('producer', 0): added product: 0
+Task('producer', 0): notEmpty.notifyAll()
+Task('consumer', 2): remove product: 0
+Task('consumer', 2): notFull.notifyAll()
+Task('producer', 0): lock.release()
+Task('consumer', 2): lock.release()
+Task('producer', 0): produced: 1
+Task('producer', 0): lock.acquire()
+Task('producer', 0): lock.acquired)
+Task('producer', 0): added product: 1
+Task('producer', 0): notEmpty.notifyAll()
+Task('producer', 0): lock.release()
+Task('consumer', 2): consumed product: 0
+Task('consumer', 2): lock.acquire()
+Task('consumer', 2): lock.acquired
+Task('consumer', 2): remove product: 1
+Task('consumer', 2): notFull.notifyAll()
+Task('consumer', 2): lock.release()
+Task('consumer', 2): consumed product: 1
+Task('main()', 1): produced: 2
+Task('main()', 1): consumed: 2
 
 ```
