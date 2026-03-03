@@ -1,75 +1,16 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/binary_semaphore.dart';
 import 'package:multitasking/synchronization/condition_variable.dart';
+import 'package:multitasking/synchronization/reentrant_lock.dart';
 import 'package:test/test.dart';
 
 void main() {
+  _testReentrantLock();
   _testBinarySemaphore();
   _testConditionVariable();
-}
-
-void _testConditionVariable() {
-  test('ConditionVariable', () async {
-    final lock = BinarySemaphore();
-    final notEmpty = ConditionVariable(lock);
-    final notFull = ConditionVariable(lock);
-    const capacity = 4;
-    final products = Queue<int>();
-    var productId = 0;
-    var produced = 0;
-    var consumed = 0;
-
-    Future<void> produce() async {
-      await Future<void>.delayed(Duration(milliseconds: 100));
-      final product = productId++;
-      produced++;
-
-      await lock.acquire();
-      try {
-        while (products.length == capacity) {
-          await notFull.wait();
-        }
-
-        products.add(product);
-        await notEmpty.notifyAll();
-      } finally {
-        await lock.release();
-      }
-    }
-
-    Future<void> consume() async {
-      // ignore: unused_local_variable
-      int? product;
-      await lock.acquire();
-      try {
-        while (products.isEmpty) {
-          await notEmpty.wait();
-        }
-
-        product = products.removeFirst();
-        await notFull.notifyAll();
-      } finally {
-        await lock.release();
-      }
-
-      await Future<void>.delayed(Duration(milliseconds: 100));
-      consumed++;
-    }
-
-    final futures = <Future<void>>[];
-
-    for (var i = 0; i < 5; i++) {
-      futures.add(consume());
-      futures.add(produce());
-    }
-
-    await Future.wait(futures);
-    expect(products.isEmpty, true, reason: 'products.isNotEmpty');
-    expect(produced, 5, reason: 'produced != 5');
-    expect(consumed, 5, reason: 'consumed != 5');
-  });
 }
 
 Future<void> _delay(int ms) {
@@ -197,5 +138,100 @@ void _testBinarySemaphore() {
     expect(max, 1, reason: 'max != 1');
     expect(total, futures.length ~/ 2,
         reason: 'total != ${futures.length ~/ 2}');
+  });
+}
+
+void _testConditionVariable() {
+  test('ConditionVariable', () async {
+    final lock = BinarySemaphore();
+    final notEmpty = ConditionVariable(lock);
+    final notFull = ConditionVariable(lock);
+    const capacity = 4;
+    final products = Queue<int>();
+    var productId = 0;
+    var produced = 0;
+    var consumed = 0;
+
+    Future<void> produce() async {
+      await Future<void>.delayed(Duration(milliseconds: 100));
+      final product = productId++;
+      produced++;
+
+      await lock.acquire();
+      try {
+        while (products.length == capacity) {
+          await notFull.wait();
+        }
+
+        products.add(product);
+        await notEmpty.notifyAll();
+      } finally {
+        await lock.release();
+      }
+    }
+
+    Future<void> consume() async {
+      // ignore: unused_local_variable
+      int? product;
+      await lock.acquire();
+      try {
+        while (products.isEmpty) {
+          await notEmpty.wait();
+        }
+
+        product = products.removeFirst();
+        await notFull.notifyAll();
+      } finally {
+        await lock.release();
+      }
+
+      await Future<void>.delayed(Duration(milliseconds: 100));
+      consumed++;
+    }
+
+    final futures = <Future<void>>[];
+
+    for (var i = 0; i < 5; i++) {
+      futures.add(consume());
+      futures.add(produce());
+    }
+
+    await Future.wait(futures);
+    expect(products.isEmpty, true, reason: 'products.isNotEmpty');
+    expect(produced, 5, reason: 'produced != 5');
+    expect(consumed, 5, reason: 'consumed != 5');
+  });
+}
+
+void _testReentrantLock() {
+  test('ReentrantLock:', () async {
+    final m = ReentrantLock<int>();
+    final list = <String>[];
+    final tasks = <AnyTask>[];
+    var counter = 0;
+
+    Future<void> f(int i) async {
+      await m.acquire();
+      try {
+        await Future<void>.delayed(Duration(milliseconds: 50));
+        counter++;
+        list.add('${Task.current.name}$counter');
+        if (i + 1 < 3) {
+          await f(i + 1);
+        }
+      } finally {
+        await m.release();
+      }
+    }
+
+    for (var i = 0; i < 3; i++) {
+      final t = Task.run(name: '$i', () => f(0));
+      tasks.add(t);
+    }
+
+    await Task.waitAll(tasks);
+
+    expect(list, ['01', '02', '03', '14', '15', '16', '27', '28', '29'],
+        reason: 'mutex does not works');
   });
 }

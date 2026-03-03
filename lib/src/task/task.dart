@@ -41,7 +41,7 @@ typedef AnyTask = Task<Object?>;
 ///
 /// It all comes down to the fact that when accessing the [future] field of a task, an instance of the [Future] object is created and at that moment its life cycle begins.
 final class Task<T> with _FutureMixin<T> {
-  static const Duration _zeroDuration = Duration(seconds: 0);
+  static const Duration _zeroDuration = Duration();
 
   static final Zone _onExitZone = _createOnExitZone();
 

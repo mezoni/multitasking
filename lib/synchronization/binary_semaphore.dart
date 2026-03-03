@@ -7,13 +7,6 @@ import 'synchronizer.dart';
 
 /// A [BinarySemaphore] is a synchronization primitive with an integer value
 /// restricted to 0 or 1, representing locked (0) or unlocked (1) states.
-///
-/// Unlike a mutex, a semaphore is a counting-based synchronizer.\
-/// If a semaphore is locked, it will be locked even for the current task.
-///
-/// If a mutex is locked by a task, it will not block this task. It will
-/// count the number of times it is entered and leaved by task before
-/// releasing.
 class BinarySemaphore implements Synchronizer {
   final CountingSemaphore _lock = CountingSemaphore(0, 1);
 

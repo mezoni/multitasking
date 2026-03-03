@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 
 import '../src/synchronization/wait_queue.dart';
-import 'synchronizer.dart';
+import 'binary_semaphore.dart';
 
 /// A [ConditionVariable] is a synchronization primitive  that allows to wait
 /// for a particular condition to become `true` before proceeding.\
@@ -12,11 +12,11 @@ import 'synchronizer.dart';
 class ConditionVariable {
   static final Future<void> _void = Future.value();
 
-  final Synchronizer _lock;
+  final BinarySemaphore lock;
 
   final WaitQueue _queue = WaitQueue();
 
-  ConditionVariable(Synchronizer lock) : _lock = lock;
+  ConditionVariable(this.lock);
 
   Future<void> notify() {
     _queue.dequeue();
@@ -31,16 +31,16 @@ class ConditionVariable {
   @useResult
   Future<bool> tryWait(Duration timeout) async {
     final waiter = _queue.enqueue(timeout);
-    await _lock.release();
+    await lock.release();
     final result = await waiter;
-    await _lock.acquire();
+    await lock.acquire();
     return result;
   }
 
   Future<void> wait() async {
     final waiter = _queue.enqueue();
-    await _lock.release();
+    await lock.release();
     await waiter;
-    return _lock.acquire();
+    return lock.acquire();
   }
 }

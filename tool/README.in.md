@@ -27,6 +27,7 @@ Version: 2.3.0
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
     - [Condition variable](#condition-variable)
+    - [Reentrant lock](#reentrant-lock)
 
 ## About this software
 
@@ -53,7 +54,7 @@ To simplify working with the task, it itself is an instance of an object that im
 In this case, the task does not replace `Future<T>` (doesn't reinvent the wheel), it uses the standard `Completer<T>` and its field `future`.  
 
 Thus, a `Task<T>` is an object that implements the `Future<T>`  interface by using `Completer<T>`.  
-This task only adds the ability (to `Future<T>`) to start its execution on command and track the completion statue of the action.
+This task only adds the ability (to `Future<T>`) to start its execution on command and track the completion state of the action.
 
 Very simplified `Task` code:
 
@@ -310,4 +311,10 @@ An example of using two condition variables in conjunction with a binary semapho
 
 BEGIN_EXAMPLE
 example_condition_variable
+END_EXAMPLE
+
+### Reentrant lock
+
+BEGIN_EXAMPLE
+example_reentrant_lock
 END_EXAMPLE

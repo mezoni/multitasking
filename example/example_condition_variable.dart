@@ -13,11 +13,11 @@ Future<void> main(List<String> args) async {
   var productId = 0;
   var produced = 0;
   var consumed = 0;
-  const count = 2;
+  const count = 3;
 
   final producer = Task.run(name: 'producer', () async {
     for (var i = 0; i < count; i++) {
-      await Future<void>.delayed(Duration(milliseconds: 100));
+      await Future<void>.delayed(Duration(milliseconds: 50));
       final product = productId++;
       produced++;
       _message('produced: $product');
@@ -32,6 +32,7 @@ Future<void> main(List<String> args) async {
 
         _message('added product: $product');
         products.add(product);
+        _message('products: $products');
         _message('notEmpty.notifyAll()');
         await notEmpty.notifyAll();
       } finally {
@@ -54,7 +55,8 @@ Future<void> main(List<String> args) async {
         }
 
         product = products.removeFirst();
-        _message('remove product: $product');
+        _message('removed product: $product');
+        _message('products: $products');
         _message('notFull.notifyAll()');
         await notFull.notifyAll();
       } finally {
@@ -62,7 +64,7 @@ Future<void> main(List<String> args) async {
         await lock.release();
       }
 
-      await Future<void>.delayed(Duration(milliseconds: 100));
+      await Future<void>.delayed(Duration(milliseconds: 200));
       _message('consumed product: $product');
       consumed++;
     }

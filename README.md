@@ -27,6 +27,7 @@ Version: 2.3.0
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
     - [Condition variable](#condition-variable)
+    - [Reentrant lock](#reentrant-lock)
 
 ## About this software
 
@@ -53,7 +54,7 @@ To simplify working with the task, it itself is an instance of an object that im
 In this case, the task does not replace `Future<T>` (doesn't reinvent the wheel), it uses the standard `Completer<T>` and its field `future`.  
 
 Thus, a `Task<T>` is an object that implements the `Future<T>`  interface by using `Completer<T>`.  
-This task only adds the ability (to `Future<T>`) to start its execution on command and track the completion statue of the action.
+This task only adds the ability (to `Future<T>`) to start its execution on command and track the completion state of the action.
 
 Very simplified `Task` code:
 
@@ -394,7 +395,7 @@ Output:
 
 ```txt
 TaskCanceledError
-Task('main()', 1): count: 274337
+Task('main()', 1): count: 377639
 
 ```
 
@@ -584,11 +585,10 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
 Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Close client
 Close client
 Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
 Task(0): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
@@ -597,9 +597,8 @@ Data <?xml version="1.0" encoding="UTF-8"?>
 Task(2): cancelled
 No data
 ----------------------------------------
-Task(3): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(3): cancelled
+No data
 ----------------------------------------
 Task(4): cancelled
 No data
@@ -1058,11 +1057,11 @@ Future<void> main(List<String> args) async {
   var productId = 0;
   var produced = 0;
   var consumed = 0;
-  const count = 2;
+  const count = 3;
 
   final producer = Task.run(name: 'producer', () async {
     for (var i = 0; i < count; i++) {
-      await Future<void>.delayed(Duration(milliseconds: 100));
+      await Future<void>.delayed(Duration(milliseconds: 50));
       final product = productId++;
       produced++;
       _message('produced: $product');
@@ -1077,6 +1076,7 @@ Future<void> main(List<String> args) async {
 
         _message('added product: $product');
         products.add(product);
+        _message('products: $products');
         _message('notEmpty.notifyAll()');
         await notEmpty.notifyAll();
       } finally {
@@ -1099,7 +1099,8 @@ Future<void> main(List<String> args) async {
         }
 
         product = products.removeFirst();
-        _message('remove product: $product');
+        _message('removed product: $product');
+        _message('products: $products');
         _message('notFull.notifyAll()');
         await notFull.notifyAll();
       } finally {
@@ -1107,7 +1108,7 @@ Future<void> main(List<String> args) async {
         await lock.release();
       }
 
-      await Future<void>.delayed(Duration(milliseconds: 100));
+      await Future<void>.delayed(Duration(milliseconds: 200));
       _message('consumed product: $product');
       consumed++;
     }
@@ -1135,25 +1136,99 @@ Task('producer', 0): produced: 0
 Task('producer', 0): lock.acquire()
 Task('producer', 0): lock.acquired)
 Task('producer', 0): added product: 0
+Task('producer', 0): products: {0}
 Task('producer', 0): notEmpty.notifyAll()
 Task('producer', 0): lock.release()
-Task('consumer', 2): remove product: 0
+Task('consumer', 2): removed product: 0
+Task('consumer', 2): products: {}
 Task('consumer', 2): notFull.notifyAll()
 Task('consumer', 2): lock.release()
 Task('producer', 0): produced: 1
 Task('producer', 0): lock.acquire()
 Task('producer', 0): lock.acquired)
 Task('producer', 0): added product: 1
+Task('producer', 0): products: {1}
+Task('producer', 0): notEmpty.notifyAll()
+Task('producer', 0): lock.release()
+Task('producer', 0): produced: 2
+Task('producer', 0): lock.acquire()
+Task('producer', 0): lock.acquired)
+Task('producer', 0): added product: 2
+Task('producer', 0): products: {1, 2}
 Task('producer', 0): notEmpty.notifyAll()
 Task('producer', 0): lock.release()
 Task('consumer', 2): consumed product: 0
 Task('consumer', 2): lock.acquire()
 Task('consumer', 2): lock.acquired
-Task('consumer', 2): remove product: 1
+Task('consumer', 2): removed product: 1
+Task('consumer', 2): products: {2}
 Task('consumer', 2): notFull.notifyAll()
 Task('consumer', 2): lock.release()
 Task('consumer', 2): consumed product: 1
-Task('main()', 1): produced: 2
-Task('main()', 1): consumed: 2
+Task('consumer', 2): lock.acquire()
+Task('consumer', 2): lock.acquired
+Task('consumer', 2): removed product: 2
+Task('consumer', 2): products: {}
+Task('consumer', 2): notFull.notifyAll()
+Task('consumer', 2): lock.release()
+Task('consumer', 2): consumed product: 2
+Task('main()', 1): produced: 3
+Task('main()', 1): consumed: 3
+
+```
+
+### Reentrant lock
+
+[example/example_reentrant_lock.dart](https://github.com/mezoni/multitasking/blob/main/example/example_reentrant_lock.dart)
+
+```dart
+import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/synchronization/reentrant_lock.dart';
+
+Future<void> main(List<String> args) async {
+  final lock = ReentrantLock<Object>();
+  var count = 0;
+
+  Future<void> func(int i) async {
+    await lock.acquire();
+    try {
+      await Future<void>.delayed(Duration(milliseconds: 50));
+      count++;
+      _message('Increment counter: $count');
+      if (i + 1 < 3) {
+        await func(i + 1);
+      }
+    } finally {
+      await lock.release();
+    }
+  }
+
+  final tasks = <AnyTask>[];
+  for (var i = 0; i < 3; i++) {
+    final t = Task.run(() => func(0));
+    tasks.add(t);
+  }
+
+  await Task.waitAll(tasks);
+}
+
+void _message(String text) {
+  print('${Task.current}: $text');
+}
+
+```
+
+Output:
+
+```txt
+Task(0): Increment counter: 1
+Task(0): Increment counter: 2
+Task(0): Increment counter: 3
+Task(2): Increment counter: 4
+Task(2): Increment counter: 5
+Task(2): Increment counter: 6
+Task(3): Increment counter: 7
+Task(3): Increment counter: 8
+Task(3): Increment counter: 9
 
 ```

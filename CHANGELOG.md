@@ -3,6 +3,8 @@
 ## 2.3.0
 
 - Added: Table of contents in file `README.md`.
+- Added class: `ReentrantLock`.
+- Added example: example_reentrant_lock.dart
 
 ## 2.2.0
 

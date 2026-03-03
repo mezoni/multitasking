@@ -21,6 +21,12 @@
             "program": "test/test2.dart",
             "request": "launch",
             "type": "dart"
+        },
+        {
+            "name": "Dart (tool/build_readme.dart)",
+            "type": "dart",
+            "request": "launch",
+            "program": "tool/build_readme.dart"
         }
     ]
 }
