@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks.
 
-Version: 2.1.0
+Version: 2.2.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -18,8 +18,29 @@ The tasks is implemented using the following standard core classes:
 
 - [Zone](https://api.dart.dev/dart-async/Zone-class.html)
 - [Zone specification](https://api.dart.dev/dart-async/ZoneSpecification-class.html)
+- [Completer](https://api.dart.dev/dart-async/Completer-class.html)
 - [Future](https://api.dart.dev/dart-async/Future-class.html)
 - [Finalizer](https://api.dart.dev/dart-core/Finalizer-class.html)
+
+Are the tasks safe and reliable?  
+Yes, because the tasks have a very simple construction and operating mechanism.  
+In a few words, the task life cycle can be described as follows:
+
+- A task is created with an action in the form of a function that must be executed
+- The initial state of a task is the state in which the action has not yet started to execute
+- After receiving a command to start executing an action, the task waits for the action  (`function`) to complete its execution
+- After completing this `function`, the task (using `Completer<T>`) puts itself into one of the states indicating the completion of the task
+- After this, the task result (or error) becomes available through a variable `future` with the value type `Future`
+
+To simplify working with the task, it itself is an instance of an object that implements the `Future` interface.  
+In this case, the task does not replace `Future<T>` (doesn't reinvent the wheel), it uses the standard `Completer<T>` and its field `future`.  
+
+Thus, a `Task<T>` is an object that implements the `Future<T>`  interface by using `Completer<T>`.  
+This task only adds the ability (to `Future<T>`) to start its execution on command and track the completion statue of the action.
+
+The main purpose of tasks is to conveniently manage a large number of asynchronous tasks with nested subtasks running simultaneously and cooperatively, with the ability to perform their soft, controlled, and broadly functional stop (cancellation), and the ability to write a task destructor in the body of the task itself.  
+In this way, a request to cancel tasks (and all nested subtasks and all internal critically important operations) can be handled in such a way that everything happens harmoniously and completely safely.  
+A cancellation request is made using a special token. A task cancellation token can be used synchronously (blocking) or asynchronously (via a subscription, which attaches a handler only for the duration of a critical and potentially very long operation).
 
 ## Practical use
 

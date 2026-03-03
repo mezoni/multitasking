@@ -213,6 +213,10 @@ final class Task<T> with _FutureMixin<T> {
 
     _isCompleted = true;
     _state = state;
+    if (result is ErrorResult) {
+      _exception = result;
+    }
+
     _onExitZone.runGuarded(() async {
       try {
         final onExit = _onExit;
@@ -220,10 +224,6 @@ final class Task<T> with _FutureMixin<T> {
           await onExit(this);
         }
       } finally {
-        if (result is ErrorResult) {
-          _exception = result;
-        }
-
         _taskCompleter.complete(result);
         if (result is ErrorResult) {
           _finalizer.attach(this, result.asError, detach: this);
