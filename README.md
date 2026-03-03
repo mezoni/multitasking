@@ -2,14 +2,31 @@
 
 Cooperative multitasking using asynchronous tasks with the ability to safely cancel task groups with nested tasks performing I/O wait or listen operations.
 
-Version: 2.2.0
+Version: 2.3.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
 [![GitHub Issues](https://img.shields.io/github/issues/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/issues)
 [![GitHub Forks](https://img.shields.io/github/forks/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/forks)
-[![GitHub Stars](https://img.shields.io/github/stars/mezoni/v.svg)](https://github.com/mezoni/multitasking/stargazers)
+[![GitHub Stars](https://img.shields.io/github/stars/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/stargazers)
 [![GitHub License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://raw.githubusercontent.com/mezoni/multitasking/main/LICENSE)
+
+- [Multitasking](#multitasking)
+  - [About this software](#about-this-software)
+  - [Practical use](#practical-use)
+    - [The task does not begin executing the computation immediately after it is created](#the-task-does-not-begin-executing-the-computation-immediately-after-it-is-created)
+    - [In case of completion with an exception, the task does not propagate this exception to the unhandled exception handler immediately](#in-case-of-completion-with-an-exception-the-task-does-not-propagate-this-exception-to-the-unhandled-exception-handler-immediately)
+  - [Examples of the main features of the `Task`](#examples-of-the-main-features-of-the-task)
+    - [The task do not throw exceptions at the completion point in case of unsuccessful completion](#the-task-do-not-throw-exceptions-at-the-completion-point-in-case-of-unsuccessful-completion)
+    - [For the current task, it is possible to specify the `onExit` handler inside the task body](#for-the-current-task-it-is-possible-to-specify-the-onexit-handler-inside-the-task-body)
+    - [The name of the task can be specified](#the-name-of-the-task-can-be-specified)
+    - [The task can be cancelled using a cancellation token](#the-task-can-be-cancelled-using-a-cancellation-token)
+    - [The task can be cancelled during `Task.sleep()`](#the-task-can-be-cancelled-during-tasksleep)
+    - [The task can be cancelled as a group of tasks](#the-task-can-be-cancelled-as-a-group-of-tasks)
+  - [Synchronization primitives](#synchronization-primitives)
+    - [Counting semaphore](#counting-semaphore)
+    - [Binary semaphore](#binary-semaphore)
+    - [Condition variable](#condition-variable)
 
 ## About this software
 
@@ -96,7 +113,7 @@ class Task<T> implements Future<T> {
 
   void _complete(TaskState state, Result<T> result) {
     // Invoke destructor
-    // Set task state and and complete `_taskCompleter_`
+    // Set task state and and complete `_taskCompleter`
   }
 }
 ```
@@ -117,11 +134,13 @@ The result of a task execution is the result of computing the value of the task 
 The task itself is an object of [Future] that wraps the result of the computation.\
 The main difference between the task and the [Future] is as follows:
 
-**The task does not begin executing the computation immediately after it is created**.\
+### The task does not begin executing the computation immediately after it is created
+
 The task supports delayed start. Or it may never even be started.\
 After the computation is completed, the task captures the result of the computation.
 
-**In case of completion with an exception, the task does not propagate this exception to the unhandled exception handler immediately.**\
+### In case of completion with an exception, the task does not propagate this exception to the unhandled exception handler immediately
+
 This unobserved exception is stored in the relevant task object instance until the task is aware that an exception has been observed.\
 If the task isn not aware that an exception was observed, this exception will be propagated in the task finalizer ([Finalizer]).\
 If the finalizer is not executed by runtime (due to Dart SDK limitations), the exception will remain unobserved.\
@@ -146,7 +165,7 @@ Task have features that extend, complement, or modify the functionality of futur
 
 Remark: All examples below were run during the creation of this document and contain actual output to the standard output streams (stdout and stderr).
 
-**The task do not throw exceptions at the completion point in case of unsuccessful completion.**
+### The task do not throw exceptions at the completion point in case of unsuccessful completion
 
 Example with `Future`:
 
@@ -228,7 +247,7 @@ The task will not throw an exception until the executing code accesses the `futu
 If the executing code do not access the `future` field and there are no references to the task object instance, an exception will be thrown during garbage collection when the task is finalized.  
 Or it will never be thrown if the task finalization will not be performed (e.g. when the application terminates its work).
 
-**For the current task, it is possible to specify the `onExit` handler inside the task body.**
+### For the current task, it is possible to specify the `onExit` handler inside the task body
 
 The `OnExit` handler can be used to ensure the execution of some logical actions.
 
@@ -281,7 +300,7 @@ Error
 
 ```
 
-**The name of the task can be specified.**
+### The name of the task can be specified
 
 Example of using a task with the name:
 
@@ -310,7 +329,7 @@ my task
 
 ```
 
-**The task can be cancelled using a cancellation token.**
+### The task can be cancelled using a cancellation token
 
 Canceling a task is a normal action that is supported by the implementation of the mechanism of task functioning.  
 Canceling a task is safe for the task and the runtime. But that does not  mean it is safe for the application.  
@@ -329,7 +348,7 @@ if (token.isCancelled) {
 }
 ```
 
-**The task can be cancelled during `Task.sleep()`.**
+### The task can be cancelled during `Task.sleep()`
 
 All that is required for this is to pass the token as an argument to method `Task.sleep()`.
 
@@ -375,7 +394,7 @@ Output:
 
 ```txt
 TaskCanceledError
-Task('main()', 1): count: 332456
+Task('main()', 1): count: 274337
 
 ```
 
@@ -384,7 +403,7 @@ The terms `parent task` and `child task` are rather arbitrary, since there is no
 They are used to simplify the logical understanding of the interaction of tasks.  
 The interaction logic is completely determined by the developer.
 
-**The task can be cancelled as a group of tasks.**
+### The task can be cancelled as a group of tasks
 
 Example of cancelled a group of tasks in case of any failure in any task.  
 
@@ -540,10 +559,10 @@ Future<void> main() async {
 
   for (final task in tasks) {
     print('-' * 40);
-    print('$task: ${task.state.name}');
+    print('${task.toString()}: ${task.state.name}');
     if (task.state == TaskState.completed) {
       final value = await task;
-      final text = '$value';
+      final text = value;
       final length = text.length < 80 ? text.length : 80;
       print('Data ${text.substring(0, length)}');
     } else {
@@ -567,18 +586,16 @@ Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 Close client
 Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Close client
 Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
 Task(0): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
-Task(2): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(2): cancelled
+No data
 ----------------------------------------
 Task(3): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
@@ -810,7 +827,7 @@ Stopping the controller
 Synchronization primitives are mechanisms that synchronize the execution of multiple operations by locking their execution and putting them into a waiting state.  
 In essence, these mechanisms imply either waiting for acquire the permit, followed by release this permit, or waiting for a signal without acquiring the permit. Or even waiting for a signal followed by acquiring the permit.
 
-**Counting semaphore.**
+### Counting semaphore
 
 A counting semaphore is a synchronization primitive that maintains a counter that represents the number of available permits.  
 Acquire:  
@@ -942,7 +959,7 @@ task 6: release
 
 ```
 
-**Binary semaphore.**
+### Binary semaphore
 
 A [BinarySemaphore] is a synchronization primitive with an integer value restricted to 0 or 1, representing locked (0) or unlocked (1) states.
 
@@ -1016,12 +1033,12 @@ task 4: release
 
 ```
 
-**Condition variable.**
+### Condition variable
 
-A `ConditionVariable` is a synchronization primitive  that allows to wait for a particular condition to become true before proceeding.\
+A `ConditionVariable` is a synchronization primitive  that allows to wait for a particular condition to become `true` before proceeding.\
 It is always used in conjunction with a locking to safely manage access to the shared data and prevent race conditions.
 
-An example of using two condition variables in conjunction with a binary semaphore (as a synchronization mechanism).:
+An example of using two condition variables in conjunction with a binary semaphore (as a synchronization mechanism):
 
 [example/example_condition_variable.dart](https://github.com/mezoni/multitasking/blob/main/example/example_condition_variable.dart)
 
@@ -1063,8 +1080,8 @@ Future<void> main(List<String> args) async {
         _message('notEmpty.notifyAll()');
         await notEmpty.notifyAll();
       } finally {
-        await lock.release();
         _message('lock.release()');
+        await lock.release();
       }
     }
   });
@@ -1119,9 +1136,9 @@ Task('producer', 0): lock.acquire()
 Task('producer', 0): lock.acquired)
 Task('producer', 0): added product: 0
 Task('producer', 0): notEmpty.notifyAll()
+Task('producer', 0): lock.release()
 Task('consumer', 2): remove product: 0
 Task('consumer', 2): notFull.notifyAll()
-Task('producer', 0): lock.release()
 Task('consumer', 2): lock.release()
 Task('producer', 0): produced: 1
 Task('producer', 0): lock.acquire()

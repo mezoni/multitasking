@@ -6,7 +6,7 @@ import '../src/synchronization/wait_queue.dart';
 import 'synchronizer.dart';
 
 /// A [ConditionVariable] is a synchronization primitive  that allows to wait
-/// for a particular condition to become true before proceeding.\
+/// for a particular condition to become `true` before proceeding.\
 /// It is always used in conjunction with a locking to safely manage access to
 /// the shared data and prevent race conditions.
 class ConditionVariable {

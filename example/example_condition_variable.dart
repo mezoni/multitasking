@@ -35,8 +35,8 @@ Future<void> main(List<String> args) async {
         _message('notEmpty.notifyAll()');
         await notEmpty.notifyAll();
       } finally {
-        await lock.release();
         _message('lock.release()');
+        await lock.release();
       }
     }
   });

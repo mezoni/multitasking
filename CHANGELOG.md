@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.0
+
+- Added: Table of contents in file `README.md`.
+
 ## 2.2.0
 
 - Added an explanation of the operating principle and internal structure of the task.
