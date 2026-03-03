@@ -38,6 +38,69 @@ In this case, the task does not replace `Future<T>` (doesn't reinvent the wheel)
 Thus, a `Task<T>` is an object that implements the `Future<T>`  interface by using `Completer<T>`.  
 This task only adds the ability (to `Future<T>`) to start its execution on command and track the completion statue of the action.
 
+Very simplified `Task` code:
+
+```dart
+class Task<T> implements Future<T> {
+  final FutureOr<T> Function() _action;
+
+  final Completer<Result<T>> _taskCompleter = Completer();
+
+  Future<T>? _future;
+
+  Task(this._action);
+
+  Future<T> get future async {
+    if (_future != null) {
+      return _future as Future<T>;
+    }
+
+    if (_state == TaskState.created) {
+      throw StateError('Task has not yet been started: ${toString()}');
+    }
+
+    final result = await _taskCompleter.future;
+    if (result.isValue) {
+      final valueResult = result.asValue!;
+      final value = valueResult.value;
+      final future = Future.value(value);
+      _future = future;
+      return future;
+    } else {
+      final errorResult = result.asError!;
+      _finalizer.detach(this);
+      final error = errorResult.error;
+      final stackTrace = errorResult.stackTrace;
+      final future = Future<T>.error(error, stackTrace);
+      _future = future;
+      return future;
+    }
+  }
+
+  Future<void> start() async {
+    unawaited(runZoned(() async {
+      try {
+        final value = await _action();
+        _complete(TaskState.completed, ValueResult(value));
+      } catch (e, s) {
+        _complete(TaskState.completed, ErrorResult(e, s));
+      }
+    }));
+  }
+
+  @override
+  Future<R> then<R>(FutureOr<R> Function(T value) onValue,
+      {Function? onError}) {
+    return future.then(onValue, onError: onError);
+  }
+
+  void _complete(TaskState state, Result<T> result) {
+    // Invoke destructor
+    // Set task state and and complete `_taskCompleter_`
+  }
+}
+```
+
 The main purpose of tasks is to conveniently manage a large number of asynchronous tasks with nested subtasks running simultaneously and cooperatively, with the ability to perform their soft, controlled, and broadly functional stop (cancellation), and the ability to write a task destructor in the body of the task itself.  
 In this way, a request to cancel tasks (and all nested subtasks and all internal critically important operations) can be handled in such a way that everything happens harmoniously and completely safely.  
 A cancellation request is made using a special token. A task cancellation token can be used synchronously (blocking) or asynchronously (via a subscription, which attaches a handler only for the duration of a critical and potentially very long operation).
@@ -312,7 +375,7 @@ Output:
 
 ```txt
 TaskCanceledError
-Task('main()', 1): count: 344386
+Task('main()', 1): count: 300978
 
 ```
 
@@ -500,22 +563,26 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Close client
 Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Close client
 Close client
-Close client
-Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): cancelled
-No data
+Task(0): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(2): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
-Task(3): cancelled
-No data
+Task(3): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(4): cancelled
 No data
