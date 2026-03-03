@@ -3,6 +3,7 @@
 ## 2.2.0
 
 - Added an explanation of the operating principle and internal structure of the task.
+- Changed package description.
 
 ## 2.1.0
 

@@ -1,6 +1,6 @@
 # Multitasking
 
-Cooperative multitasking using asynchronous tasks.
+Cooperative multitasking using asynchronous tasks with the ability to safely cancel task groups with nested tasks performing I/O wait or listen operations.
 
 Version: 2.2.0
 
@@ -13,7 +13,7 @@ Version: 2.2.0
 
 ## About this software
 
-Cooperative multitasking using asynchronous tasks.  
+Cooperative multitasking using asynchronous tasks with the ability to safely cancel task groups with nested tasks performing I/O wait or listen operations.  
 The tasks is implemented using the following standard core classes:  
 
 - [Zone](https://api.dart.dev/dart-async/Zone-class.html)
@@ -312,7 +312,7 @@ Output:
 
 ```txt
 TaskCanceledError
-Task('main()', 1): count: 325785
+Task('main()', 1): count: 344386
 
 ```
 
@@ -500,17 +500,15 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
-Close client
 Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Close client
 Close client
 Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
+Close client
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(0): cancelled
+No data
 ----------------------------------------
 Task(2): completed
 Data <?xml version="1.0" encoding="UTF-8"?>

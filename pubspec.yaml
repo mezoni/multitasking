@@ -1,7 +1,13 @@
 name: multitasking
 version: 2.1.0
-description: Cooperative multitasking using asynchronous tasks.
+description: Cooperative multitasking using asynchronous tasks with the ability to safely cancel task groups with nested tasks performing I/O wait or listen operations.
 homepage: https://github.com/mezoni/multitasking
+topics:
+ - cooperative-multitasking
+ - asynchronous-programming
+ - concurrency
+ - cancellation
+ - async
 environment:
   sdk: '>=3.0.0 <4.0.0'
 dependencies:
