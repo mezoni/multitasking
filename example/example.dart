@@ -1,1 +1,75 @@
+import 'dart:async';
 
+import 'package:http/http.dart' as http;
+import 'package:multitasking/extra/for_each.dart';
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  final cts = CancellationTokenSource();
+  final token = cts.token;
+  final list = [
+    (
+      '3.11.1',
+      'https://storage.googleapis.com/dart-archive/channels/stable/release/3.11.1/sdk/dartsdk-windows-x64-release.zip'
+    ),
+    (
+      '3.10.9',
+      'https://storage.googleapis.com/dart-archive/channels/stable/release/3.10.9/sdk/dartsdk-windows-x64-release.zip'
+    )
+  ];
+
+  final tasks = <AnyTask>[];
+  for (final element in list) {
+    final url = Uri.parse(element.$2);
+    final filename = element.$1;
+    final task = _download(url, filename, token);
+    tasks.add(task);
+  }
+
+  // User request to cancel
+  Timer(Duration(seconds: 2), cts.cancel);
+
+  try {
+    await Task.waitAll(tasks);
+  } catch (e) {
+    print('$e');
+  }
+
+  for (final task in tasks) {
+    if (task.state == TaskState.completed) {
+      final filename = await task;
+      print('Done: $filename');
+    }
+  }
+}
+
+Task<String> _download(Uri url, String filename, CancellationToken token) {
+  return Task.run(() async {
+    final bytes = <int>[];
+    token.throwIfCancelled();
+    final client = http.Client();
+    try {
+      final request = http.Request('GET', url);
+      final response = await client.send(request);
+      final stream = response.stream;
+      await ForEach(stream, token, (event) {
+        bytes.addAll(event);
+        return true;
+      }).wait;
+    } finally {
+      print('Close client');
+      client.close();
+      _message('Downloaded: ${bytes.length}');
+    }
+
+    token.throwIfCancelled();
+    // Save file to disk
+    await Future<void>.delayed(Duration(seconds: 1));
+    return filename;
+  });
+}
+
+void _message(String text) {
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
+}

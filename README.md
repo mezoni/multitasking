@@ -23,6 +23,9 @@ Version: 2.5.0
     - [The task can be cancelled using a cancellation token](#the-task-can-be-cancelled-using-a-cancellation-token)
     - [The task can be cancelled during `Task.sleep()`](#the-task-can-be-cancelled-during-tasksleep)
     - [The task can be cancelled as a group of tasks](#the-task-can-be-cancelled-as-a-group-of-tasks)
+    - [The task can be canceled while listening to the stream](#the-task-can-be-canceled-while-listening-to-the-stream)
+    - [The group of tasks can be safely cancelled while working with the network](#the-group-of-tasks-can-be-safely-cancelled-while-working-with-the-network)
+    - [The tasks can be safely cancelled during long running network operation](#the-tasks-can-be-safely-cancelled-during-long-running-network-operation)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -386,7 +389,8 @@ Future<void> main(List<String> args) async {
 }
 
 void _message(String text) {
-  print('${Task.current}: $text');
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
 }
 
 ```
@@ -395,7 +399,7 @@ Output:
 
 ```txt
 TaskCanceledError
-Task('main()', 1): count: 340890
+main(): count: 437130
 
 ```
 
@@ -406,7 +410,7 @@ The interaction logic is completely determined by the developer.
 
 ### The task can be cancelled as a group of tasks
 
-Example of cancelled a group of tasks in case of any failure in any task.  
+Example of cancelled a group of tasks in case of any failure in any task.
 
 [example/example_task_cancel_group_by_failure.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_group_by_failure.dart)
 
@@ -481,245 +485,29 @@ Future<void> main() async {
 Output:
 
 ```txt
-Task('Child 1', 2) works: 0 of 4
-Task('Child 2', 3) works: 0 of 4
-Task('Child 3', 4) works: 0 of 4
-On exit: Task('Child 1', 2) (failed)
-Task('Child 2', 3) works: 1 of 4
-On exit: Task('Child 2', 3) (cancelled)
-Task('Child 3', 4) works: 1 of 4
-On exit: Task('Child 3', 4) (cancelled)
+Task('Child 1', 1) works: 0 of 4
+Task('Child 2', 2) works: 0 of 4
+Task('Child 3', 3) works: 0 of 4
+On exit: Task('Child 1', 1) (failed)
+Task('Child 2', 2) works: 1 of 4
+On exit: Task('Child 2', 2) (cancelled)
+Task('Child 3', 3) works: 1 of 4
+On exit: Task('Child 3', 3) (cancelled)
 On exit: Task('Parent', 0) (failed)
-One or more errors occurred. (Failure in Task('Child 1', 2)) (TaskCanceledError) (TaskCanceledError)
+One or more errors occurred. (Failure in Task('Child 1', 1)) (TaskCanceledError) (TaskCanceledError)
 
 ```
 
-Example of cancelled a group of tasks while working with the network.  
+### The task can be canceled while listening to the stream
 
-[example/example_task_cancel_network.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_network.dart)
-
-```dart
-import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:multitasking/multitasking.dart';
-
-Future<void> main() async {
-  final cts = CancellationTokenSource();
-  final token = cts.token;
-  final tasks = <Task<String>>[];
-  final rss = <String>[
-    'https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml',
-    'https://rss.nytimes.com/services/xml/rss/nyt/Science.xml',
-    'https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml',
-    'https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml',
-    'https://rss.nytimes.com/services/xml/rss/nyt/Music.xml'
-  ];
-  for (var i = 0; i < rss.length; i++) {
-    final task = Task.run(() async {
-      final uri = rss[i];
-      final url = Uri.parse(uri);
-      String? raw;
-      print('Fetching feed: $url');
-      final client = HttpClient();
-
-      token.throwIfCancelled();
-
-      try {
-        final request = await client.getUrl(url);
-        final response = await request.close();
-        if (response.statusCode == HttpStatus.ok) {
-          raw = await response.transform(utf8.decoder).join();
-        } else {
-          throw 'HTTP error: ${response.statusCode}';
-        }
-      } finally {
-        print('Close client');
-        client.close();
-      }
-
-      token.throwIfCancelled();
-
-      final result = raw;
-      print('Processing feed: $url');
-      await Future<void>.delayed(Duration(seconds: 1));
-      return result;
-    });
-
-    tasks.add(task);
-  }
-
-  Timer(Duration(seconds: 4), cts.cancel);
-
-  try {
-    await Task.waitAll(tasks);
-  } catch (e) {
-    print(e);
-  }
-
-  for (final task in tasks) {
-    print('-' * 40);
-    print('${task.toString()}: ${task.state.name}');
-    if (task.state == TaskState.completed) {
-      final value = await task;
-      final text = value;
-      final length = text.length < 80 ? text.length : 80;
-      print('Data ${text.substring(0, length)}');
-    } else {
-      print('No data');
-    }
-  }
-}
-
-```
-
-Output:
-
-```txt
-Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
-Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
-Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
-Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
-Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
-Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
-Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
-Close client
-Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
-----------------------------------------
-Task(0): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
-----------------------------------------
-Task(2): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
-----------------------------------------
-Task(3): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
-----------------------------------------
-Task(4): cancelled
-No data
-----------------------------------------
-Task(5): cancelled
-No data
-
-```
-
-Another example of cancelled a group of tasks while working with the network.  
-
-[example/example_task_cancel_long_network.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_long_network.dart)
-
-```dart
-import 'dart:async';
-import 'dart:io';
-
-import 'package:multitasking/multitasking.dart';
-
-Future<void> main() async {
-  final cts = CancellationTokenSource();
-  final token = cts.token;
-  final list = [
-    (
-      '3.11.1',
-      'https://storage.googleapis.com/dart-archive/channels/stable/release/3.11.1/sdk/dartsdk-windows-x64-release.zip'
-    ),
-    (
-      '3.10.9',
-      'https://storage.googleapis.com/dart-archive/channels/stable/release/3.10.9/sdk/dartsdk-windows-x64-release.zip'
-    )
-  ];
-
-  final tasks = <AnyTask>[];
-  for (final element in list) {
-    final url = Uri.parse(element.$2);
-    final filename = element.$1;
-    final task = _download(url, filename, token);
-    tasks.add(task);
-  }
-
-  // User request to cancel
-  Timer(Duration(seconds: 2), cts.cancel);
-
-  try {
-    await Task.waitAll(tasks);
-  } catch (e) {
-    print(e);
-  }
-
-  for (final task in tasks) {
-    if (task.state == TaskState.completed) {
-      final filename = await task;
-      print('Done: $filename');
-    }
-  }
-}
-
-Task<String> _download(Uri uri, String filename, CancellationToken token) {
-  return Task.run(() async {
-    final client = HttpClient();
-    final bytes = <int>[];
-
-    token.throwIfCancelled();
-    final handler = token.addHandler(() {
-      // If [force] is `true` any active/ connections will be closed to
-      // immediately release all resources.
-      client.close(force: true);
-    });
-
-    try {
-      final request = await client.getUrl(uri);
-      final response = await request.close();
-      if (response.statusCode == HttpStatus.ok) {
-        await for (final event in response) {
-          if (token.isCancelled) {
-            client.close(force: true);
-            break;
-          }
-
-          bytes.addAll(event);
-        }
-      } else {
-        throw 'HTTP error: ${response.statusCode}';
-      }
-    } finally {
-      print('Close client');
-      token.removerHandler(handler);
-      client.close();
-    }
-
-    token.throwIfCancelled();
-
-    // Save file to disk
-    await Future<void>.delayed(Duration(seconds: 1));
-    return filename;
-  });
-}
-
-```
-
-Output:
-
-```txt
-Close client
-Close client
-One or more errors occurred. (HttpException: Connection closed while receiving data, uri = https://storage.googleapis.com/dart-archive/channels/stable/release/3.11.1/sdk/dartsdk-windows-x64-release.zip) (HttpException: Connection closed while receiving data, uri = https://storage.googleapis.com/dart-archive/channels/stable/release/3.10.9/sdk/dartsdk-windows-x64-release.zip)
-
-```
-
-Example of canceling the emulation of the `await for` statement.
+Example of canceling the emulation of the `await for` statement using `ForEach` class.
 
 [example/example_task_cancel_await_for_stream_emulation.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_await_for_stream_emulation.dart)
 
 ```dart
 import 'dart:async';
 
+import 'package:multitasking/extra/for_each.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main(List<String> args) async {
@@ -770,7 +558,7 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
   return Task.run(() async {
     await Task.sleep();
     final list = <int>[];
-    await Task.awaitFor(stream, token, (event) {
+    await ForEach(stream, token, (event) {
       _message('Received event: $event');
       list.add(event);
       if (list.length == 1 && testBreak) {
@@ -779,10 +567,8 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
       }
 
       return true;
-    });
-
+    }).wait;
     token.throwIfCancelled();
-
     await Task.sleep();
     _message('Processing data: $list');
     if (testBreak) {
@@ -795,7 +581,8 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
 }
 
 void _message(String text) {
-  print('${Task.current}: $text');
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
 }
 
 ```
@@ -804,24 +591,245 @@ Output:
 
 ```txt
 Send event: 0
-Task(4): Received event: 0
-Task(5): Received event: 0
-Task(6): Received event: 0
-Task(6): I want to break free...
-Task(3): Processing data: [0]
+Task(0): Received event: 0
+Task(1): Received event: 0
+Task(2): Received event: 0
+Task(2): I want to break free...
+Task(2): Processing data: [0]
 Send event: 1
-Task(4): Received event: 1
-Task(5): Received event: 1
+Task(0): Received event: 1
+Task(1): Received event: 1
 Send event: 2
-Task(4): Received event: 2
-Task(5): Received event: 2
-Task('main()', 1): Cancellation requested
+Task(0): Received event: 2
+Task(1): Received event: 2
+main(): Cancellation requested
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
-Task('main()', 1): Result of Task(3): 1
+main(): Result of Task(2): 1
 Send event: 3
 Send event: 4
 Send event: 5
 Stopping the controller
+
+```
+
+### The group of tasks can be safely cancelled while working with the network
+
+An example of group of tasks cancellation while working with the network.
+
+[example/example_task_cancel_network.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_network.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:http/http.dart' as http;
+import 'package:multitasking/extra/for_each.dart';
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  final cts = CancellationTokenSource();
+  final token = cts.token;
+  final tasks = <Task<String>>[];
+  final rss = <String>[
+    'https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml',
+    'https://rss.nytimes.com/services/xml/rss/nyt/Science.xml',
+    'https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml',
+    'https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml',
+    'https://rss.nytimes.com/services/xml/rss/nyt/Music.xml'
+  ];
+  for (var i = 0; i < rss.length; i++) {
+    final task = Task.run(() async {
+      final url = Uri.parse(rss[i]);
+      final bytes = <int>[];
+      print('Fetching feed: $url');
+      token.throwIfCancelled();
+      final client = http.Client();
+      try {
+        final request = http.Request('GET', url);
+        final response = await client.send(request);
+        final stream = response.stream;
+        await ForEach(stream, token, (event) {
+          bytes.addAll(event);
+          return true;
+        }).wait;
+      } finally {
+        print('Close client');
+        client.close();
+      }
+
+      token.throwIfCancelled();
+      final result = String.fromCharCodes(bytes);
+      print('Processing feed: $url');
+      await Future<void>.delayed(Duration(seconds: 1));
+      return result;
+    });
+
+    tasks.add(task);
+  }
+
+  Timer(Duration(seconds: 4), () {
+    _message('Cancelling');
+    cts.cancel();
+  });
+
+  try {
+    await Task.waitAll(tasks);
+  } catch (e) {
+    print(e);
+  }
+
+  for (final task in tasks) {
+    print('-' * 40);
+    print('${task.toString()}: ${task.state.name}');
+    if (task.state == TaskState.completed) {
+      final value = await task;
+      final text = value;
+      final length = text.length < 80 ? text.length : 80;
+      print('Data ${text.substring(0, length)}');
+    } else {
+      print('No data');
+    }
+  }
+}
+
+void _message(String text) {
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
+}
+
+```
+
+Output:
+
+```txt
+Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
+Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
+Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
+Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
+main(): Cancelling
+Close client
+Close client
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
+----------------------------------------
+Task(0): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
+----------------------------------------
+Task(1): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
+----------------------------------------
+Task(2): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
+----------------------------------------
+Task(3): cancelled
+No data
+----------------------------------------
+Task(4): cancelled
+No data
+
+```
+
+### The tasks can be safely cancelled during long running network operation
+
+An example of task cancellation during long network operation.
+
+[example/example_task_cancel_long_network.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_long_network.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:http/http.dart' as http;
+import 'package:multitasking/extra/for_each.dart';
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  final cts = CancellationTokenSource();
+  final token = cts.token;
+  final list = [
+    (
+      '3.11.1',
+      'https://storage.googleapis.com/dart-archive/channels/stable/release/3.11.1/sdk/dartsdk-windows-x64-release.zip'
+    ),
+    (
+      '3.10.9',
+      'https://storage.googleapis.com/dart-archive/channels/stable/release/3.10.9/sdk/dartsdk-windows-x64-release.zip'
+    )
+  ];
+
+  final tasks = <AnyTask>[];
+  for (final element in list) {
+    final url = Uri.parse(element.$2);
+    final filename = element.$1;
+    final task = _download(url, filename, token);
+    tasks.add(task);
+  }
+
+  // User request to cancel
+  Timer(Duration(seconds: 2), cts.cancel);
+
+  try {
+    await Task.waitAll(tasks);
+  } catch (e) {
+    print('$e');
+  }
+
+  for (final task in tasks) {
+    if (task.state == TaskState.completed) {
+      final filename = await task;
+      print('Done: $filename');
+    }
+  }
+}
+
+Task<String> _download(Uri url, String filename, CancellationToken token) {
+  return Task.run(() async {
+    final bytes = <int>[];
+    token.throwIfCancelled();
+    final client = http.Client();
+    try {
+      final request = http.Request('GET', url);
+      final response = await client.send(request);
+      final stream = response.stream;
+      await ForEach(stream, token, (event) {
+        bytes.addAll(event);
+        return true;
+      }).wait;
+    } finally {
+      print('Close client');
+      client.close();
+      _message('Downloaded: ${bytes.length}');
+    }
+
+    token.throwIfCancelled();
+    // Save file to disk
+    await Future<void>.delayed(Duration(seconds: 1));
+    return filename;
+  });
+}
+
+void _message(String text) {
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
+}
+
+```
+
+Output:
+
+```txt
+Close client
+Task(1): Downloaded: 994538
+Close client
+Task(0): Downloaded: 990368
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
 
@@ -906,7 +914,8 @@ Future<void> main(List<String> args) async {
 }
 
 void _message(String text) {
-  print('${Task.current.name}: $text');
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
 }
 
 ```
@@ -1010,7 +1019,8 @@ Future<void> main(List<String> args) async {
 }
 
 void _message(String text) {
-  print('${Task.current.name}: $text');
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
 }
 
 ```
@@ -1125,7 +1135,8 @@ Future<void> main(List<String> args) async {
 }
 
 void _message(String text) {
-  print('${Task.current}: $text');
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
 }
 
 ```
@@ -1133,55 +1144,62 @@ void _message(String text) {
 Output:
 
 ```txt
-Task('consumer', 2): lock.acquire()
-Task('consumer', 2): lock.acquired
-Task('consumer', 2): notEmpty.wait()
-Task('producer', 0): produced: 0
-Task('producer', 0): lock.acquire()
-Task('producer', 0): lock.acquired)
-Task('producer', 0): added product: 0
-Task('producer', 0): products: {0}
-Task('producer', 0): notEmpty.notifyAll()
-Task('producer', 0): lock.release()
-Task('consumer', 2): removed product: 0
-Task('consumer', 2): products: {}
-Task('consumer', 2): notFull.notifyAll()
-Task('consumer', 2): lock.release()
-Task('producer', 0): produced: 1
-Task('producer', 0): lock.acquire()
-Task('producer', 0): lock.acquired)
-Task('producer', 0): added product: 1
-Task('producer', 0): products: {1}
-Task('producer', 0): notEmpty.notifyAll()
-Task('producer', 0): lock.release()
-Task('producer', 0): produced: 2
-Task('producer', 0): lock.acquire()
-Task('producer', 0): lock.acquired)
-Task('producer', 0): added product: 2
-Task('producer', 0): products: {1, 2}
-Task('producer', 0): notEmpty.notifyAll()
-Task('producer', 0): lock.release()
-Task('consumer', 2): consumed product: 0
-Task('consumer', 2): lock.acquire()
-Task('consumer', 2): lock.acquired
-Task('consumer', 2): removed product: 1
-Task('consumer', 2): products: {2}
-Task('consumer', 2): notFull.notifyAll()
-Task('consumer', 2): lock.release()
-Task('consumer', 2): consumed product: 1
-Task('consumer', 2): lock.acquire()
-Task('consumer', 2): lock.acquired
-Task('consumer', 2): removed product: 2
-Task('consumer', 2): products: {}
-Task('consumer', 2): notFull.notifyAll()
-Task('consumer', 2): lock.release()
-Task('consumer', 2): consumed product: 2
-Task('main()', 1): produced: 3
-Task('main()', 1): consumed: 3
+consumer: lock.acquire()
+consumer: lock.acquired
+consumer: notEmpty.wait()
+producer: produced: 0
+producer: lock.acquire()
+producer: lock.acquired)
+producer: added product: 0
+producer: products: {0}
+producer: notEmpty.notifyAll()
+producer: lock.release()
+consumer: removed product: 0
+consumer: products: {}
+consumer: notFull.notifyAll()
+consumer: lock.release()
+producer: produced: 1
+producer: lock.acquire()
+producer: lock.acquired)
+producer: added product: 1
+producer: products: {1}
+producer: notEmpty.notifyAll()
+producer: lock.release()
+producer: produced: 2
+producer: lock.acquire()
+producer: lock.acquired)
+producer: added product: 2
+producer: products: {1, 2}
+producer: notEmpty.notifyAll()
+producer: lock.release()
+consumer: consumed product: 0
+consumer: lock.acquire()
+consumer: lock.acquired
+consumer: removed product: 1
+consumer: products: {2}
+consumer: notFull.notifyAll()
+consumer: lock.release()
+consumer: consumed product: 1
+consumer: lock.acquire()
+consumer: lock.acquired
+consumer: removed product: 2
+consumer: products: {}
+consumer: notFull.notifyAll()
+consumer: lock.release()
+consumer: consumed product: 2
+main(): produced: 3
+main(): consumed: 3
 
 ```
 
 ### Reentrant lock
+
+A `ReentrantLock` is a synchronization primitive that works like a mutex.  
+It blocks execution of all zones that do not own this lock.  
+The zone that acquired the permit becomes the owner of this lock.  
+The zone owner can enter and exit as long as it holds this lock.
+
+An example of reentering a `ReentrantLock`.
 
 [example/example_reentrant_lock.dart](https://github.com/mezoni/multitasking/blob/main/example/example_reentrant_lock.dart)
 
@@ -1217,7 +1235,8 @@ Future<void> main(List<String> args) async {
 }
 
 void _message(String text) {
-  print('${Task.current}: $text');
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
 }
 
 ```
@@ -1228,11 +1247,11 @@ Output:
 Task(0): Increment counter: 1
 Task(0): Increment counter: 2
 Task(0): Increment counter: 3
-Task(2): Increment counter: 4
-Task(2): Increment counter: 5
-Task(2): Increment counter: 6
-Task(3): Increment counter: 7
-Task(3): Increment counter: 8
-Task(3): Increment counter: 9
+Task(1): Increment counter: 4
+Task(1): Increment counter: 5
+Task(1): Increment counter: 6
+Task(2): Increment counter: 7
+Task(2): Increment counter: 8
+Task(2): Increment counter: 9
 
 ```

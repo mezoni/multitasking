@@ -29,5 +29,6 @@ Future<void> main(List<String> args) async {
 }
 
 void _message(String text) {
-  print('${Task.current}: $text');
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
 }

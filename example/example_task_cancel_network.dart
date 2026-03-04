@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
+import 'package:http/http.dart' as http;
+import 'package:multitasking/extra/for_each.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
@@ -17,30 +17,26 @@ Future<void> main() async {
   ];
   for (var i = 0; i < rss.length; i++) {
     final task = Task.run(() async {
-      final uri = rss[i];
-      final url = Uri.parse(uri);
-      String? raw;
+      final url = Uri.parse(rss[i]);
+      final bytes = <int>[];
       print('Fetching feed: $url');
-      final client = HttpClient();
-
       token.throwIfCancelled();
-
+      final client = http.Client();
       try {
-        final request = await client.getUrl(url);
-        final response = await request.close();
-        if (response.statusCode == HttpStatus.ok) {
-          raw = await response.transform(utf8.decoder).join();
-        } else {
-          throw 'HTTP error: ${response.statusCode}';
-        }
+        final request = http.Request('GET', url);
+        final response = await client.send(request);
+        final stream = response.stream;
+        await ForEach(stream, token, (event) {
+          bytes.addAll(event);
+          return true;
+        }).wait;
       } finally {
         print('Close client');
         client.close();
       }
 
       token.throwIfCancelled();
-
-      final result = raw;
+      final result = String.fromCharCodes(bytes);
       print('Processing feed: $url');
       await Future<void>.delayed(Duration(seconds: 1));
       return result;
@@ -49,7 +45,10 @@ Future<void> main() async {
     tasks.add(task);
   }
 
-  Timer(Duration(seconds: 4), cts.cancel);
+  Timer(Duration(seconds: 4), () {
+    _message('Cancelling');
+    cts.cancel();
+  });
 
   try {
     await Task.waitAll(tasks);
@@ -69,4 +68,9 @@ Future<void> main() async {
       print('No data');
     }
   }
+}
+
+void _message(String text) {
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
 }

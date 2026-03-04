@@ -12,15 +12,6 @@ class CancellationToken {
     return _isCancelled;
   }
 
-  // Removes the handler.\
-  // The subscriber must call this method itself after the handler is no longer
-  //needed to free up memory.
-  void removerHandler(void Function()? handler) {
-    if (handler != null) {
-      _handlers.remove(handler);
-    }
-  }
-
   /// Adds and returns a handler if the token is not in the `canceled` state.
   ///
   /// If the token is in the `canceled` state, the handler will be called
@@ -57,6 +48,15 @@ class CancellationToken {
 
     _handlers.add(handler);
     return handler;
+  }
+
+  // Removes the handler.\
+  // The subscriber must call this method itself after the handler is no longer
+  //needed to free up memory.
+  void removerHandler(void Function()? handler) {
+    if (handler != null) {
+      _handlers.remove(handler);
+    }
   }
 
   // Throw the exception [TaskCanceledError] if the token is in the `canceled`

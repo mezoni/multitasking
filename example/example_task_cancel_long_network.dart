@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 
+import 'package:http/http.dart' as http;
+import 'package:multitasking/extra/for_each.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
@@ -31,7 +32,7 @@ Future<void> main() async {
   try {
     await Task.waitAll(tasks);
   } catch (e) {
-    print(e);
+    print('$e');
   }
 
   for (final task in tasks) {
@@ -42,43 +43,33 @@ Future<void> main() async {
   }
 }
 
-Task<String> _download(Uri uri, String filename, CancellationToken token) {
+Task<String> _download(Uri url, String filename, CancellationToken token) {
   return Task.run(() async {
-    final client = HttpClient();
     final bytes = <int>[];
-
     token.throwIfCancelled();
-    final handler = token.addHandler(() {
-      // If [force] is `true` any active/ connections will be closed to
-      // immediately release all resources.
-      client.close(force: true);
-    });
-
+    final client = http.Client();
     try {
-      final request = await client.getUrl(uri);
-      final response = await request.close();
-      if (response.statusCode == HttpStatus.ok) {
-        await for (final event in response) {
-          if (token.isCancelled) {
-            client.close(force: true);
-            break;
-          }
-
-          bytes.addAll(event);
-        }
-      } else {
-        throw 'HTTP error: ${response.statusCode}';
-      }
+      final request = http.Request('GET', url);
+      final response = await client.send(request);
+      final stream = response.stream;
+      await ForEach(stream, token, (event) {
+        bytes.addAll(event);
+        return true;
+      }).wait;
     } finally {
       print('Close client');
-      token.removerHandler(handler);
       client.close();
+      _message('Downloaded: ${bytes.length}');
     }
 
     token.throwIfCancelled();
-
     // Save file to disk
     await Future<void>.delayed(Duration(seconds: 1));
     return filename;
   });
+}
+
+void _message(String text) {
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
 }

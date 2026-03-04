@@ -23,6 +23,9 @@ Version: 2.5.0
     - [The task can be cancelled using a cancellation token](#the-task-can-be-cancelled-using-a-cancellation-token)
     - [The task can be cancelled during `Task.sleep()`](#the-task-can-be-cancelled-during-tasksleep)
     - [The task can be cancelled as a group of tasks](#the-task-can-be-cancelled-as-a-group-of-tasks)
+    - [The task can be canceled while listening to the stream](#the-task-can-be-canceled-while-listening-to-the-stream)
+    - [The group of tasks can be safely cancelled while working with the network](#the-group-of-tasks-can-be-safely-cancelled-while-working-with-the-network)
+    - [The tasks can be safely cancelled during long running network operation](#the-tasks-can-be-safely-cancelled-during-long-running-network-operation)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -240,28 +243,34 @@ The interaction logic is completely determined by the developer.
 
 ### The task can be cancelled as a group of tasks
 
-Example of cancelled a group of tasks in case of any failure in any task.  
+Example of cancelled a group of tasks in case of any failure in any task.
 
 BEGIN_EXAMPLE
 example_task_cancel_group_by_failure
 END_EXAMPLE
 
-Example of cancelled a group of tasks while working with the network.  
+### The task can be canceled while listening to the stream
+
+Example of canceling the emulation of the `await for` statement using `ForEach` class.
+
+BEGIN_EXAMPLE
+example_task_cancel_await_for_stream_emulation
+END_EXAMPLE
+
+### The group of tasks can be safely cancelled while working with the network
+
+An example of group of tasks cancellation while working with the network.
 
 BEGIN_EXAMPLE
 example_task_cancel_network
 END_EXAMPLE
 
-Another example of cancelled a group of tasks while working with the network.  
+### The tasks can be safely cancelled during long running network operation
+
+An example of task cancellation during long network operation.
 
 BEGIN_EXAMPLE
 example_task_cancel_long_network
-END_EXAMPLE
-
-Example of canceling the emulation of the `await for` statement.
-
-BEGIN_EXAMPLE
-example_task_cancel_await_for_stream_emulation
 END_EXAMPLE
 
 ## Synchronization primitives
@@ -314,6 +323,13 @@ example_condition_variable
 END_EXAMPLE
 
 ### Reentrant lock
+
+A `ReentrantLock` is a synchronization primitive that works like a mutex.  
+It blocks execution of all zones that do not own this lock.  
+The zone that acquired the permit becomes the owner of this lock.  
+The zone owner can enter and exit as long as it holds this lock.
+
+An example of reentering a `ReentrantLock`.
 
 BEGIN_EXAMPLE
 example_reentrant_lock

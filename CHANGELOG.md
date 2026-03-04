@@ -4,6 +4,11 @@
 
 - Slightly improved `BinarySemaphore` performance.
 - Slightly improved `ReentrantLock` performance.
+- Changed example `example_task_cancel_long_network.dart`.
+- Changed example `example_task_cancel_network.dart`.
+- Changed example `example_task_cancel_await_for_stream_emulation.dart`.
+- Breaking change: Removed `Task.awaitFor` method.
+- Added class `ForEach`.
 
 ## 2.4.0
 
@@ -11,9 +16,9 @@
 
 ## 2.3.0
 
-- Added: Table of contents in file `README.md`.
-- Added class: `ReentrantLock`.
-- Added example: example_reentrant_lock.dart
+- Added table of contents in file `README.md`.
+- Added class `ReentrantLock`.
+- Added example `example_reentrant_lock.dart`.
 
 ## 2.2.0
 
@@ -24,17 +29,17 @@
 
 ## 2.1.0
 
-- Added example: `example_counting_semaphore.dart`.
-- Added example: `example_task_cancel_await_for_stream.dart`.
-- Added method: `static Task<void> awaitFor<R>(Stream<R> stream, CancellationToken token, bool Function(R) f)`.
-- Added class: `CountingSemaphore`.
+- Added example `example_counting_semaphore.dart`.
+- Added example `example_task_cancel_await_for_stream.dart`.
+- Added method `static Task<void> awaitFor<R>(Stream<R> stream, CancellationToken token, bool Function(R) f)`.
+- Added class `CountingSemaphore`.
 - Added class: `BinarySemaphore`.
 - Breaking change: The functionality of the `CancellationToken` handler has been changed. Performance and usability have been improved, and most importantly, the restriction on linking to a single task has been lifted.
-- Added example: `example_task_cancel_during_sleep.dart`.
-- Added example: `example_binary_semaphore.dart`.
-- Added class: `Synchronizer`.
-- Added class: `ConditionVariable`.
-- Added example: `example_condition_variable.dart`.
+- Added example `example_task_cancel_during_sleep.dart`.
+- Added example `example_binary_semaphore.dart`.
+- Added class `Synchronizer`.
+- Added class `ConditionVariable`.
+- Added example `example_condition_variable.dart`.
 
 ## 2.0.0
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:multitasking/extra/for_each.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main(List<String> args) async {
@@ -50,7 +51,7 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
   return Task.run(() async {
     await Task.sleep();
     final list = <int>[];
-    await Task.awaitFor(stream, token, (event) {
+    await ForEach(stream, token, (event) {
       _message('Received event: $event');
       list.add(event);
       if (list.length == 1 && testBreak) {
@@ -59,10 +60,8 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
       }
 
       return true;
-    });
-
+    }).wait;
     token.throwIfCancelled();
-
     await Task.sleep();
     _message('Processing data: $list');
     if (testBreak) {
@@ -75,5 +74,6 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
 }
 
 void _message(String text) {
-  print('${Task.current}: $text');
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
 }

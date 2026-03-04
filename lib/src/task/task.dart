@@ -5,7 +5,6 @@ import 'package:meta/meta.dart';
 
 import 'cancellation.dart';
 import 'errors.dart';
-import 'task_zone_interceptor.dart';
 
 /// Type alias for a task of any type.
 typedef AnyTask = Task<Object?>;
@@ -45,7 +44,9 @@ final class Task<T> with _FutureMixin<T> {
 
   static final Zone _onExitZone = _createOnExitZone();
 
-  static AnyTask _current = _main;
+  static final Object _taskKey = Object();
+
+  static final Expando<AnyTask> _tempTasks = Expando();
 
   static final Finalizer<ErrorResult> _finalizer = Finalizer((result) {
     Zone.root.scheduleMicrotask(() {
@@ -66,7 +67,26 @@ final class Task<T> with _FutureMixin<T> {
   /// If no explicit task is currently running, the synthetic task `main()` is
   /// returned.
   @awaitNotRequired
-  static AnyTask get current => _current;
+  static AnyTask get current {
+    final zone = Zone.current;
+    if (identical(zone, Zone.root)) {
+      return _main;
+    }
+
+    AnyTask? task = zone[_taskKey] as AnyTask?;
+    if (task != null) {
+      return task;
+    }
+
+    task = _tempTasks[zone];
+    if (task != null) {
+      return task;
+    }
+
+    task = Task<void>._raw(TaskState.running);
+    _tempTasks[zone] = task;
+    return task;
+  }
 
   /// Returns a unique integer identifier for the task.
   final int id = _taskId++;
@@ -80,8 +100,6 @@ final class Task<T> with _FutureMixin<T> {
 
   Future<T>? _future;
 
-  TaskZoneInterceptor<T>? _interceptor;
-
   bool _isCompleted = false;
 
   FutureOr<void> Function(AnyTask task)? _onExit;
@@ -90,18 +108,20 @@ final class Task<T> with _FutureMixin<T> {
 
   final Completer<Result<T>> _taskCompleter = Completer();
 
+  Zone? _zone;
+
   /// Creates a task with the specified [action] callback and [name].
   Task(FutureOr<T> Function() action, {this.name}) : _action = action {
-    _interceptor = TaskZoneInterceptor(
-        enter: _enter,
-        leave: _leave,
-        onError: (error, stackTrace) {
+    _zone = Zone.root.fork(
+        specification: ZoneSpecification(
+            handleUncaughtError: (self, parent, zone, error, stackTrace) {
           if (error is TaskCanceledError) {
             _complete(TaskState.cancelled, ErrorResult(error, stackTrace));
           } else {
             _complete(TaskState.failed, ErrorResult(error, stackTrace));
           }
-        });
+        }),
+        zoneValues: {_taskKey: this});
   }
 
   Task._raw(this._state, {this.name});
@@ -173,8 +193,8 @@ final class Task<T> with _FutureMixin<T> {
       throw StateError('Task has already been started: ${toString()}');
     }
 
-    final interceptor = _interceptor;
-    if (interceptor == null) {
+    final zone = _zone;
+    if (zone == null) {
       throw StateError('Failed to start task: ${toString()}');
     }
 
@@ -184,7 +204,6 @@ final class Task<T> with _FutureMixin<T> {
     }
 
     _state = TaskState.running;
-    final zone = interceptor.zone;
     unawaited(zone.run(() async {
       try {
         final value = await action();
@@ -232,50 +251,6 @@ final class Task<T> with _FutureMixin<T> {
     });
   }
 
-  AnyTask _enter() {
-    final current = _current;
-    _current = this;
-    return current;
-  }
-
-  void _leave(AnyTask task) {
-    _current = task;
-  }
-
-  static Task<void> awaitFor<R>(
-      Stream<R> stream, CancellationToken token, bool Function(R) f) {
-    return Task.run(() {
-      final completer = Completer<void>();
-
-      void onError(Object error, StackTrace stackTrace) {
-        completer.completeError(error, stackTrace);
-      }
-
-      void onDone() {
-        completer.complete();
-      }
-
-      var isSuccess = false;
-      StreamSubscription<R>? subscription;
-      subscription = stream.listen((event) {
-        isSuccess = f(event);
-        if (!isSuccess) {
-          subscription!.cancel();
-          onDone();
-        }
-      }, onDone: onDone, onError: onError, cancelOnError: true);
-
-      token.addHandler(() {
-        subscription!.cancel();
-        if (!completer.isCompleted) {
-          completer.completeError(TaskCanceledError(), StackTrace.current);
-        }
-      });
-
-      return completer.future;
-    });
-  }
-
   /// Assigns a handler for the current task ([Task.current]) that will be
   /// executed as the last thing before it terminates.
   ///
@@ -295,7 +270,7 @@ final class Task<T> with _FutureMixin<T> {
   /// occur in the `onExit` processing will be propagated to the root zone
   /// ([Zone.root]).
   static void onExit(FutureOr<void> Function(AnyTask task) handler) {
-    final current = _current;
+    final current = Task.current;
     if (current._onExit != null) {
       throw StateError('\'Task.onExit()\' can be called only once');
     }
