@@ -1,8 +1,8 @@
 # Multitasking
 
-Cooperative multitasking using asynchronous tasks with the ability to safely cancel task groups with nested tasks performing I/O wait or listen operations.
+Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 2.4.0
+Version: 2.5.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -31,7 +31,7 @@ Version: 2.4.0
 
 ## About this software
 
-Cooperative multitasking using asynchronous tasks with the ability to safely cancel task groups with nested tasks performing I/O wait or listen operations.  
+Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.  
 The tasks is implemented using the following standard core classes:  
 
 - [Zone](https://api.dart.dev/dart-async/Zone-class.html)

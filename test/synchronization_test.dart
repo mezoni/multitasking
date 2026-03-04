@@ -4,13 +4,15 @@ import 'dart:collection';
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/binary_semaphore.dart';
 import 'package:multitasking/synchronization/condition_variable.dart';
+import 'package:multitasking/synchronization/counting_semaphore.dart';
 import 'package:multitasking/synchronization/reentrant_lock.dart';
 import 'package:test/test.dart';
 
 void main() {
-  _testReentrantLock();
   _testBinarySemaphore();
   _testConditionVariable();
+  _testCountingSemaphore();
+  _testReentrantLock();
 }
 
 Future<void> _delay(int ms) {
@@ -28,9 +30,9 @@ void _testBinarySemaphore() {
       final future = Future(() async {
         await sem.acquire();
         try {
-          await _delay(100);
           total++;
           count++;
+          await _delay(100);
           if (max < count) {
             max = count;
           }
@@ -66,9 +68,9 @@ void _testBinarySemaphore() {
         if (timeout == null) {
           await sem.acquire();
           try {
-            await _delay(100);
             total++;
             count++;
+            await _delay(100);
             if (max < count) {
               max = count;
             }
@@ -80,9 +82,9 @@ void _testBinarySemaphore() {
         } else {
           if (await sem.tryAcquire(timeout)) {
             try {
-              await _delay(100);
               total++;
               count++;
+              await _delay(100);
               if (max < count) {
                 max = count;
               }
@@ -118,9 +120,9 @@ void _testBinarySemaphore() {
       futures.add(Future(() async {
         if (await sem.tryAcquire(timeout)) {
           try {
-            await _delay(100);
             total++;
             count++;
+            await _delay(100);
             if (max < count) {
               max = count;
             }
@@ -200,6 +202,128 @@ void _testConditionVariable() {
     expect(products.isEmpty, true, reason: 'products.isNotEmpty');
     expect(produced, 5, reason: 'produced != 5');
     expect(consumed, 5, reason: 'consumed != 5');
+  });
+}
+
+void _testCountingSemaphore() {
+  test('CountingSemaphore.acquire()', () async {
+    final sem = CountingSemaphore(0, 2);
+    var count = 0;
+    var max = 0;
+    var total = 0;
+    final futures = <Future<void>>[];
+    for (var i = 0; i < 5; i++) {
+      final future = Future(() async {
+        await sem.acquire();
+        try {
+          total++;
+          count++;
+          await _delay(100);
+          if (max < count) {
+            max = count;
+          }
+
+          count--;
+        } finally {
+          await sem.release();
+        }
+      });
+
+      futures.add(future);
+    }
+
+    await Future.wait(futures);
+    expect(count, 0, reason: 'count != 0');
+    expect(max, 2, reason: 'max != 2');
+    expect(total, 5, reason: 'total != 5');
+  });
+
+  test('CountingSemaphore.tryAcquire(): With duration', () async {
+    final sem = CountingSemaphore(0, 2);
+    var count = 0;
+    var max = 0;
+    var total = 0;
+    final futures = <Future<void>>[];
+    final timeouts = <Duration?>[];
+    timeouts.add(null);
+    timeouts.add(Duration(milliseconds: 50));
+    timeouts.add(null);
+    timeouts.add(Duration(milliseconds: 50));
+    for (final timeout in timeouts) {
+      futures.add(Future(() async {
+        if (timeout == null) {
+          await sem.acquire();
+          try {
+            total++;
+            count++;
+            await _delay(100);
+            if (max < count) {
+              max = count;
+            }
+
+            count--;
+          } finally {
+            await sem.release();
+          }
+        } else {
+          if (await sem.tryAcquire(timeout)) {
+            try {
+              total++;
+              count++;
+              await _delay(100);
+              if (max < count) {
+                max = count;
+              }
+
+              count--;
+            } finally {
+              await sem.release();
+            }
+          }
+        }
+      }));
+    }
+
+    await Future.wait(futures);
+    expect(count, 0, reason: 'count != 0');
+    expect(max, 2, reason: 'max != 2');
+    expect(total, 3, reason: 'total != 3');
+  });
+
+  test('CountingSemaphore.tryAcquire(): With zero duration', () async {
+    final sem = CountingSemaphore(0, 2);
+    var count = 0;
+    var max = 0;
+    var total = 0;
+    final futures = <Future<void>>[];
+    final timeouts = <Duration>[];
+    timeouts.add(Duration());
+    timeouts.add(Duration(milliseconds: 50));
+    timeouts.add(Duration());
+    timeouts.add(Duration(milliseconds: 150));
+    for (final timeout in timeouts) {
+      futures.add(Future(() async {
+        if (await sem.tryAcquire(timeout)) {
+          try {
+            total++;
+            count++;
+            await _delay(100);
+            if (max < count) {
+              max = count;
+            }
+
+            count--;
+          } finally {
+            await sem.release();
+          }
+        }
+      }));
+    }
+
+    await Future.wait(futures);
+    expect(count, 0, reason: 'count != 0');
+    expect(max, 2, reason: 'max != 2');
+    expect(total, 3, reason: 'total != 3');
   });
 }
 

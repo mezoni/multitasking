@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.5.0
+
+- Slightly improved `BinarySemaphore` performance.
+- Slightly improved `ReentrantLock` performance.
+
 ## 2.4.0
 
 - Breaking change: Removed type parameter from `ReentrantLock` class.
