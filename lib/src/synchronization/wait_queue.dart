@@ -6,38 +6,25 @@ import '../time_utils.dart';
 class WaitQueue {
   static final Future<bool> _false = Future.value(false);
 
-  final LinkedList<_Node> _queue = LinkedList();
+  final LinkedList<_Node> _list = LinkedList();
 
-  bool dequeue() {
-    int? now;
-    while (_queue.isNotEmpty) {
-      final node = _queue.first;
-      node.unlink();
-      final completer = node.completer;
-      final timer = node.timer;
-      if (timer == null) {
-        completer.complete(true);
-        return true;
-      }
+  bool get isEmpty => _list.isEmpty;
 
-      timer.cancel();
-      now ??= TimeUtils.elapsedMicroseconds;
-      final timeout = node.timeout;
-      if (now - node.started >= timeout) {
-        completer.complete(false);
-      } else {
-        completer.complete(true);
-        return true;
-      }
-    }
+  bool get isNotEmpty => _list.isNotEmpty;
 
-    return false;
+  void dequeue() {
+    final node = _list.first;
+    node.unlink();
+    final timer = node.timer;
+    timer?.cancel();
+    final completer = node.completer;
+    completer.complete(true);
   }
 
   Future<bool> enqueue([Duration? timeout]) {
     if (timeout == null) {
       final node = _Node();
-      _queue.add(node);
+      _list.add(node);
       return node.future;
     }
 
@@ -51,7 +38,7 @@ class WaitQueue {
     }
 
     final node = _Node();
-    _queue.add(node);
+    _list.add(node);
     node.timeout = timeout.inMicroseconds;
     node.timer = Timer(timeout, () {
       node.unlink();
@@ -63,6 +50,15 @@ class WaitQueue {
     node.started = TimeUtils.elapsedMicroseconds;
     final completer = node.completer;
     return completer.future;
+  }
+
+  Completer<bool> removeFirst() {
+    final node = _list.first;
+    node.unlink();
+    final timer = node.timer;
+    timer?.cancel();
+    final completer = node.completer;
+    return completer;
   }
 }
 

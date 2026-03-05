@@ -19,28 +19,37 @@ class ConditionVariable {
   ConditionVariable(this.lock);
 
   Future<void> notify() {
-    _queue.dequeue();
+    if (_queue.isNotEmpty) {
+      final awaiter = _queue.removeFirst();
+      lock.acquire().then((_) {
+        awaiter.complete(true);
+      });
+    }
+
     return _void;
   }
 
   Future<void> notifyAll() {
-    while (_queue.dequeue()) {}
+    while (_queue.isNotEmpty) {
+      final awaiter = _queue.removeFirst();
+      lock.acquire().then((_) {
+        awaiter.complete(true);
+      });
+    }
+
     return _void;
   }
 
   @useResult
   Future<bool> tryWait(Duration timeout) async {
-    final waiter = _queue.enqueue(timeout);
     await lock.release();
-    final result = await waiter;
-    await lock.acquire();
-    return result;
+    final waiter = _queue.enqueue(timeout);
+    return await waiter;
   }
 
   Future<void> wait() async {
-    final waiter = _queue.enqueue();
     await lock.release();
+    final waiter = _queue.enqueue();
     await waiter;
-    return lock.acquire();
   }
 }

@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 2.6.0
+Version: 2.7.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -400,7 +400,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 399406
+main(): count: 418142
 
 ```
 
@@ -708,11 +708,11 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Close client
 Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 main(): Cancelling
 Close client
 Close client
@@ -827,9 +827,9 @@ Output:
 
 ```txt
 Close client
-Task(1): Downloaded: 682946
+Task(0): Downloaded: 719885
 Close client
-Task(0): Downloaded: 687110
+Task(1): Downloaded: 636872
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```

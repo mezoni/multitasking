@@ -16,7 +16,7 @@ class ReentrantLock extends Lock {
 
   Zone? _owner;
 
-  final WaitQueue _waitQueue = WaitQueue();
+  final WaitQueue _queue = WaitQueue();
 
   @override
   Future<void> acquire() async {
@@ -31,7 +31,7 @@ class ReentrantLock extends Lock {
       return;
     }
 
-    await _waitQueue.enqueue();
+    await _queue.enqueue();
     _owner = Zone.current;
     _count++;
     return;
@@ -53,7 +53,10 @@ class ReentrantLock extends Lock {
     }
 
     _owner = null;
-    _waitQueue.dequeue();
+    if (_queue.isNotEmpty) {
+      _queue.dequeue();
+    }
+
     return _void;
   }
 
@@ -71,7 +74,7 @@ class ReentrantLock extends Lock {
       return true;
     }
 
-    final isSuccess = await _waitQueue.enqueue(timeout);
+    final isSuccess = await _queue.enqueue(timeout);
     if (isSuccess) {
       _owner = Zone.current;
       _count++;

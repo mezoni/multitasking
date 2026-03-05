@@ -51,7 +51,8 @@ class CountingSemaphore {
 
   /// Releases a permit.
   Future<void> release() {
-    if (_queue.dequeue()) {
+    if (_queue.isNotEmpty) {
+      _queue.dequeue();
       return _void;
     }
 

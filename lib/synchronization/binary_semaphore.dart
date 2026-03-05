@@ -34,7 +34,9 @@ class BinarySemaphore extends Lock {
       throw StateError('Unmatched call of \'release()()\' method');
     }
 
-    if (!_waitQueue.dequeue()) {
+    if (_waitQueue.isNotEmpty) {
+      _waitQueue.dequeue();
+    } else {
       _isLocked = false;
     }
 

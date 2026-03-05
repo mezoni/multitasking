@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.7.0
+
+- Fixed a bug with incorrect use of `WaitQueue`.
+- Fixed a bug in `ConditionVariable`.
+
 ## 2.6.0
 
 - Slightly improved `ReentrantLock` performance.
@@ -15,7 +20,7 @@
 - Changed example `example_task_cancel_network.dart`.
 - Changed example `example_task_cancel_await_for_stream_emulation.dart`.
 - Breaking change: Removed `Task.awaitFor` method.
-- Added class `ForEach`. 
+- Added class `ForEach`.
 
 ## 2.4.0
 
