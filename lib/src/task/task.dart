@@ -38,7 +38,7 @@ typedef AnyTask = Task<Object?>;
 /// - `task.timeout()` (inherited from [Future])
 /// - `task.whenComplete()` (inherited from [Future])
 ///
-/// It all comes down to the fact that when accessing the [future] field of a task, an instance of the [Future] object is created and at that moment its life cycle begins.
+/// It all comes down to the fact that when accessing the [_future] field of a task, an instance of the [Future] object is created and at that moment its life cycle begins.
 final class Task<T> with _FutureMixin<T> {
   static const Duration _zeroDuration = Duration();
 
@@ -98,15 +98,15 @@ final class Task<T> with _FutureMixin<T> {
 
   FutureOr<T> Function()? _action;
 
-  Future<T>? _future;
-
   bool _isCompleted = false;
 
   FutureOr<void> Function(AnyTask task)? _onExit;
 
   TaskState _state = TaskState.created;
 
-  final Completer<Result<T>> _taskCompleter = Completer();
+  Result<T>? _result;
+
+  Completer<T>? _resultCompleter;
 
   Zone? _zone;
 
@@ -126,48 +126,26 @@ final class Task<T> with _FutureMixin<T> {
 
   Task._raw(this._state, {this.name});
 
-  ErrorResult? get exception => _exception;
+  ErrorResult? get exception {
+    return _exception;
+  }
 
-  /// Return the result of the task execution, wrapped in [Future].
-  ///
-  /// If the task execution resulted in an error, then [Future] will throw an
-  /// exception. This is normal behavior because it is the only way to know how
-  /// the task completed.
-  ///
-  /// The internal structure of the task and the mechanism of its operation
-  /// imply that access to the task execution result (field [future]) must be
-  /// necessarily performed. Even in that case, if there is no direct need to
-  /// obtain the result.
-  ///
-  /// This rule is due to the fact that the Dart SDK does not guarantee that the
-  /// finalizer will be called. Because the finalizer ([_finalizer]) is
-  /// delegated the task of propagating unobserved exceptions.
-  @override
-  Future<T> get future async {
-    if (_future != null) {
-      return _future as Future<T>;
-    }
+  /// Returns `true` if the task is in the [TaskState.cancelled] state. ; otherwise, returns
+  /// `false`.
+  bool get isCanceled {
+    return _state == TaskState.cancelled;
+  }
 
-    if (_state == TaskState.created) {
-      throw StateError('Task has not yet been started: ${toString()}');
-    }
+  /// Returns `true` if the task is in the [TaskState.completed] state. ; otherwise, returns
+  /// `false`.
+  bool get isCompleted {
+    return _state == TaskState.completed;
+  }
 
-    final result = await _taskCompleter.future;
-    if (result.isValue) {
-      final valueResult = result.asValue!;
-      final value = valueResult.value;
-      final future = Future.value(value);
-      _future = future;
-      return future;
-    } else {
-      final errorResult = result.asError!;
-      _finalizer.detach(this);
-      final error = errorResult.error;
-      final stackTrace = errorResult.stackTrace;
-      final future = Future<T>.error(error, stackTrace);
-      _future = future;
-      return future;
-    }
+  /// Returns `true` if the task is in the [TaskState.failed] state. ; otherwise, returns
+  /// `false`.
+  bool get isFailed {
+    return _state == TaskState.failed;
   }
 
   /// Returns `true` if the task was started and it is not completed; otherwise,
@@ -178,11 +156,14 @@ final class Task<T> with _FutureMixin<T> {
 
   /// Returns `true` if the task was started for execution; otherwise, returns
   /// `false`.
-  bool get isStarted => _state != TaskState.created;
+  bool get isStarted {
+    return _state != TaskState.created;
+  }
 
   /// Returns `true` if the task was terminated; otherwise, returns `false`.
-  bool get isTerminated =>
-      !(_state == TaskState.created || _state == TaskState.running);
+  bool get isTerminated {
+    return _state != TaskState.running && _state != TaskState.created;
+  }
 
   /// Returns task state ([TaskState]).
   TaskState get state => _state;
@@ -243,12 +224,47 @@ final class Task<T> with _FutureMixin<T> {
           await onExit(this);
         }
       } finally {
-        _taskCompleter.complete(result);
-        if (result is ErrorResult) {
-          _finalizer.attach(this, result.asError, detach: this);
+        _result = result;
+        if (_resultCompleter != null) {
+          _completeResult(_resultCompleter!, result);
+        } else {
+          if (_exception != null) {
+            _finalizer.attach(this, _exception!, detach: this);
+          }
         }
       }
     });
+  }
+
+  void _completeResult(Completer<T> completer, Result<T> result) {
+    if (result.isValue) {
+      final valueResult = result.asValue!;
+      completer.complete(valueResult.value);
+    } else {
+      final errorResult = result.asError!;
+      final error = errorResult.error;
+      final stackTrace = errorResult.stackTrace;
+      completer.completeError(error, stackTrace);
+    }
+  }
+
+  @override
+  Future<T> _getFuture() {
+    if (_resultCompleter == null) {
+      if (_state == TaskState.created) {
+        throw StateError('Task has not started yet: ${toString()}');
+      }
+
+      _resultCompleter = Completer();
+      if (_result != null) {
+        _completeResult(_resultCompleter!, _result!);
+        if (_result is ErrorResult) {
+          _finalizer.detach(this);
+        }
+      }
+    }
+
+    return _resultCompleter!.future;
   }
 
   /// Assigns a handler for the current task ([Task.current]) that will be
@@ -392,32 +408,31 @@ enum TaskState {
 }
 
 mixin _FutureMixin<T> implements Future<T> {
-  Future<T> get future;
-
   @override
   Stream<T> asStream() {
-    return future.asStream();
+    return _getFuture().asStream();
   }
 
   @override
   Future<T> catchError(Function onError, {bool Function(Object error)? test}) {
-    return future.catchError(onError, test: test);
+    return _getFuture().catchError(onError, test: test);
   }
 
   @override
   Future<R> then<R>(FutureOr<R> Function(T value) onValue,
       {Function? onError}) {
-    return future.then(onValue, onError: onError);
+    return _getFuture().then(onValue, onError: onError);
   }
 
   @override
-  Future<T> timeout(Duration timeLimit,
-      {FutureOr<dynamic> Function()? onTimeout}) {
-    return future.timeout(timeLimit);
+  Future<T> timeout(Duration timeLimit, {FutureOr<T> Function()? onTimeout}) {
+    return _getFuture().timeout(timeLimit, onTimeout: onTimeout);
   }
 
   @override
-  Future<T> whenComplete(FutureOr<dynamic> Function() action) {
-    return future.whenComplete(action);
+  Future<T> whenComplete(FutureOr<void> Function() action) {
+    return _getFuture().whenComplete(action);
   }
+
+  Future<T> _getFuture();
 }

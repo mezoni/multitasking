@@ -9,7 +9,7 @@ Future<void> main() async {
   final group = <Task<int>>[];
 
   void onExit(AnyTask task) {
-    if (task.state != TaskState.completed) {
+    if (!task.isCompleted) {
       cts.cancel();
     }
   }

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 
 import '../src/synchronization/wait_queue.dart';
-import 'binary_semaphore.dart';
+import 'lock.dart';
 
 /// A [ConditionVariable] is a synchronization primitive  that allows to wait
 /// for a particular condition to become `true` before proceeding.\
@@ -12,7 +12,7 @@ import 'binary_semaphore.dart';
 class ConditionVariable {
   static final Future<void> _void = Future.value();
 
-  final BinarySemaphore lock;
+  final Lock lock;
 
   final WaitQueue _queue = WaitQueue();
 

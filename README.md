@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 2.5.0
+Version: 2.6.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -31,6 +31,7 @@ Version: 2.5.0
     - [Binary semaphore](#binary-semaphore)
     - [Condition variable](#condition-variable)
     - [Reentrant lock](#reentrant-lock)
+    - [Lock interface](#lock-interface)
 
 ## About this software
 
@@ -399,7 +400,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 437130
+main(): count: 399406
 
 ```
 
@@ -426,7 +427,7 @@ Future<void> main() async {
   final group = <Task<int>>[];
 
   void onExit(AnyTask task) {
-    if (task.state != TaskState.completed) {
+    if (!task.isCompleted) {
       cts.cancel();
     }
   }
@@ -546,7 +547,7 @@ Future<void> main(List<String> args) async {
   }
 
   for (final task in tasks) {
-    if (task.state == TaskState.completed) {
+    if (task.isCompleted) {
       final result = await task;
       _message('Result of ${task.toString()}: $result');
     }
@@ -680,7 +681,7 @@ Future<void> main() async {
   for (final task in tasks) {
     print('-' * 40);
     print('${task.toString()}: ${task.state.name}');
-    if (task.state == TaskState.completed) {
+    if (task.isCompleted) {
       final value = await task;
       final text = value;
       final length = text.length < 80 ? text.length : 80;
@@ -782,7 +783,7 @@ Future<void> main() async {
   }
 
   for (final task in tasks) {
-    if (task.state == TaskState.completed) {
+    if (task.isCompleted) {
       final filename = await task;
       print('Done: $filename');
     }
@@ -826,9 +827,9 @@ Output:
 
 ```txt
 Close client
-Task(1): Downloaded: 994538
+Task(1): Downloaded: 682946
 Close client
-Task(0): Downloaded: 990368
+Task(0): Downloaded: 687110
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -836,7 +837,9 @@ One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 ## Synchronization primitives
 
 Synchronization primitives are mechanisms that synchronize the execution of multiple operations by locking their execution and putting them into a waiting state.  
-In essence, these mechanisms imply either waiting for acquire the permit, followed by release this permit, or waiting for a signal without acquiring the permit. Or even waiting for a signal followed by acquiring the permit.
+In essence, these mechanisms imply either waiting for acquire the permit, followed by release this permit, or waiting for a signal without acquiring the permit. Or even waiting for a signal followed by acquiring the permit.  
+
+Synchronization primitives do not require the use of tasks, they work with zones (`Zone`) and can be used in any applications.
 
 ### Counting semaphore
 
@@ -976,10 +979,9 @@ task 6: release
 A [BinarySemaphore] is a synchronization primitive with an integer value restricted to 0 or 1, representing locked (0) or unlocked (1) states.
 
 Unlike a mutex, a semaphore is a counting-based synchronizer.  
-If a semaphore is locked, it will be locked even for the current task.
+If a semaphore is locked, it will be locked even for the current zone.
 
-If a mutex is locked by a task, it will not block this task. It will
-count the number of times it is entered and leaved by task before
+If a mutex is owned by a zone, it will not block this zone. It will count the number of times it is entered and leaved by zone before
 releasing.
 
 An example of using a binary semaphore as a locking mechanism:
@@ -1253,5 +1255,56 @@ Task(1): Increment counter: 6
 Task(2): Increment counter: 7
 Task(2): Increment counter: 8
 Task(2): Increment counter: 9
+
+```
+
+### Lock interface
+
+`Lock` is an interface that simplifies the use of `locking` primitives.  
+For example, this interface is implemented by the classes `BinarySemaphore` and  `ReentrantLock`.  
+These classes can be used for exclusive locking.  
+
+An example of using a binary semaphore as a locking mechanism.
+
+[example/example_lock.dart](https://github.com/mezoni/multitasking/blob/main/example/example_lock.dart)
+
+```dart
+import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/synchronization/binary_semaphore.dart';
+
+Future<void> main(List<String> args) async {
+  final sem = BinarySemaphore();
+  final tasks = <AnyTask>[];
+  for (var i = 0; i < 3; i++) {
+    final task = Task.run(() async {
+      await sem.lock(() async {
+        _message('Enter');
+        await Future<void>.delayed(Duration(milliseconds: 100));
+        _message('Leave');
+      });
+    });
+
+    tasks.add(task);
+  }
+
+  await Task.waitAll(tasks);
+}
+
+void _message(String text) {
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
+}
+
+```
+
+Output:
+
+```txt
+Task(0): Enter
+Task(0): Leave
+Task(1): Enter
+Task(1): Leave
+Task(2): Enter
+Task(2): Leave
 
 ```

@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 
 import '../src/synchronization/wait_queue.dart';
-import 'synchronizer.dart';
+import 'lock.dart';
 
 /// A [BinarySemaphore] is a synchronization primitive with an integer value
 /// restricted to 0 or 1, representing locked (0) or unlocked (1) states.
-class BinarySemaphore implements Synchronizer {
+class BinarySemaphore extends Lock {
   static final Future<bool> _true = Future.value(true);
 
   static final Future<void> _void = Future.value();

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.6.0
+
+- Slightly improved `ReentrantLock` performance.
+- The internal algorithm for processing the `Task` result has been slightly changed.
+- Added getters for the `Task`, for each task state (eg. `isCompleted` for the `TaskState.completed` state).
+- Breaking change: The `Synchronizer` class has been renamed to `Lock`.
+
 ## 2.5.0
 
 - Slightly improved `BinarySemaphore` performance.
@@ -8,7 +15,7 @@
 - Changed example `example_task_cancel_network.dart`.
 - Changed example `example_task_cancel_await_for_stream_emulation.dart`.
 - Breaking change: Removed `Task.awaitFor` method.
-- Added class `ForEach`.
+- Added class `ForEach`. 
 
 ## 2.4.0
 

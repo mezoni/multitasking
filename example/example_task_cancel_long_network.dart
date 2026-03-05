@@ -36,7 +36,7 @@ Future<void> main() async {
   }
 
   for (final task in tasks) {
-    if (task.state == TaskState.completed) {
+    if (task.isCompleted) {
       final filename = await task;
       print('Done: $filename');
     }

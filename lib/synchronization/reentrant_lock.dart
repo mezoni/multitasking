@@ -2,28 +2,27 @@ import 'dart:async';
 
 import 'package:meta/meta.dart';
 
-import 'binary_semaphore.dart';
-import 'synchronizer.dart';
+import '../src/synchronization/wait_queue.dart';
+import 'lock.dart';
 
 /// A [ReentrantLock] is a synchronization primitive that works like a mutex.\
 /// It blocks execution of all zones that do not own this lock.\
 /// The zone that acquired the permit becomes the owner of this lock.\
 /// The zone owner can enter and exit as long as it holds this lock.
-class ReentrantLock implements Synchronizer {
+class ReentrantLock extends Lock {
   static final Future<void> _void = Future.value();
 
   int _count = 0;
 
   Zone? _owner;
 
-  final BinarySemaphore _sem = BinarySemaphore();
+  final WaitQueue _waitQueue = WaitQueue();
 
   @override
   Future<void> acquire() async {
     if (_owner == null) {
       _owner = Zone.current;
       _count++;
-      await _sem.acquire();
       return;
     }
 
@@ -32,9 +31,10 @@ class ReentrantLock implements Synchronizer {
       return;
     }
 
-    await _sem.acquire();
+    await _waitQueue.enqueue();
     _owner = Zone.current;
     _count++;
+    return;
   }
 
   @override
@@ -53,21 +53,17 @@ class ReentrantLock implements Synchronizer {
     }
 
     _owner = null;
-    return _sem.release();
+    _waitQueue.dequeue();
+    return _void;
   }
 
   @override
   @useResult
   Future<bool> tryAcquire(Duration timeout) async {
     if (_owner == null) {
-      final isSuccess = await _sem.tryAcquire(timeout);
-      if (isSuccess) {
-        _owner = Zone.current;
-        _count++;
-        return true;
-      }
-
-      return false;
+      _owner = Zone.current;
+      _count++;
+      return true;
     }
 
     if (_owner == Zone.current) {
@@ -75,7 +71,7 @@ class ReentrantLock implements Synchronizer {
       return true;
     }
 
-    final isSuccess = await _sem.tryAcquire(timeout);
+    final isSuccess = await _waitQueue.enqueue(timeout);
     if (isSuccess) {
       _owner = Zone.current;
       _count++;

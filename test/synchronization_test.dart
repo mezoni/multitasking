@@ -328,7 +328,7 @@ void _testCountingSemaphore() {
 }
 
 void _testReentrantLock() {
-  test('ReentrantLock:', () async {
+  test('ReentrantLock: acquire()', () async {
     final m = ReentrantLock();
     final list = <String>[];
     final tasks = <AnyTask>[];
@@ -356,6 +356,58 @@ void _testReentrantLock() {
     await Task.waitAll(tasks);
 
     expect(list, ['01', '02', '03', '14', '15', '16', '27', '28', '29'],
+        reason: 'mutex does not works');
+  });
+
+  test('ReentrantLock: tryAcquire()', () async {
+    final m = ReentrantLock();
+    final list = <String>[];
+    final tasks = <AnyTask>[];
+    var counter = 0;
+
+    Future<void> f(int i, Duration? timeout) async {
+      if (timeout == null) {
+        await m.acquire();
+        try {
+          await Future<void>.delayed(Duration(milliseconds: 50));
+          counter++;
+          list.add('${Task.current.name}$counter');
+          if (i + 1 < 3) {
+            await f(i + 1, null);
+          }
+        } finally {
+          await m.release();
+        }
+      } else {
+        if (await m.tryAcquire(timeout)) {
+          try {
+            await Future<void>.delayed(Duration(milliseconds: 50));
+            counter++;
+            list.add('${Task.current.name}$counter');
+            if (i + 1 < 3) {
+              await f(i + 1, null);
+            }
+          } finally {
+            await m.release();
+          }
+        }
+      }
+    }
+
+    final durations = <Duration?>[
+      null,
+      Duration(milliseconds: 50),
+      Duration(seconds: 1)
+    ];
+    for (var i = 0; i < 3; i++) {
+      final d = durations[i];
+      final t = Task.run(name: '$i', () => f(0, d));
+      tasks.add(t);
+    }
+
+    await Task.waitAll(tasks);
+
+    expect(list, ['01', '02', '03', '24', '25', '26'],
         reason: 'mutex does not works');
   });
 }

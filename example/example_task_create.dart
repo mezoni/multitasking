@@ -8,10 +8,7 @@ Future<void> main() async {
     print('Creating task');
     tasks.add(Task.run(name: '', () async {
       Task.onExit((task) {
-        print('On exit: $task');
-        if (task.state == TaskState.completed) {
-          print('$task ${task.state.name}');
-        }
+        _message('On exit: ${task.state.name}');
       });
 
       final result = i;
@@ -31,4 +28,9 @@ Future<void> main() async {
   } catch (e) {
     print(e);
   }
+}
+
+void _message(String text) {
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
 }
