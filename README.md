@@ -11,6 +11,8 @@ Version: 2.7.0
 [![GitHub Stars](https://img.shields.io/github/stars/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/stargazers)
 [![GitHub License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://raw.githubusercontent.com/mezoni/multitasking/main/LICENSE)
 
+![How a mutex with two condition variables works](assets/images/mutex.gif)
+
 - [Multitasking](#multitasking)
   - [About this software](#about-this-software)
   - [Practical use](#practical-use)
@@ -400,7 +402,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 418142
+main(): count: 391279
 
 ```
 
@@ -708,23 +710,21 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 Close client
 Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
-Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 main(): Cancelling
 Close client
 Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
+Close client
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
 Task(0): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
-Task(1): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(1): cancelled
+No data
 ----------------------------------------
 Task(2): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
@@ -827,9 +827,9 @@ Output:
 
 ```txt
 Close client
-Task(0): Downloaded: 719885
+Task(0): Downloaded: 826529
 Close client
-Task(1): Downloaded: 636872
+Task(1): Downloaded: 790974
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -1083,7 +1083,7 @@ Future<void> main(List<String> args) async {
       _message('produced: $product');
       _message('lock.acquire()');
       await lock.acquire();
-      _message('lock.acquired)');
+      _message('lock.acquired');
       try {
         while (products.length == capacity) {
           _message('notFull.wait()');
@@ -1151,7 +1151,7 @@ consumer: lock.acquired
 consumer: notEmpty.wait()
 producer: produced: 0
 producer: lock.acquire()
-producer: lock.acquired)
+producer: lock.acquired
 producer: added product: 0
 producer: products: {0}
 producer: notEmpty.notifyAll()
@@ -1162,14 +1162,14 @@ consumer: notFull.notifyAll()
 consumer: lock.release()
 producer: produced: 1
 producer: lock.acquire()
-producer: lock.acquired)
+producer: lock.acquired
 producer: added product: 1
 producer: products: {1}
 producer: notEmpty.notifyAll()
 producer: lock.release()
 producer: produced: 2
 producer: lock.acquire()
-producer: lock.acquired)
+producer: lock.acquired
 producer: added product: 2
 producer: products: {1, 2}
 producer: notEmpty.notifyAll()

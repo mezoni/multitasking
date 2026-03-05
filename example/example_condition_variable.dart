@@ -23,7 +23,7 @@ Future<void> main(List<String> args) async {
       _message('produced: $product');
       _message('lock.acquire()');
       await lock.acquire();
-      _message('lock.acquired)');
+      _message('lock.acquired');
       try {
         while (products.length == capacity) {
           _message('notFull.wait()');

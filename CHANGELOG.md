@@ -4,6 +4,7 @@
 
 - Fixed a bug with incorrect use of `WaitQueue`.
 - Fixed a bug in `ConditionVariable`.
+- Added image `assets/images/mutex.gif`.
 
 ## 2.6.0
 
