@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.8.0
+
+-`Changed the link to the image `mutex.gif`.
+
 ## 2.7.0
 
 - Fixed a bug with incorrect use of `WaitQueue`.
