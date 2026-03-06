@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 2.7.0
+Version: 2.8.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -11,7 +11,7 @@ Version: 2.7.0
 [![GitHub Stars](https://img.shields.io/github/stars/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/stargazers)
 [![GitHub License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://raw.githubusercontent.com/mezoni/multitasking/main/LICENSE)
 
-![How a mutex with two condition variables works](https://raw.githubusercontent.com/mezoni/multitasking/refs/heads/main/assets/images/mutex.gif)
+![Emulating a mutex in Dart with two condition variables](https://i.imgur.com/9MzJVqu.gif)
 
 - [Multitasking](#multitasking)
   - [About this software](#about-this-software)
@@ -402,7 +402,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 419891
+main(): count: 362441
 
 ```
 
@@ -714,7 +714,7 @@ Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 Close client
 Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 main(): Cancelling
 Close client
 Close client
@@ -728,12 +728,12 @@ Task(1): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
-Task(2): cancelled
-No data
-----------------------------------------
-Task(3): completed
+Task(2): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
+----------------------------------------
+Task(3): cancelled
+No data
 ----------------------------------------
 Task(4): cancelled
 No data
@@ -829,9 +829,9 @@ Output:
 
 ```txt
 Close client
-Task(0): Downloaded: 833480
+Task(0): Downloaded: 842618
 Close client
-Task(1): Downloaded: 818188
+Task(1): Downloaded: 725445
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```

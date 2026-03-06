@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 2.7.0
+Version: 2.8.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -11,7 +11,7 @@ Version: 2.7.0
 [![GitHub Stars](https://img.shields.io/github/stars/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/stargazers)
 [![GitHub License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://raw.githubusercontent.com/mezoni/multitasking/main/LICENSE)
 
-![How a mutex with two condition variables works](https://raw.githubusercontent.com/mezoni/multitasking/refs/heads/main/assets/images/mutex.gif)
+![Emulating a mutex in Dart with two condition variables](https://i.imgur.com/9MzJVqu.gif)
 
 - [Multitasking](#multitasking)
   - [About this software](#about-this-software)

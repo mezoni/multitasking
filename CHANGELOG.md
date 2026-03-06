@@ -2,7 +2,7 @@
 
 ## 2.8.0
 
--`Changed the link to the image `mutex.gif`.
+- Changed the link to the image `mutex.gif`.
 
 ## 2.7.0
 
