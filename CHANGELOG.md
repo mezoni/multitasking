@@ -3,6 +3,8 @@
 ## 2.8.0
 
 - Changed the link to the image `mutex.gif`.
+- Removed unused code from the `Lock` class.
+- The algorithm for the `ConditionVariable.tryWait()` method has been corrected.
 
 ## 2.7.0
 

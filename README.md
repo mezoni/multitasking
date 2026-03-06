@@ -402,7 +402,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 362441
+main(): count: 359454
 
 ```
 
@@ -829,9 +829,9 @@ Output:
 
 ```txt
 Close client
-Task(0): Downloaded: 842618
+Task(0): Downloaded: 652951
 Close client
-Task(1): Downloaded: 725445
+Task(1): Downloaded: 625745
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```

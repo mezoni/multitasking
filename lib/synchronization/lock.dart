@@ -2,15 +2,6 @@ import 'dart:async';
 
 import 'package:meta/meta.dart';
 
-import 'binary_semaphore.dart';
-
-void main(List<String> args) async {
-  final sem = BinarySemaphore();
-  await sem.lock(() {
-    //
-  });
-}
-
 abstract class Lock {
   Future<void> acquire();
 
