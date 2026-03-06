@@ -11,7 +11,8 @@ Version: 2.8.0
 [![GitHub Stars](https://img.shields.io/github/stars/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/stargazers)
 [![GitHub License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://raw.githubusercontent.com/mezoni/multitasking/main/LICENSE)
 
-![Emulating a mutex in Dart with two condition variables](https://i.imgur.com/9MzJVqu.gif)
+![Producer/Consumer Problem: Demonstration of a monitor and two condition variables operation.](https://i.imgur.com/9MzJVqu.gif)  
+Producer/consumer problem: demonstration of a monitor and two condition variables operation.
 
 - [Multitasking](#multitasking)
   - [About this software](#about-this-software)

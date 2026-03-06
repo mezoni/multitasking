@@ -11,7 +11,8 @@ Version: 2.8.0
 [![GitHub Stars](https://img.shields.io/github/stars/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/stargazers)
 [![GitHub License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://raw.githubusercontent.com/mezoni/multitasking/main/LICENSE)
 
-![Emulating a mutex in Dart with two condition variables](https://i.imgur.com/9MzJVqu.gif)
+![Producer/Consumer Problem: Demonstration of a monitor and two condition variables operation.](https://i.imgur.com/9MzJVqu.gif)  
+Producer/consumer problem: demonstration of a monitor and two condition variables operation.
 
 - [Multitasking](#multitasking)
   - [About this software](#about-this-software)
@@ -402,7 +403,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 359454
+main(): count: 418257
 
 ```
 
@@ -709,28 +710,22 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
-Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
-Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 main(): Cancelling
 Close client
 Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
+Close client
+Close client
+Close client
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(0): cancelled
+No data
 ----------------------------------------
-Task(1): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(1): cancelled
+No data
 ----------------------------------------
-Task(2): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(2): cancelled
+No data
 ----------------------------------------
 Task(3): cancelled
 No data
@@ -829,9 +824,9 @@ Output:
 
 ```txt
 Close client
-Task(0): Downloaded: 652951
+Task(0): Downloaded: 899014
 Close client
-Task(1): Downloaded: 625745
+Task(1): Downloaded: 814020
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
