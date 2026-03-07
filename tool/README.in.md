@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 2.8.0
+Version: 2.9.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -35,6 +35,7 @@ Producer/consumer problem: demonstration of a monitor and two condition variable
     - [Condition variable](#condition-variable)
     - [Reentrant lock](#reentrant-lock)
     - [Lock interface](#lock-interface)
+  - [Multiple write single read object](#multiple-write-single-read-object)
 
 ## About this software
 
@@ -350,4 +351,22 @@ An example of using a binary semaphore as a locking mechanism.
 
 BEGIN_EXAMPLE
 example_lock
+END_EXAMPLE
+
+## Multiple write single read object
+
+A `MultipleWriteSingleReadObject`is a synchronized object.
+
+If an object is not held by one or more `writers`, then `readers` can access the value of and object (using the [read] method) without any delay, having previously checked the state of the object by reading the value [isLocked].
+
+If a object is held by one or more `writers`, then `readers` must waiting for the `write` operations to complete using the [wait] method.\
+After that, a value cad be accessed immediately using the [read] method.
+
+If an object is held by one or more `readers` and a `write` operation is requested, the `writer` will wait  for all previous `read` and `write`
+operations.
+
+An example of reading and writing a shared object simultaneously.
+
+BEGIN_EXAMPLE
+example_multiple_write_single_read_object
 END_EXAMPLE

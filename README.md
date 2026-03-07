@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 2.8.0
+Version: 2.9.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -35,6 +35,7 @@ Producer/consumer problem: demonstration of a monitor and two condition variable
     - [Condition variable](#condition-variable)
     - [Reentrant lock](#reentrant-lock)
     - [Lock interface](#lock-interface)
+  - [Multiple write single read object](#multiple-write-single-read-object)
 
 ## About this software
 
@@ -403,7 +404,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 418257
+main(): count: 381247
 
 ```
 
@@ -710,13 +711,15 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
+Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
+Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 main(): Cancelling
 Close client
 Close client
 Close client
-Close client
-Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
 Task(0): cancelled
 No data
@@ -724,14 +727,16 @@ No data
 Task(1): cancelled
 No data
 ----------------------------------------
-Task(2): cancelled
-No data
+Task(2): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(3): cancelled
 No data
 ----------------------------------------
-Task(4): cancelled
-No data
+Task(4): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 
 ```
 
@@ -824,9 +829,9 @@ Output:
 
 ```txt
 Close client
-Task(0): Downloaded: 899014
+Task(0): Downloaded: 675996
 Close client
-Task(1): Downloaded: 814020
+Task(1): Downloaded: 597155
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -1303,5 +1308,98 @@ Task(1): Enter
 Task(1): Leave
 Task(2): Enter
 Task(2): Leave
+
+```
+
+## Multiple write single read object
+
+A `MultipleWriteSingleReadObject`is a synchronized object.
+
+If an object is not held by one or more `writers`, then `readers` can access the value of and object (using the [read] method) without any delay, having previously checked the state of the object by reading the value [isLocked].
+
+If a object is held by one or more `writers`, then `readers` must waiting for the `write` operations to complete using the [wait] method.\
+After that, a value cad be accessed immediately using the [read] method.
+
+If an object is held by one or more `readers` and a `write` operation is requested, the `writer` will wait  for all previous `read` and `write`
+operations.
+
+An example of reading and writing a shared object simultaneously.
+
+[example/example_multiple_write_single_read_object.dart](https://github.com/mezoni/multitasking/blob/main/example/example_multiple_write_single_read_object.dart)
+
+```dart
+import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/synchronization/multiple_write_single_read_object.dart';
+
+Future<void> main(List<String> args) async {
+  final object = MultipleWriteSingleReadObject(0);
+  final tasks = <AnyTask>[];
+
+  void scheduleTask(int ms, Future<void> Function() action) {
+    final t = Task.run<void>(() async {
+      await Task.sleep(ms);
+      await action();
+    });
+    tasks.add(t);
+  }
+
+  void scheduleRead(int ms) {
+    scheduleTask(ms, () async {
+      final int v;
+      var isLocked = false;
+      if (object.isLocked) {
+        isLocked = true;
+        _message('wait read');
+        await object.wait();
+      }
+
+      final mode = isLocked ? 'read (after wait)' : 'read';
+      v = object.read();
+      _message('$mode $v');
+    });
+  }
+
+  void scheduleWrite(int ms) {
+    scheduleTask(ms, () {
+      _message('wait write');
+      return object.write((value) async {
+        await Future<void>.delayed(Duration(milliseconds: 100));
+        final v = ++value;
+        _message('write $v');
+        return v;
+      });
+    });
+  }
+
+  scheduleRead(0);
+  scheduleWrite(0);
+  scheduleWrite(0);
+  scheduleRead(0);
+  scheduleRead(200);
+  scheduleRead(400);
+
+  await Task.waitAll(tasks);
+}
+
+void _message(String text) {
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
+}
+
+```
+
+Output:
+
+```txt
+Task(0): read 0
+Task(1): wait write
+Task(2): wait write
+Task(3): wait read
+Task(1): write 1
+Task(4): wait read
+Task(2): write 2
+Task(3): read (after wait) 2
+Task(4): read (after wait) 2
+Task(5): read 2
 
 ```

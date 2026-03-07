@@ -5,11 +5,13 @@ import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/binary_semaphore.dart';
 import 'package:multitasking/synchronization/condition_variable.dart';
 import 'package:multitasking/synchronization/counting_semaphore.dart';
+import 'package:multitasking/synchronization/multiple_write_single_read_object.dart';
 import 'package:multitasking/synchronization/reentrant_lock.dart';
 import 'package:test/test.dart';
 
 void main() {
   _testBinarySemaphore();
+  _testMultipleWriteSingleReadObject();
   _testConditionVariable();
   _testCountingSemaphore();
   _testReentrantLock();
@@ -140,6 +142,60 @@ void _testBinarySemaphore() {
     expect(max, 1, reason: 'max != 1');
     expect(total, futures.length ~/ 2,
         reason: 'total != ${futures.length ~/ 2}');
+  });
+}
+
+void _testMultipleWriteSingleReadObject() {
+  test('MultipleWriteSingleReadObject', () async {
+    final object = MultipleWriteSingleReadObject(0);
+    final values = <int>[];
+    final modes = <String>[];
+    final tasks = <AnyTask>[];
+
+    void scheduleTask(int ms, Future<void> Function() action) {
+      final t = Task.run<void>(() async {
+        await Task.sleep(ms);
+        await action();
+      });
+      tasks.add(t);
+    }
+
+    void scheduleRead(int ms) {
+      scheduleTask(ms, () async {
+        final int v;
+        var isLocked = false;
+        if (object.isLocked) {
+          isLocked = true;
+          await object.wait();
+        }
+
+        final mode = isLocked ? 'wait/read' : 'read';
+        modes.add(mode);
+        v = object.read();
+        values.add(v);
+      });
+    }
+
+    void scheduleWrite(int ms) {
+      scheduleTask(ms, () {
+        return object.write((value) async {
+          await Future<void>.delayed(Duration(milliseconds: 100));
+          return ++value;
+        });
+      });
+    }
+
+    scheduleRead(0);
+    scheduleWrite(0);
+    scheduleWrite(0);
+    scheduleRead(0);
+    scheduleRead(200);
+    scheduleRead(400);
+
+    await Task.waitAll(tasks);
+    expect(modes, ['read', 'wait/read', 'wait/read', 'read'],
+        reason: 'wring read modes');
+    expect(values, [0, 2, 2, 2], reason: 'wring values');
   });
 }
 

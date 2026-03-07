@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.9.0
+
+- Added class `MultipleWriteSingleReadObject`.
+- Added example `example_multiple_write_single_read_object.dart`.
+
 ## 2.8.0
 
 - Changed the link to the image `mutex.gif`.
