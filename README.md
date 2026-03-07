@@ -35,7 +35,7 @@ Producer/consumer problem: demonstration of a monitor and two condition variable
     - [Condition variable](#condition-variable)
     - [Reentrant lock](#reentrant-lock)
     - [Lock interface](#lock-interface)
-  - [Multiple write single read object](#multiple-write-single-read-object)
+    - [Multiple write single read object](#multiple-write-single-read-object)
 
 ## About this software
 
@@ -404,7 +404,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 381247
+main(): count: 313482
 
 ```
 
@@ -712,20 +712,23 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 Close client
 Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Close client
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 main(): Cancelling
 Close client
 Close client
-Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): cancelled
-No data
+Task(0): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
-Task(1): cancelled
-No data
+Task(1): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(2): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
@@ -734,9 +737,8 @@ Data <?xml version="1.0" encoding="UTF-8"?>
 Task(3): cancelled
 No data
 ----------------------------------------
-Task(4): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(4): cancelled
+No data
 
 ```
 
@@ -829,9 +831,9 @@ Output:
 
 ```txt
 Close client
-Task(0): Downloaded: 675996
+Task(1): Downloaded: 675990
 Close client
-Task(1): Downloaded: 597155
+Task(0): Downloaded: 611845
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -1311,14 +1313,14 @@ Task(2): Leave
 
 ```
 
-## Multiple write single read object
+### Multiple write single read object
 
 A `MultipleWriteSingleReadObject`is a synchronized object.
 
 If an object is not held by one or more `writers`, then `readers` can access the value of and object (using the [read] method) without any delay, having previously checked the state of the object by reading the value [isLocked].
 
 If a object is held by one or more `writers`, then `readers` must waiting for the `write` operations to complete using the [wait] method.\
-After that, a value cad be accessed immediately using the [read] method.
+After that, a value can be accessed immediately using the [read] method.
 
 If an object is held by one or more `readers` and a `write` operation is requested, the `writer` will wait  for all previous `read` and `write`
 operations.

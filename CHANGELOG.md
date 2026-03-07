@@ -4,6 +4,7 @@
 
 - Added class `MultipleWriteSingleReadObject`.
 - Added example `example_multiple_write_single_read_object.dart`.
+- Fixed typo in `README.md`
 
 ## 2.8.0
 
