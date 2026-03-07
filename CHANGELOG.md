@@ -3,6 +3,8 @@
 ## 2.10.0
 
 - Breaking change: The `ForEach` class has been removed in favor of a more correct way to achieve the same result - by using the `SteamIterator` class.
+- Added class `AutoResetEvent`.
+- Added class `ManualResetEvent`.
 
 ## 2.9.0
 

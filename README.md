@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 2.9.0
+Version: 2.10.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -404,7 +404,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 313482
+main(): count: 376343
 
 ```
 
@@ -507,12 +507,11 @@ One or more errors occurred. (Failure in Task('Child 1', 1)) (TaskCanceledError)
 
 Example of canceling the emulation of the `await for` statement using `ForEach` class.
 
-[example/example_task_cancel_await_for_stream_emulation.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_await_for_stream_emulation.dart)
+[example/example_task_cancel_during_stream_iteration.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_during_stream_iteration.dart)
 
 ```dart
 import 'dart:async';
 
-import 'package:multitasking/extra/for_each.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main(List<String> args) async {
@@ -563,16 +562,23 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
   return Task.run(() async {
     await Task.sleep();
     final list = <int>[];
-    await ForEach(stream, token, (event) {
-      _message('Received event: $event');
-      list.add(event);
-      if (list.length == 1 && testBreak) {
-        _message('I want to break free...');
-        return false;
+    final it = StreamIterator(stream);
+    final handler = token.addHandler(it.cancel);
+    try {
+      while (await it.moveNext()) {
+        final event = it.current;
+        _message('Received event: $event');
+        list.add(event);
+        if (list.length == 1 && testBreak) {
+          _message('I want to break free...');
+          break;
+        }
       }
+    } finally {
+      token.removerHandler(handler);
+      await it.cancel();
+    }
 
-      return true;
-    }).wait;
     token.throwIfCancelled();
     await Task.sleep();
     _message('Processing data: $list');
@@ -627,7 +633,6 @@ An example of group of tasks cancellation while working with the network.
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
-import 'package:multitasking/extra/for_each.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
@@ -641,6 +646,20 @@ Future<void> main() async {
     'https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml',
     'https://rss.nytimes.com/services/xml/rss/nyt/Music.xml'
   ];
+
+  final cancellationRequest = Completer<void>()
+    // ignore: unawaited_futures
+    ..future.then((_) {
+      _message('Canceling');
+      cts.cancel();
+    });
+
+  void cancel() {
+    if (!cancellationRequest.isCompleted) {
+      cancellationRequest.complete();
+    }
+  }
+
   for (var i = 0; i < rss.length; i++) {
     final task = Task.run(() async {
       final url = Uri.parse(rss[i]);
@@ -652,11 +671,22 @@ Future<void> main() async {
         final request = http.Request('GET', url);
         final response = await client.send(request);
         final stream = response.stream;
-        await ForEach(stream, token, (event) {
-          bytes.addAll(event);
-          return true;
-        }).wait;
+        // === listen to stream ===
+        final it = StreamIterator(stream);
+        final handler = token.addHandler(it.cancel);
+        try {
+          while (await it.moveNext()) {
+            bytes.addAll(it.current);
+          }
+        } finally {
+          token.removerHandler(handler);
+          await it.cancel();
+        }
+        // === listen to stream ===
       } finally {
+        // Simulate external cancel request
+        cancel();
+
         print('Close client');
         client.close();
       }
@@ -670,11 +700,6 @@ Future<void> main() async {
 
     tasks.add(task);
   }
-
-  Timer(Duration(seconds: 4), () {
-    _message('Cancelling');
-    cts.cancel();
-  });
 
   try {
     await Task.waitAll(tasks);
@@ -712,30 +737,26 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
-Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
-Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
-main(): Cancelling
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
+main(): Canceling
 Close client
 Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
+Close client
+Close client
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
-----------------------------------------
-Task(1): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
-----------------------------------------
-Task(2): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
-----------------------------------------
-Task(3): cancelled
+Task(0): cancelled
 No data
+----------------------------------------
+Task(1): cancelled
+No data
+----------------------------------------
+Task(2): cancelled
+No data
+----------------------------------------
+Task(3): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(4): cancelled
 No data
@@ -752,7 +773,6 @@ An example of task cancellation during long network operation.
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
-import 'package:multitasking/extra/for_each.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
@@ -803,10 +823,19 @@ Task<String> _download(Uri url, String filename, CancellationToken token) {
       final request = http.Request('GET', url);
       final response = await client.send(request);
       final stream = response.stream;
-      await ForEach(stream, token, (event) {
-        bytes.addAll(event);
-        return true;
-      }).wait;
+
+      // === listen to stream ===
+      final it = StreamIterator(stream);
+      final handler = token.addHandler(it.cancel);
+      try {
+        while (await it.moveNext()) {
+          bytes.addAll(it.current);
+        }
+      } finally {
+        token.removerHandler(handler);
+        await it.cancel();
+      }
+      // === listen to stream ===
     } finally {
       print('Close client');
       client.close();
@@ -831,9 +860,9 @@ Output:
 
 ```txt
 Close client
-Task(1): Downloaded: 675990
+Task(0): Downloaded: 705986
 Close client
-Task(0): Downloaded: 611845
+Task(1): Downloaded: 618794
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -1347,7 +1376,6 @@ Future<void> main(List<String> args) async {
 
   void scheduleRead(int ms) {
     scheduleTask(ms, () async {
-      final int v;
       var isLocked = false;
       if (object.isLocked) {
         isLocked = true;
@@ -1355,16 +1383,16 @@ Future<void> main(List<String> args) async {
         await object.wait();
       }
 
+      final v = object.read();
       final mode = isLocked ? 'read (after wait)' : 'read';
-      v = object.read();
       _message('$mode $v');
     });
   }
 
   void scheduleWrite(int ms) {
-    scheduleTask(ms, () {
+    scheduleTask(ms, () async {
       _message('wait write');
-      return object.write((value) async {
+      await object.write((value) async {
         await Future<void>.delayed(Duration(milliseconds: 100));
         final v = ++value;
         _message('write $v');

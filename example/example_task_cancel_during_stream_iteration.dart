@@ -50,6 +50,7 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
   return Task.run(() async {
     await Task.sleep();
     final list = <int>[];
+    // === listen to stream ===
     final it = StreamIterator(stream);
     final handler = token.addHandler(it.cancel);
     try {
@@ -66,6 +67,7 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
       token.removerHandler(handler);
       await it.cancel();
     }
+    // === listen to stream ===
 
     token.throwIfCancelled();
     await Task.sleep();
