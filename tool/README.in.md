@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 2.9.0
+Version: 2.10.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -259,7 +259,7 @@ END_EXAMPLE
 Example of canceling the emulation of the `await for` statement using `ForEach` class.
 
 BEGIN_EXAMPLE
-example_task_cancel_await_for_stream_emulation
+example_task_cancel_during_stream_iteration
 END_EXAMPLE
 
 ### The group of tasks can be safely cancelled while working with the network

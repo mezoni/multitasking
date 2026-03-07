@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
-import 'package:multitasking/extra/for_each.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
@@ -15,6 +14,20 @@ Future<void> main() async {
     'https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml',
     'https://rss.nytimes.com/services/xml/rss/nyt/Music.xml'
   ];
+
+  final cancellationRequest = Completer<void>()
+    // ignore: unawaited_futures
+    ..future.then((_) {
+      _message('Canceling');
+      cts.cancel();
+    });
+
+  void cancel() {
+    if (!cancellationRequest.isCompleted) {
+      cancellationRequest.complete();
+    }
+  }
+
   for (var i = 0; i < rss.length; i++) {
     final task = Task.run(() async {
       final url = Uri.parse(rss[i]);
@@ -26,11 +39,22 @@ Future<void> main() async {
         final request = http.Request('GET', url);
         final response = await client.send(request);
         final stream = response.stream;
-        await ForEach(stream, token, (event) {
-          bytes.addAll(event);
-          return true;
-        }).wait;
+        // === listen to stream ===
+        final it = StreamIterator(stream);
+        final handler = token.addHandler(it.cancel);
+        try {
+          while (await it.moveNext()) {
+            bytes.addAll(it.current);
+          }
+        } finally {
+          token.removerHandler(handler);
+          await it.cancel();
+        }
+        // === listen to stream ===
       } finally {
+        // Simulate external cancel request
+        cancel();
+
         print('Close client');
         client.close();
       }
@@ -44,11 +68,6 @@ Future<void> main() async {
 
     tasks.add(task);
   }
-
-  Timer(Duration(seconds: 4), () {
-    _message('Cancelling');
-    cts.cancel();
-  });
 
   try {
     await Task.waitAll(tasks);

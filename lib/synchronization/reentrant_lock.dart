@@ -31,8 +31,9 @@ class ReentrantLock extends Lock {
       return;
     }
 
+    final zone = Zone.current;
     await _queue.enqueue();
-    _owner = Zone.current;
+    _owner = zone;
     _count++;
     return;
   }

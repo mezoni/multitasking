@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.10.0
+
+- Breaking change: The `ForEach` class has been removed in favor of a more correct way to achieve the same result - by using the `SteamIterator` class.
+
 ## 2.9.0
 
 - Added class `MultipleWriteSingleReadObject`.

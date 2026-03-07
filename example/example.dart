@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
-import 'package:multitasking/extra/for_each.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
@@ -52,10 +51,19 @@ Task<String> _download(Uri url, String filename, CancellationToken token) {
       final request = http.Request('GET', url);
       final response = await client.send(request);
       final stream = response.stream;
-      await ForEach(stream, token, (event) {
-        bytes.addAll(event);
-        return true;
-      }).wait;
+
+      // === listen to stream ===
+      final it = StreamIterator(stream);
+      final handler = token.addHandler(it.cancel);
+      try {
+        while (await it.moveNext()) {
+          bytes.addAll(it.current);
+        }
+      } finally {
+        token.removerHandler(handler);
+        await it.cancel();
+      }
+      // === listen to stream ===
     } finally {
       print('Close client');
       client.close();

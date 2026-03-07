@@ -45,8 +45,7 @@ class CountingSemaphore {
       return _true;
     }
 
-    final waiter = _queue.enqueue();
-    return waiter as Future<void>;
+    return _queue.enqueue();
   }
 
   /// Releases a permit.
@@ -78,7 +77,6 @@ class CountingSemaphore {
       return _true;
     }
 
-    final waiter = _queue.enqueue(timeout);
-    return waiter;
+    return _queue.enqueue(timeout);
   }
 }

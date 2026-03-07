@@ -15,7 +15,6 @@ Future<void> main(List<String> args) async {
 
   void scheduleRead(int ms) {
     scheduleTask(ms, () async {
-      final int v;
       var isLocked = false;
       if (object.isLocked) {
         isLocked = true;
@@ -23,16 +22,16 @@ Future<void> main(List<String> args) async {
         await object.wait();
       }
 
+      final v = object.read();
       final mode = isLocked ? 'read (after wait)' : 'read';
-      v = object.read();
       _message('$mode $v');
     });
   }
 
   void scheduleWrite(int ms) {
-    scheduleTask(ms, () {
+    scheduleTask(ms, () async {
       _message('wait write');
-      return object.write((value) async {
+      await object.write((value) async {
         await Future<void>.delayed(Duration(milliseconds: 100));
         final v = ++value;
         _message('write $v');

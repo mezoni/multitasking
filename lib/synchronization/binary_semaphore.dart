@@ -14,7 +14,7 @@ class BinarySemaphore extends Lock {
 
   bool _isLocked = false;
 
-  final WaitQueue _waitQueue = WaitQueue();
+  final WaitQueue _queue = WaitQueue();
 
   /// Acquires a permit from this semaphore.
   @override
@@ -24,7 +24,7 @@ class BinarySemaphore extends Lock {
       return _void;
     }
 
-    return _waitQueue.enqueue();
+    return _queue.enqueue();
   }
 
   /// Releases a permit.
@@ -34,8 +34,8 @@ class BinarySemaphore extends Lock {
       throw StateError('Unmatched call of \'release()()\' method');
     }
 
-    if (_waitQueue.isNotEmpty) {
-      _waitQueue.dequeue();
+    if (_queue.isNotEmpty) {
+      _queue.dequeue();
     } else {
       _isLocked = false;
     }
@@ -63,6 +63,6 @@ class BinarySemaphore extends Lock {
       return _true;
     }
 
-    return _waitQueue.enqueue(timeout);
+    return _queue.enqueue(timeout);
   }
 }
