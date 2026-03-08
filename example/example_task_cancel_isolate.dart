@@ -23,8 +23,13 @@ Future<void> bigWork(CancellationTokenSource cts) async {
   final tasks = <AnyTask>[];
   for (var i = 0; i < 5; i++) {
     final task = Task.run(() async {
-      final result = await _computeUsingIsolate(doWork, token);
-      _message('Received result: $result');
+      final controller = StreamController<int>();
+      final results = <int>[];
+      controller.stream.listen(results.add);
+
+      await _computeUsingIsolate(doWork, i, controller.sink, token);
+      await controller.close();
+      _message('Received result: $results');
     });
 
     _message('Adding task $i');
@@ -40,13 +45,14 @@ Future<void> bigWork(CancellationTokenSource cts) async {
   }
 }
 
-void doWork(SendPort sendPort) async {
+void doWork((SendPort, int) message) async {
+  final (sendPort, arg) = message;
   final port = ReceivePort();
   try {
     final cts = _createCancellationTokenSource(port, sendPort);
     final token = cts.token;
     print("Isolate started: ${Isolate.current.hashCode}");
-    var result = 0;
+    var result = arg;
 
     for (var i = 0; i < 10; i++) {
       await Future<void>.delayed(Duration(milliseconds: 250));
@@ -62,21 +68,22 @@ void doWork(SendPort sendPort) async {
   }
 }
 
-Future<Object?> _computeUsingIsolate(
-  void Function(SendPort) computation,
+Future<void> _computeUsingIsolate<T, R>(
+  void Function((SendPort, T)) computation,
+  T argument,
+  Sink<R> sink,
   CancellationToken token,
 ) async {
   final port = ReceivePort();
   final errorPort = ReceivePort();
   final exitPort = ReceivePort();
   final barrier = Completer<SendPort>();
-  final result = <Object?>[];
-  final resultCompleter = Completer<Object?>();
+  final resultCompleter = Completer<void>();
   void Function()? handler;
 
   final isolate = await Isolate.spawn(
     computation,
-    port.sendPort,
+    (port.sendPort, argument),
     paused: true,
     onError: errorPort.sendPort,
     onExit: exitPort.sendPort,
@@ -84,7 +91,7 @@ Future<Object?> _computeUsingIsolate(
 
   void closeAll() {
     if (!resultCompleter.isCompleted) {
-      resultCompleter.complete(result);
+      resultCompleter.complete();
     }
 
     token.removerHandler(handler);
@@ -116,7 +123,7 @@ Future<Object?> _computeUsingIsolate(
     if (message is SendPort) {
       barrier.complete(message);
     } else {
-      result.add(message);
+      sink.add(message as R);
     }
   });
 

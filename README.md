@@ -406,7 +406,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 329594
+main(): count: 337717
 
 ```
 
@@ -734,7 +734,7 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
+Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 main(): Canceling
 Close client
 Close client
@@ -742,8 +742,9 @@ Close client
 Close client
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): cancelled
-No data
+Task(0): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(1): cancelled
 No data
@@ -751,9 +752,8 @@ No data
 Task(2): cancelled
 No data
 ----------------------------------------
-Task(3): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(3): cancelled
+No data
 ----------------------------------------
 Task(4): cancelled
 No data
@@ -852,9 +852,9 @@ Output:
 
 ```txt
 Close client
-Task(0): Downloaded: 1432292
+Task(0): Downloaded: 572132
 Close client
-Task(1): Downloaded: 1374950
+Task(1): Downloaded: 501630
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -893,7 +893,7 @@ Future<void> bigWork(CancellationTokenSource cts) async {
   final tasks = <AnyTask>[];
   for (var i = 0; i < 5; i++) {
     final task = Task.run(() async {
-      final result = await _computeUsingIsolate(doWork, token);
+      final result = await _computeUsingIsolate(doWork, i, token);
       _message('Received result: $result');
     });
 
@@ -910,13 +910,14 @@ Future<void> bigWork(CancellationTokenSource cts) async {
   }
 }
 
-void doWork(SendPort sendPort) async {
+void doWork((SendPort, int) message) async {
+  final (sendPort, arg) = message;
   final port = ReceivePort();
   try {
     final cts = _createCancellationTokenSource(port, sendPort);
     final token = cts.token;
     print("Isolate started: ${Isolate.current.hashCode}");
-    var result = 0;
+    var result = arg;
 
     for (var i = 0; i < 10; i++) {
       await Future<void>.delayed(Duration(milliseconds: 250));
@@ -932,8 +933,9 @@ void doWork(SendPort sendPort) async {
   }
 }
 
-Future<Object?> _computeUsingIsolate(
-  void Function(SendPort) computation,
+Future<Object?> _computeUsingIsolate<T>(
+  void Function((SendPort, T)) computation,
+  T argument,
   CancellationToken token,
 ) async {
   final port = ReceivePort();
@@ -946,7 +948,7 @@ Future<Object?> _computeUsingIsolate(
 
   final isolate = await Isolate.spawn(
     computation,
-    port.sendPort,
+    (port.sendPort, argument),
     paused: true,
     onError: errorPort.sendPort,
     onExit: exitPort.sendPort,
@@ -1023,31 +1025,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 180985696
+Isolate started: 232102839
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
-Isolate started: 160425200
 main(): Adding task 4
-Isolate started: 828845027
-Isolate started: 554514777
-Isolate started: 233350189
+Isolate started: 335603018
+Isolate started: 87327126
+Isolate started: 645305802
+Isolate started: 714771654
+Task(4): Received result: [13]
 Task(1): Received result: [10]
-Task(4): Received result: [10]
-Task(5): Received result: [10]
-Task(2): Received result: [10]
-Task(3): Received result: [10]
+Task(3): Received result: [12]
+Task(2): Received result: [11]
+Task(5): Received result: [14]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
-Isolate started: 401217598
 main(): Adding task 4
-Isolate started: 616777457
-Isolate started: 850660209
-Isolate started: 356187649
-Isolate started: 697604134
+Isolate started: 350073358
+Isolate started: 220377629
+Isolate started: 239064122
+Isolate started: 34172143
+Isolate started: 959804332
 main(): Cancelling...
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 
