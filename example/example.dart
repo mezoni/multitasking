@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:http/http.dart' as http;
 import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/stream/cancellable_stream_iterator.dart';
 
 Future<void> main() async {
   final cts = CancellationTokenSource();
@@ -50,20 +51,14 @@ Task<String> _download(Uri url, String filename, CancellationToken token) {
     try {
       final request = http.Request('GET', url);
       final response = await client.send(request);
-      final stream = response.stream;
-
-      // === listen to stream ===
-      final it = StreamIterator(stream);
-      final handler = token.addHandler(it.cancel);
+      final iterator = CancellableStreamIterator(response.stream, token);
       try {
-        while (await it.moveNext()) {
-          bytes.addAll(it.current);
+        while (await iterator.moveNext()) {
+          bytes.addAll(iterator.current);
         }
       } finally {
-        token.removerHandler(handler);
-        await it.cancel();
+        await iterator.cancel();
       }
-      // === listen to stream ===
     } finally {
       print('Close client');
       client.close();

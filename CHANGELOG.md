@@ -5,6 +5,8 @@
 - Breaking change: The `ForEach` class has been removed in favor of a more correct way to achieve the same result - by using the `SteamIterator` class.
 - Added class `AutoResetEvent`.
 - Added class `ManualResetEvent`.
+- Added example `example_task_cancel_isolate.dart`.
+- Added class `CancellableStreamIterator`.
 
 ## 2.9.0
 

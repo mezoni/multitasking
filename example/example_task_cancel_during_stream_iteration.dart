@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/stream/cancellable_stream_iterator.dart';
 
 Future<void> main(List<String> args) async {
   final controller = StreamController<int>.broadcast();
@@ -50,12 +51,10 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
   return Task.run(() async {
     await Task.sleep();
     final list = <int>[];
-    // === listen to stream ===
-    final it = StreamIterator(stream);
-    final handler = token.addHandler(it.cancel);
+    final iterator = CancellableStreamIterator(stream, token);
     try {
-      while (await it.moveNext()) {
-        final event = it.current;
+      while (await iterator.moveNext()) {
+        final event = iterator.current;
         _message('Received event: $event');
         list.add(event);
         if (list.length == 1 && testBreak) {
@@ -64,10 +63,8 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
         }
       }
     } finally {
-      token.removerHandler(handler);
-      await it.cancel();
+      await iterator.cancel();
     }
-    // === listen to stream ===
 
     token.throwIfCancelled();
     await Task.sleep();

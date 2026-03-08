@@ -29,6 +29,7 @@ Producer/consumer problem: demonstration of a monitor and two condition variable
     - [The task can be canceled while listening to the stream](#the-task-can-be-canceled-while-listening-to-the-stream)
     - [The group of tasks can be safely cancelled while working with the network](#the-group-of-tasks-can-be-safely-cancelled-while-working-with-the-network)
     - [The tasks can be safely cancelled during long running network operation](#the-tasks-can-be-safely-cancelled-during-long-running-network-operation)
+    - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -143,6 +144,10 @@ The result of a task execution is the result of computing the value of the task 
 The task itself is an object of [Future] that wraps the result of the computation.\
 The main difference between the task and the [Future] is as follows:
 
+- Task can be created in unstarted state and can be started by demand
+- If the task execution fails, the exception will not be propagated immediately
+- For a task, it is possible to track the current state through the `state` property or through the `is{State}` property (for example, `isRunning`)
+
 ### The task does not begin executing the computation immediately after it is created
 
 The task supports delayed start. Or it may never even be started.\
@@ -158,15 +163,12 @@ For this reason, due to the limited functionality of the finalizer, it is recomm
 Exceptions in task can be observed in one of the following ways:
 
 - `await task`
-- `task.future`
 - `Task.waitAll()`
 - `task.asStream()` (inherited from [Future])
 - `task.catchError()` (inherited from [Future])
 - `task.then()` (inherited from [Future])
 - `task.timeout()` (inherited from [Future])
 - `task.whenComplete()` (inherited from [Future])
-
-It all comes down to the fact that when accessing the [future] field of a task, an instance of the [Future] object is created and at that moment its life cycle begins.
 
 ## Examples of the main features of the `Task`
 
@@ -276,6 +278,16 @@ An example of task cancellation during long network operation.
 
 BEGIN_EXAMPLE
 example_task_cancel_long_network
+END_EXAMPLE
+
+### Tasks can be used with `Isolate`, and all of them can be safely canceled
+
+This example is not fundamental and is used for demonstration purposes only.
+
+An example of using tasks with isolates and their simultaneous cancellation.
+
+BEGIN_EXAMPLE
+example_task_cancel_isolate
 END_EXAMPLE
 
 ## Synchronization primitives

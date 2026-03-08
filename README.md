@@ -29,6 +29,7 @@ Producer/consumer problem: demonstration of a monitor and two condition variable
     - [The task can be canceled while listening to the stream](#the-task-can-be-canceled-while-listening-to-the-stream)
     - [The group of tasks can be safely cancelled while working with the network](#the-group-of-tasks-can-be-safely-cancelled-while-working-with-the-network)
     - [The tasks can be safely cancelled during long running network operation](#the-tasks-can-be-safely-cancelled-during-long-running-network-operation)
+    - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -143,6 +144,10 @@ The result of a task execution is the result of computing the value of the task 
 The task itself is an object of [Future] that wraps the result of the computation.\
 The main difference between the task and the [Future] is as follows:
 
+- Task can be created in unstarted state and can be started by demand
+- If the task execution fails, the exception will not be propagated immediately
+- For a task, it is possible to track the current state through the `state` property or through the `is{State}` property (for example, `isRunning`)
+
 ### The task does not begin executing the computation immediately after it is created
 
 The task supports delayed start. Or it may never even be started.\
@@ -158,15 +163,12 @@ For this reason, due to the limited functionality of the finalizer, it is recomm
 Exceptions in task can be observed in one of the following ways:
 
 - `await task`
-- `task.future`
 - `Task.waitAll()`
 - `task.asStream()` (inherited from [Future])
 - `task.catchError()` (inherited from [Future])
 - `task.then()` (inherited from [Future])
 - `task.timeout()` (inherited from [Future])
 - `task.whenComplete()` (inherited from [Future])
-
-It all comes down to the fact that when accessing the [future] field of a task, an instance of the [Future] object is created and at that moment its life cycle begins.
 
 ## Examples of the main features of the `Task`
 
@@ -404,7 +406,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 376343
+main(): count: 329594
 
 ```
 
@@ -513,6 +515,7 @@ Example of canceling the emulation of the `await for` statement using `ForEach` 
 import 'dart:async';
 
 import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/stream/cancellable_stream_iterator.dart';
 
 Future<void> main(List<String> args) async {
   final controller = StreamController<int>.broadcast();
@@ -562,11 +565,10 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
   return Task.run(() async {
     await Task.sleep();
     final list = <int>[];
-    final it = StreamIterator(stream);
-    final handler = token.addHandler(it.cancel);
+    final iterator = CancellableStreamIterator(stream, token);
     try {
-      while (await it.moveNext()) {
-        final event = it.current;
+      while (await iterator.moveNext()) {
+        final event = iterator.current;
         _message('Received event: $event');
         list.add(event);
         if (list.length == 1 && testBreak) {
@@ -575,8 +577,7 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
         }
       }
     } finally {
-      token.removerHandler(handler);
-      await it.cancel();
+      await iterator.cancel();
     }
 
     token.throwIfCancelled();
@@ -634,6 +635,7 @@ import 'dart:async';
 
 import 'package:http/http.dart' as http;
 import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/stream/cancellable_stream_iterator.dart';
 
 Future<void> main() async {
   final cts = CancellationTokenSource();
@@ -670,19 +672,14 @@ Future<void> main() async {
       try {
         final request = http.Request('GET', url);
         final response = await client.send(request);
-        final stream = response.stream;
-        // === listen to stream ===
-        final it = StreamIterator(stream);
-        final handler = token.addHandler(it.cancel);
+        final iterator = CancellableStreamIterator(response.stream, token);
         try {
-          while (await it.moveNext()) {
-            bytes.addAll(it.current);
+          while (await iterator.moveNext()) {
+            bytes.addAll(iterator.current);
           }
         } finally {
-          token.removerHandler(handler);
-          await it.cancel();
+          await iterator.cancel();
         }
-        // === listen to stream ===
       } finally {
         // Simulate external cancel request
         cancel();
@@ -774,6 +771,7 @@ import 'dart:async';
 
 import 'package:http/http.dart' as http;
 import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/stream/cancellable_stream_iterator.dart';
 
 Future<void> main() async {
   final cts = CancellationTokenSource();
@@ -822,20 +820,14 @@ Task<String> _download(Uri url, String filename, CancellationToken token) {
     try {
       final request = http.Request('GET', url);
       final response = await client.send(request);
-      final stream = response.stream;
-
-      // === listen to stream ===
-      final it = StreamIterator(stream);
-      final handler = token.addHandler(it.cancel);
+      final iterator = CancellableStreamIterator(response.stream, token);
       try {
-        while (await it.moveNext()) {
-          bytes.addAll(it.current);
+        while (await iterator.moveNext()) {
+          bytes.addAll(iterator.current);
         }
       } finally {
-        token.removerHandler(handler);
-        await it.cancel();
+        await iterator.cancel();
       }
-      // === listen to stream ===
     } finally {
       print('Close client');
       client.close();
@@ -860,10 +852,204 @@ Output:
 
 ```txt
 Close client
-Task(0): Downloaded: 705986
+Task(0): Downloaded: 1432292
 Close client
-Task(1): Downloaded: 618794
+Task(1): Downloaded: 1374950
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
+
+```
+
+### Tasks can be used with `Isolate`, and all of them can be safely canceled
+
+This example is not fundamental and is used for demonstration purposes only.
+
+An example of using tasks with isolates and their simultaneous cancellation.
+
+[example/example_task_cancel_isolate.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_isolate.dart)
+
+```dart
+import 'dart:async';
+import 'dart:isolate';
+
+import 'package:multitasking/multitasking.dart';
+
+void main(List<String> args) async {
+  var cts = CancellationTokenSource();
+  await bigWork(cts);
+
+  cts = CancellationTokenSource();
+  Timer(Duration(seconds: 2), () {
+    _message('Cancelling...');
+    cts.cancel();
+  });
+
+  await bigWork(cts);
+}
+
+Future<void> bigWork(CancellationTokenSource cts) async {
+  _message('-' * 40);
+  final token = cts.token;
+
+  final tasks = <AnyTask>[];
+  for (var i = 0; i < 5; i++) {
+    final task = Task.run(() async {
+      final result = await _computeUsingIsolate(doWork, token);
+      _message('Received result: $result');
+    });
+
+    _message('Adding task $i');
+    tasks.add(task);
+    // Allow task to start
+    await Task.sleep();
+  }
+
+  try {
+    await Task.waitAll(tasks);
+  } catch (e) {
+    print(e);
+  }
+}
+
+void doWork(SendPort sendPort) async {
+  final port = ReceivePort();
+  try {
+    final cts = _createCancellationTokenSource(port, sendPort);
+    final token = cts.token;
+    print("Isolate started: ${Isolate.current.hashCode}");
+    var result = 0;
+
+    for (var i = 0; i < 10; i++) {
+      await Future<void>.delayed(Duration(milliseconds: 250));
+      token.throwIfCancelled();
+      result++;
+      //throw 'Error';
+    }
+
+    //throw 'Error';
+    sendPort.send(result);
+  } finally {
+    port.close();
+  }
+}
+
+Future<Object?> _computeUsingIsolate(
+  void Function(SendPort) computation,
+  CancellationToken token,
+) async {
+  final port = ReceivePort();
+  final errorPort = ReceivePort();
+  final exitPort = ReceivePort();
+  final barrier = Completer<SendPort>();
+  final result = <Object?>[];
+  final resultCompleter = Completer<Object?>();
+  void Function()? handler;
+
+  final isolate = await Isolate.spawn(
+    computation,
+    port.sendPort,
+    paused: true,
+    onError: errorPort.sendPort,
+    onExit: exitPort.sendPort,
+  );
+
+  void closeAll() {
+    if (!resultCompleter.isCompleted) {
+      resultCompleter.complete(result);
+    }
+
+    token.removerHandler(handler);
+    port.close();
+    errorPort.close();
+    exitPort.close();
+  }
+
+  errorPort.listen((message) {
+    if (!resultCompleter.isCompleted) {
+      final exception = message as List<Object?>;
+      final error = exception[0] as Object;
+      final stackTraceString = exception[1];
+      StackTrace? stackTrace;
+      if (stackTraceString is String) {
+        stackTrace = StackTrace.fromString(stackTraceString);
+      }
+
+      resultCompleter.completeError(error, stackTrace);
+    }
+  });
+
+  exitPort.listen((message) {
+    closeAll();
+  });
+
+  isolate.resume(isolate.pauseCapability!);
+  port.listen((message) {
+    if (message is SendPort) {
+      barrier.complete(message);
+    } else {
+      result.add(message);
+    }
+  });
+
+  final cancelPort = await barrier.future;
+  handler = token.addHandler(() {
+    cancelPort.send(null);
+  });
+
+  return resultCompleter.future;
+}
+
+CancellationTokenSource _createCancellationTokenSource(
+  ReceivePort port,
+  SendPort sendPort,
+) {
+  final cts = CancellationTokenSource();
+  sendPort.send(port.sendPort);
+  port.listen((message) {
+    cts.cancel();
+  });
+
+  return cts;
+}
+
+void _message(String text) {
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
+}
+
+```
+
+Output:
+
+```txt
+main(): ----------------------------------------
+main(): Adding task 0
+Isolate started: 180985696
+main(): Adding task 1
+main(): Adding task 2
+main(): Adding task 3
+Isolate started: 160425200
+main(): Adding task 4
+Isolate started: 828845027
+Isolate started: 554514777
+Isolate started: 233350189
+Task(1): Received result: [10]
+Task(4): Received result: [10]
+Task(5): Received result: [10]
+Task(2): Received result: [10]
+Task(3): Received result: [10]
+main(): ----------------------------------------
+main(): Adding task 0
+main(): Adding task 1
+main(): Adding task 2
+main(): Adding task 3
+Isolate started: 401217598
+main(): Adding task 4
+Isolate started: 616777457
+Isolate started: 850660209
+Isolate started: 356187649
+Isolate started: 697604134
+main(): Cancelling...
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 
 ```
 

@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 
-import '../time_utils.dart';
-
 class WaitQueue {
   static final Future<bool> _false = Future.value(false);
 
@@ -14,10 +12,10 @@ class WaitQueue {
 
   void dequeue() {
     final node = _list.first;
-    node.unlink();
     final timer = node.timer;
-    timer?.cancel();
     final completer = node.completer;
+    node.unlink();
+    timer?.cancel();
     completer.complete(true);
   }
 
@@ -38,26 +36,23 @@ class WaitQueue {
     }
 
     final node = _Node();
-    _list.add(node);
-    node.timeout = timeout.inMicroseconds;
+    final completer = node.completer;
     node.timer = Timer(timeout, () {
       node.unlink();
       node.timer = null;
-      final completer = node.completer;
       completer.complete(false);
     });
 
-    node.started = TimeUtils.elapsedMicroseconds;
-    final completer = node.completer;
+    _list.add(node);
     return completer.future;
   }
 
   Completer<bool> removeFirst() {
     final node = _list.first;
-    node.unlink();
+    final completer = node.completer;
     final timer = node.timer;
     timer?.cancel();
-    final completer = node.completer;
+    node.unlink();
     return completer;
   }
 }
@@ -65,11 +60,7 @@ class WaitQueue {
 base class _Node extends LinkedListEntry<_Node> {
   final completer = Completer<bool>();
 
-  int started = 0;
-
   Timer? timer;
-
-  int timeout = 0;
 
   Future<bool> get future => completer.future;
 }
