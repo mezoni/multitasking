@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.11.0
+
+The `ConditionVariable.wait()` implementation has been adjusted to make the implementation more consistent with the Moore monitor (as described by Andrew D. Birrell).
+
 ## 2.10.0
 
 - Breaking change: The `ForEach` class has been removed in favor of a more correct way to achieve the same result - by using the `SteamIterator` class.

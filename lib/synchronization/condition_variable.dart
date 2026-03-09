@@ -25,10 +25,7 @@ class ConditionVariable {
   /// from the queue element to run.
   Future<void> notify() {
     if (_queue.isNotEmpty) {
-      final awaiter = _queue.removeFirst();
-      lock.acquire().then((_) {
-        awaiter.complete(true);
-      });
+      _queue.removeFirst().complete(true);
     }
 
     return _void;
@@ -40,10 +37,7 @@ class ConditionVariable {
   /// from the queue elements to run.
   Future<void> notifyAll() {
     while (_queue.isNotEmpty) {
-      final awaiter = _queue.removeFirst();
-      lock.acquire().then((_) {
-        awaiter.complete(true);
-      });
+      _queue.removeFirst().complete(true);
     }
 
     return _void;
@@ -64,7 +58,8 @@ class ConditionVariable {
 
     await lock.release();
     await _queue.enqueue();
-    return TimeUtils.elapsedMicroseconds - started < timeout.inMicroseconds;
+    await lock.acquire();
+    return TimeUtils.elapsedMicroseconds - started <= timeout.inMicroseconds;
   }
 
   /// Releases the lock and waits for a notification.\
@@ -73,5 +68,6 @@ class ConditionVariable {
   Future<void> wait() async {
     await lock.release();
     await _queue.enqueue();
+    return lock.acquire();
   }
 }

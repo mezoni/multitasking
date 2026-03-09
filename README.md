@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 2.10.0
+Version: 2.11.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -406,7 +406,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 401661
+main(): count: 220140
 
 ```
 
@@ -633,6 +633,7 @@ An example of group of tasks cancellation while working with the network.
 ```dart
 import 'dart:async';
 
+import 'package:defer/defer.dart';
 import 'package:http/http.dart' as http;
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/stream/cancellable_stream_iterator.dart';
@@ -664,33 +665,37 @@ Future<void> main() async {
 
   for (var i = 0; i < rss.length; i++) {
     final task = Task.run(() async {
-      final url = Uri.parse(rss[i]);
+      final uri = Uri.parse(rss[i]);
       final bytes = <int>[];
-      print('Fetching feed: $url');
+      print('Fetching feed: $uri');
       token.throwIfCancelled();
+
       final client = http.Client();
-      try {
-        final request = http.Request('GET', url);
-        final response = await client.send(request);
-        final iterator = CancellableStreamIterator(response.stream, token);
-        try {
-          while (await iterator.moveNext()) {
-            bytes.addAll(iterator.current);
-          }
-        } finally {
-          await iterator.cancel();
-        }
-      } finally {
-        // Simulate external cancel request
+      await defer(() async {
+        // Simulate external cancellation request.
+        // To initiate the cancellation of the remaining tasks
         cancel();
 
         print('Close client');
         client.close();
-      }
+      }, () async {
+        final request = http.Request('GET', uri);
+        final response = await client.send(request);
+        if (response.statusCode != 200) {
+          throw StateError('Http error (${response.statusCode}): $uri');
+        }
+
+        final iterator = CancellableStreamIterator(response.stream, token);
+        await defer(iterator.cancel, () async {
+          while (await iterator.moveNext()) {
+            bytes.addAll(iterator.current);
+          }
+        });
+      });
 
       token.throwIfCancelled();
       final result = String.fromCharCodes(bytes);
-      print('Processing feed: $url');
+      print('Processing feed: $uri');
       await Future<void>.delayed(Duration(seconds: 1));
       return result;
     });
@@ -734,13 +739,12 @@ Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Close client
-Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 main(): Canceling
 Close client
 Close client
 Close client
 Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
 Task(0): cancelled
 No data
@@ -754,9 +758,8 @@ No data
 Task(3): cancelled
 No data
 ----------------------------------------
-Task(4): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(4): cancelled
+No data
 
 ```
 
@@ -769,6 +772,7 @@ An example of task cancellation during long network operation.
 ```dart
 import 'dart:async';
 
+import 'package:defer/defer.dart';
 import 'package:http/http.dart' as http;
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/stream/cancellable_stream_iterator.dart';
@@ -796,7 +800,10 @@ Future<void> main() async {
   }
 
   // User request to cancel
-  Timer(Duration(seconds: 2), cts.cancel);
+  Timer(Duration(seconds: 2), () {
+    print('Cancelling...');
+    cts.cancel();
+  });
 
   try {
     await Task.waitAll(tasks);
@@ -812,27 +819,29 @@ Future<void> main() async {
   }
 }
 
-Task<String> _download(Uri url, String filename, CancellationToken token) {
+Task<String> _download(Uri uri, String filename, CancellationToken token) {
   return Task.run(() async {
     final bytes = <int>[];
     token.throwIfCancelled();
     final client = http.Client();
-    try {
-      final request = http.Request('GET', url);
-      final response = await client.send(request);
-      final iterator = CancellableStreamIterator(response.stream, token);
-      try {
-        while (await iterator.moveNext()) {
-          bytes.addAll(iterator.current);
-        }
-      } finally {
-        await iterator.cancel();
-      }
-    } finally {
+    await defer(() async {
       print('Close client');
       client.close();
       _message('Downloaded: ${bytes.length}');
-    }
+    }, () async {
+      final request = http.Request('GET', uri);
+      final response = await client.send(request);
+      if (response.statusCode != 200) {
+        throw StateError('Http error (${response.statusCode}): $uri');
+      }
+
+      final iterator = CancellableStreamIterator(response.stream, token);
+      await defer(iterator.cancel, () async {
+        while (await iterator.moveNext()) {
+          bytes.addAll(iterator.current);
+        }
+      });
+    });
 
     token.throwIfCancelled();
     // Save file to disk
@@ -851,10 +860,11 @@ void _message(String text) {
 Output:
 
 ```txt
+Cancelling...
 Close client
-Task(0): Downloaded: 1325796
+Task(0): Downloaded: 924833
 Close client
-Task(1): Downloaded: 1051735
+Task(1): Downloaded: 768741
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -1030,31 +1040,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 408496644
+Isolate started: 856337613
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
-Isolate started: 915438213
-Isolate started: 587557396
 main(): Adding task 4
-Isolate started: 1005861215
-Isolate started: 74179315
-Task(3): Received result: [12]
+Isolate started: 116235914
+Isolate started: 945833257
+Isolate started: 443925333
+Isolate started: 584600861
 Task(1): Received result: [10]
+Task(5): Received result: [14]
+Task(3): Received result: [12]
 Task(4): Received result: [13]
 Task(2): Received result: [11]
-Task(5): Received result: [14]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
 main(): Adding task 4
-Isolate started: 720257932
-Isolate started: 990173375
-Isolate started: 51246899
-Isolate started: 626803261
-Isolate started: 371234005
+Isolate started: 809846129
+Isolate started: 604135909
+Isolate started: 535310005
+Isolate started: 1979457
+Isolate started: 453706231
 main(): Cancelling...
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 

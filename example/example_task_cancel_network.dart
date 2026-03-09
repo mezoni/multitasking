@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:defer/defer.dart';
 import 'package:http/http.dart' as http;
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/stream/cancellable_stream_iterator.dart';
@@ -31,33 +32,37 @@ Future<void> main() async {
 
   for (var i = 0; i < rss.length; i++) {
     final task = Task.run(() async {
-      final url = Uri.parse(rss[i]);
+      final uri = Uri.parse(rss[i]);
       final bytes = <int>[];
-      print('Fetching feed: $url');
+      print('Fetching feed: $uri');
       token.throwIfCancelled();
+
       final client = http.Client();
-      try {
-        final request = http.Request('GET', url);
-        final response = await client.send(request);
-        final iterator = CancellableStreamIterator(response.stream, token);
-        try {
-          while (await iterator.moveNext()) {
-            bytes.addAll(iterator.current);
-          }
-        } finally {
-          await iterator.cancel();
-        }
-      } finally {
-        // Simulate external cancel request
+      await defer(() async {
+        // Simulate external cancellation request.
+        // To initiate the cancellation of the remaining tasks
         cancel();
 
         print('Close client');
         client.close();
-      }
+      }, () async {
+        final request = http.Request('GET', uri);
+        final response = await client.send(request);
+        if (response.statusCode != 200) {
+          throw StateError('Http error (${response.statusCode}): $uri');
+        }
+
+        final iterator = CancellableStreamIterator(response.stream, token);
+        await defer(iterator.cancel, () async {
+          while (await iterator.moveNext()) {
+            bytes.addAll(iterator.current);
+          }
+        });
+      });
 
       token.throwIfCancelled();
       final result = String.fromCharCodes(bytes);
-      print('Processing feed: $url');
+      print('Processing feed: $uri');
       await Future<void>.delayed(Duration(seconds: 1));
       return result;
     });
