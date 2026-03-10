@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = runZonedGuarded(() async {
+  await runZonedGuarded(() async {
     final task = Task.run(() {
       Timer(Duration(seconds: 1), () {
         throw 'Error 2';
@@ -19,10 +19,4 @@ Future<void> main() async {
   }, (error, stack) {
     print('Unhandled error: $error');
   });
-
-  try {
-    await task;
-  } catch (e) {
-    print('Task error: $e');
-  }
 }
