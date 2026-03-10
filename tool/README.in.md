@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 2.11.0
+Version: 3.0.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -11,8 +11,9 @@ Version: 2.11.0
 [![GitHub Stars](https://img.shields.io/github/stars/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/stargazers)
 [![GitHub License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://raw.githubusercontent.com/mezoni/multitasking/main/LICENSE)
 
-![Producer/Consumer Problem: Demonstration of a monitor and two condition variables operation.](https://i.imgur.com/9MzJVqu.gif)  
-Producer/consumer problem: demonstration of a monitor and two condition variables operation.
+![Producer/consumer problem: Monitor and 2 condition variables operation](https://i.imgur.com/gkMEGId.gif)
+
+Producer/consumer problem: Monitor and 2 condition variables operation.
 
 - [Multitasking](#multitasking)
   - [About this software](#about-this-software)
@@ -22,6 +23,8 @@ Producer/consumer problem: demonstration of a monitor and two condition variable
   - [Examples of the main features of the `Task`](#examples-of-the-main-features-of-the-task)
     - [The task do not throw exceptions at the completion point in case of unsuccessful completion](#the-task-do-not-throw-exceptions-at-the-completion-point-in-case-of-unsuccessful-completion)
     - [For the current task, it is possible to specify the `onExit` handler inside the task body](#for-the-current-task-it-is-possible-to-specify-the-onexit-handler-inside-the-task-body)
+    - [The task immediately propagates an exception if it is an unhandled exception](#the-task-immediately-propagates-an-exception-if-it-is-an-unhandled-exception)
+    - [The task result can be accessed synchronously after the task is completed](#the-task-result-can-be-accessed-synchronously-after-the-task-is-completed)
     - [The name of the task can be specified](#the-name-of-the-task-can-be-specified)
     - [The task can be cancelled using a cancellation token](#the-task-can-be-cancelled-using-a-cancellation-token)
     - [The task can be cancelled during `Task.sleep()`](#the-task-can-be-cancelled-during-tasksleep)
@@ -204,6 +207,26 @@ Example of `OnExit` handler:
 
 BEGIN_EXAMPLE
 example_task_on_exit
+END_EXAMPLE
+
+### The task immediately propagates an exception if it is an unhandled exception
+
+An unhandled exception is considered to be an exception (except `TaskCanceledError`) that occurs after a task has completed.  
+Since each task is executed in a separate zone, after the task is completed, timers (if any were created) may remain in the zone created for the task execution.  
+If an exception occurs within these timers, it is considered unhandled and will be immediately propagated to the parent zone.
+
+Example of handling unhandled exceptions:
+
+BEGIN_EXAMPLE
+example_task_handle_unhandled_error
+END_EXAMPLE
+
+### The task result can be accessed synchronously after the task is completed
+
+An example of a synchronous access to a task result:
+
+BEGIN_EXAMPLE
+example_task_result
 END_EXAMPLE
 
 ### The name of the task can be specified

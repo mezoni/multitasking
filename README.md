@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 2.11.0
+Version: 3.0.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -11,8 +11,9 @@ Version: 2.11.0
 [![GitHub Stars](https://img.shields.io/github/stars/mezoni/multitasking.svg)](https://github.com/mezoni/multitasking/stargazers)
 [![GitHub License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://raw.githubusercontent.com/mezoni/multitasking/main/LICENSE)
 
-![Producer/Consumer Problem: Demonstration of a monitor and two condition variables operation.](https://i.imgur.com/9MzJVqu.gif)  
-Producer/consumer problem: demonstration of a monitor and two condition variables operation.
+![Producer/consumer problem: Monitor and 2 condition variables operation](https://i.imgur.com/gkMEGId.gif)
+
+Producer/consumer problem: Monitor and 2 condition variables operation.
 
 - [Multitasking](#multitasking)
   - [About this software](#about-this-software)
@@ -22,6 +23,8 @@ Producer/consumer problem: demonstration of a monitor and two condition variable
   - [Examples of the main features of the `Task`](#examples-of-the-main-features-of-the-task)
     - [The task do not throw exceptions at the completion point in case of unsuccessful completion](#the-task-do-not-throw-exceptions-at-the-completion-point-in-case-of-unsuccessful-completion)
     - [For the current task, it is possible to specify the `onExit` handler inside the task body](#for-the-current-task-it-is-possible-to-specify-the-onexit-handler-inside-the-task-body)
+    - [The task immediately propagates an exception if it is an unhandled exception](#the-task-immediately-propagates-an-exception-if-it-is-an-unhandled-exception)
+    - [The task result can be accessed synchronously after the task is completed](#the-task-result-can-be-accessed-synchronously-after-the-task-is-completed)
     - [The name of the task can be specified](#the-name-of-the-task-can-be-specified)
     - [The task can be cancelled using a cancellation token](#the-task-can-be-cancelled-using-a-cancellation-token)
     - [The task can be cancelled during `Task.sleep()`](#the-task-can-be-cancelled-during-tasksleep)
@@ -311,6 +314,85 @@ Error
 
 ```
 
+### The task immediately propagates an exception if it is an unhandled exception
+
+An unhandled exception is considered to be an exception (except `TaskCanceledError`) that occurs after a task has completed.  
+Since each task is executed in a separate zone, after the task is completed, timers (if any were created) may remain in the zone created for the task execution.  
+If an exception occurs within these timers, it is considered unhandled and will be immediately propagated to the parent zone.
+
+Example of handling unhandled exceptions:
+
+[example/example_task_handle_unhandled_error.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_handle_unhandled_error.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  final task = runZonedGuarded(() async {
+    final task = Task.run(() {
+      Timer(Duration(seconds: 1), () {
+        throw 'Error 2';
+      });
+      throw 'Error 1';
+    });
+
+    try {
+      await task;
+    } catch (e) {
+      print('Task error: $e');
+    }
+  }, (error, stack) {
+    print('Unhandled error: $error');
+  });
+
+  try {
+    await task;
+  } catch (e) {
+    print('Task error: $e');
+  }
+}
+
+```
+
+Output:
+
+```txt
+Task error: Error 1
+Unhandled error: Error 2
+
+```
+
+### The task result can be accessed synchronously after the task is completed
+
+An example of a synchronous access to a task result:
+
+[example/example_task_result.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_result.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  final task = Task.run<int>(name: 'my task', () {
+    return 42;
+  });
+
+  await task;
+  print(task.result);
+}
+
+```
+
+Output:
+
+```txt
+42
+
+```
+
 ### The name of the task can be specified
 
 Example of using a task with the name:
@@ -406,7 +488,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 220140
+main(): count: 394815
 
 ```
 
@@ -667,35 +749,41 @@ Future<void> main() async {
     final task = Task.run(() async {
       final uri = Uri.parse(rss[i]);
       final bytes = <int>[];
-      print('Fetching feed: $uri');
-      token.throwIfCancelled();
+      _message('Fetching feed: $uri');
 
+      token.throwIfCancelled();
       final client = http.Client();
-      await defer(() async {
-        // Simulate external cancellation request.
-        // To initiate the cancellation of the remaining tasks
-        cancel();
 
-        print('Close client');
-        client.close();
-      }, () async {
-        final request = http.Request('GET', uri);
-        final response = await client.send(request);
-        if (response.statusCode != 200) {
-          throw StateError('Http error (${response.statusCode}): $uri');
-        }
+      await token.runGuarded(
+        onCancel: client.close,
+        () async {
+          await defer(() async {
+            client.close();
+          }, () async {
+            final request = http.Request('GET', uri);
+            final response = await client.send(request);
+            if (response.statusCode != 200) {
+              throw StateError('Http error (${response.statusCode}): $uri');
+            }
 
-        final iterator = CancellableStreamIterator(response.stream, token);
-        await defer(iterator.cancel, () async {
-          while (await iterator.moveNext()) {
-            bytes.addAll(iterator.current);
-          }
-        });
-      });
+            final iterator = CancellableStreamIterator(response.stream, token);
+            await defer(iterator.cancel, () async {
+              while (await iterator.moveNext()) {
+                bytes.addAll(iterator.current);
+              }
+            });
+          });
+        },
+      );
 
       token.throwIfCancelled();
+
+      // Simulate external cancellation request.
+      // To initiate the cancellation of the remaining tasks
+      cancel();
+
       final result = String.fromCharCodes(bytes);
-      print('Processing feed: $uri');
+      _message('Processing feed: $uri');
       await Future<void>.delayed(Duration(seconds: 1));
       return result;
     });
@@ -733,21 +821,18 @@ void _message(String text) {
 Output:
 
 ```txt
-Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
-Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
-Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
-Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
-Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Close client
+Task(0): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Task(1): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
+Task(2): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Task(3): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
+Task(4): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
+Task(0): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 main(): Canceling
-Close client
-Close client
-Close client
-Close client
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
+One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): cancelled
-No data
+Task(0): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(1): cancelled
 No data
@@ -822,26 +907,33 @@ Future<void> main() async {
 Task<String> _download(Uri uri, String filename, CancellationToken token) {
   return Task.run(() async {
     final bytes = <int>[];
+
     token.throwIfCancelled();
     final client = http.Client();
-    await defer(() async {
-      print('Close client');
-      client.close();
-      _message('Downloaded: ${bytes.length}');
-    }, () async {
-      final request = http.Request('GET', uri);
-      final response = await client.send(request);
-      if (response.statusCode != 200) {
-        throw StateError('Http error (${response.statusCode}): $uri');
-      }
 
-      final iterator = CancellableStreamIterator(response.stream, token);
-      await defer(iterator.cancel, () async {
-        while (await iterator.moveNext()) {
-          bytes.addAll(iterator.current);
-        }
-      });
-    });
+    await token.runGuarded(
+      onCancel: client.close,
+      () async {
+        await defer(() async {
+          print('Close client');
+          client.close();
+          _message('Downloaded: ${bytes.length}');
+        }, () async {
+          final request = http.Request('GET', uri);
+          final response = await client.send(request);
+          if (response.statusCode != 200) {
+            throw StateError('Http error (${response.statusCode}): $uri');
+          }
+
+          final iterator = CancellableStreamIterator(response.stream, token);
+          await defer(iterator.cancel, () async {
+            while (await iterator.moveNext()) {
+              bytes.addAll(iterator.current);
+            }
+          });
+        });
+      },
+    );
 
     token.throwIfCancelled();
     // Save file to disk
@@ -862,9 +954,9 @@ Output:
 ```txt
 Cancelling...
 Close client
-Task(0): Downloaded: 924833
+Task(0): Downloaded: 446620
 Close client
-Task(1): Downloaded: 768741
+Task(1): Downloaded: 459130
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -1040,31 +1132,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 856337613
+Isolate started: 106566248
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
+Isolate started: 44906977
+Isolate started: 889038758
 main(): Adding task 4
-Isolate started: 116235914
-Isolate started: 945833257
-Isolate started: 443925333
-Isolate started: 584600861
+Isolate started: 409947266
+Isolate started: 396193615
+Task(2): Received result: [11]
 Task(1): Received result: [10]
-Task(5): Received result: [14]
 Task(3): Received result: [12]
 Task(4): Received result: [13]
-Task(2): Received result: [11]
+Task(5): Received result: [14]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
+Isolate started: 302796838
 main(): Adding task 4
-Isolate started: 809846129
-Isolate started: 604135909
-Isolate started: 535310005
-Isolate started: 1979457
-Isolate started: 453706231
+Isolate started: 839679000
+Isolate started: 308093710
+Isolate started: 136292697
+Isolate started: 358471582
 main(): Cancelling...
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 

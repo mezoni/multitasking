@@ -50,26 +50,33 @@ Future<void> main() async {
 Task<String> _download(Uri uri, String filename, CancellationToken token) {
   return Task.run(() async {
     final bytes = <int>[];
+
     token.throwIfCancelled();
     final client = http.Client();
-    await defer(() async {
-      print('Close client');
-      client.close();
-      _message('Downloaded: ${bytes.length}');
-    }, () async {
-      final request = http.Request('GET', uri);
-      final response = await client.send(request);
-      if (response.statusCode != 200) {
-        throw StateError('Http error (${response.statusCode}): $uri');
-      }
 
-      final iterator = CancellableStreamIterator(response.stream, token);
-      await defer(iterator.cancel, () async {
-        while (await iterator.moveNext()) {
-          bytes.addAll(iterator.current);
-        }
-      });
-    });
+    await token.runGuarded(
+      onCancel: client.close,
+      () async {
+        await defer(() async {
+          print('Close client');
+          client.close();
+          _message('Downloaded: ${bytes.length}');
+        }, () async {
+          final request = http.Request('GET', uri);
+          final response = await client.send(request);
+          if (response.statusCode != 200) {
+            throw StateError('Http error (${response.statusCode}): $uri');
+          }
+
+          final iterator = CancellableStreamIterator(response.stream, token);
+          await defer(iterator.cancel, () async {
+            while (await iterator.moveNext()) {
+              bytes.addAll(iterator.current);
+            }
+          });
+        });
+      },
+    );
 
     token.throwIfCancelled();
     // Save file to disk

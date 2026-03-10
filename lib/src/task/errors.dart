@@ -38,6 +38,12 @@ class TaskCanceledError extends _Error {
   TaskCanceledError([super.message]);
 }
 
+/// Represents an error that occurs when an operation is requested on a [Task]
+/// whose current state does not allow the operation to be performed.
+class TaskStateError extends _Error {
+  TaskStateError([super.message]);
+}
+
 abstract class _Error extends Error {
   final String? message;
 

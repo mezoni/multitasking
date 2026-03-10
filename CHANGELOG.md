@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0.0
+
+- Breaking change: The task immediately propagates an exception if it is an unhandled exception. An unhandled exception is considered to be an exception (except `TaskCanceledError`) that occurs after a task has completed.
+- Added method `runGuarded()` to class `CancellationToken`. Purpose: Perform asynchronous actions (especially when using I/O operations) with guaranteed protection from unhandled exceptions and "automatic" processing of task cancellation requests.
+- Added getter `result` to class `Task`.
+- Added example `example_task_handle_unhandled_error.dart`.
+- Added example `example_task_result.dart`.
+
 ## 2.11.0
 
 The `ConditionVariable.wait()` implementation has been adjusted to make the implementation more consistent with the Moore monitor (as described by Andrew D. Birrell).

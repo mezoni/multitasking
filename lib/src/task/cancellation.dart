@@ -1,3 +1,8 @@
+import 'dart:async';
+
+import 'package:defer/defer.dart';
+import 'package:meta/meta.dart';
+
 import 'errors.dart';
 
 class CancellationToken {
@@ -59,11 +64,38 @@ class CancellationToken {
     }
   }
 
+  /// Perform an asynchronous [action] with guard and cancellation handling.
+  @experimental
+  Future<void> runGuarded(
+    Future<void> Function() action, {
+    required FutureOr<void> Function() onCancel,
+  }) async {
+    await defer(() async {
+      try {
+        await onCancel();
+      } finally {
+        throwIfCancelled();
+      }
+    }, () async {
+      await runZonedGuarded(() async {
+        await action();
+      }, _handleErrors);
+    });
+  }
+
   // Throw the exception [TaskCanceledError] if the token is in the `canceled`
   // state.
   void throwIfCancelled() {
     if (_isCancelled) {
       throw TaskCanceledError();
+    }
+  }
+
+  void _handleErrors(Object error, StackTrace stackTrace) {
+    if (error is TaskCanceledError) {
+      Error.throwWithStackTrace(error, stackTrace);
+    } else if (!_isCancelled) {
+      Error.throwWithStackTrace(error, stackTrace);
     }
   }
 }
@@ -75,10 +107,9 @@ class CancellationTokenSource {
   void cancel() {
     token._isCancelled = true;
     final handlers = token._handlers.toList();
+    token._handlers.clear();
     for (final handler in handlers) {
       handler();
     }
-
-    token._handlers.clear();
   }
 }

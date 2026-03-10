@@ -111,16 +111,21 @@ final class Task<T> with _FutureMixin<T> {
   Zone? _zone;
 
   /// Creates a task with the specified [action] callback and [name].
-  Task(FutureOr<T> Function() action, {this.name}) : _action = action {
-    _zone = Zone.root.fork(
+  Task(
+    FutureOr<T> Function() action, {
+    this.name,
+    void Function(Object? error, StackTrace stackTrace)? onError,
+  }) : _action = action {
+    _zone = Zone.current.fork(
         specification: ZoneSpecification(
-            handleUncaughtError: (self, parent, zone, error, stackTrace) {
-          if (error is TaskCanceledError) {
-            _complete(TaskState.cancelled, ErrorResult(error, stackTrace));
-          } else {
-            _complete(TaskState.failed, ErrorResult(error, stackTrace));
-          }
-        }),
+          handleUncaughtError: (self, parent, zone, error, stackTrace) {
+            if (error is TaskCanceledError) {
+              _complete(TaskState.cancelled, ErrorResult(error, stackTrace));
+            } else {
+              parent.handleUncaughtError(zone, error, stackTrace);
+            }
+          },
+        ),
         zoneValues: {_taskKey: this});
   }
 
@@ -165,23 +170,41 @@ final class Task<T> with _FutureMixin<T> {
     return _state != TaskState.running && _state != TaskState.created;
   }
 
+  T get result {
+    final result = _result;
+    if (result != null) {
+      if (result.isValue) {
+        final valueResult = result.asValue!;
+        return valueResult.value;
+      } else {
+        final errorResult = result.asError!;
+        final error = errorResult.error;
+        final stackTrace = errorResult.stackTrace;
+        Error.throwWithStackTrace(error, stackTrace);
+      }
+    } else {
+      throw TaskStateError(
+          'Result is not available for the task with the state \'${_state.name}\'');
+    }
+  }
+
   /// Returns task state ([TaskState]).
   TaskState get state => _state;
 
   /// Starts execution of the task.
   void start() async {
     if (_state != TaskState.created) {
-      throw StateError('Task has already been started: ${toString()}');
+      throw TaskStateError('Task has already been started: ${toString()}');
     }
 
     final zone = _zone;
     if (zone == null) {
-      throw StateError('Failed to start task: ${toString()}');
+      throw TaskStateError('Failed to start task: ${toString()}');
     }
 
     final action = _action;
     if (action == null) {
-      throw StateError('Failed to start task: ${toString()}');
+      throw TaskStateError('Failed to start task: ${toString()}');
     }
 
     _state = TaskState.running;
@@ -252,7 +275,7 @@ final class Task<T> with _FutureMixin<T> {
   Future<T> _getFuture() {
     if (_resultCompleter == null) {
       if (_state == TaskState.created) {
-        throw StateError('Task has not started yet: ${toString()}');
+        throw TaskStateError('Task has not started yet: ${toString()}');
       }
 
       _resultCompleter = Completer();
@@ -288,7 +311,7 @@ final class Task<T> with _FutureMixin<T> {
   static void onExit(FutureOr<void> Function(AnyTask task) handler) {
     final current = Task.current;
     if (current._onExit != null) {
-      throw StateError('\'Task.onExit()\' can be called only once');
+      throw TaskStateError('\'Task.onExit()\' can be called only once');
     }
 
     current._onExit = handler;

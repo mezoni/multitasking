@@ -34,35 +34,41 @@ Future<void> main() async {
     final task = Task.run(() async {
       final uri = Uri.parse(rss[i]);
       final bytes = <int>[];
-      print('Fetching feed: $uri');
-      token.throwIfCancelled();
+      _message('Fetching feed: $uri');
 
+      token.throwIfCancelled();
       final client = http.Client();
-      await defer(() async {
-        // Simulate external cancellation request.
-        // To initiate the cancellation of the remaining tasks
-        cancel();
 
-        print('Close client');
-        client.close();
-      }, () async {
-        final request = http.Request('GET', uri);
-        final response = await client.send(request);
-        if (response.statusCode != 200) {
-          throw StateError('Http error (${response.statusCode}): $uri');
-        }
+      await token.runGuarded(
+        onCancel: client.close,
+        () async {
+          await defer(() async {
+            client.close();
+          }, () async {
+            final request = http.Request('GET', uri);
+            final response = await client.send(request);
+            if (response.statusCode != 200) {
+              throw StateError('Http error (${response.statusCode}): $uri');
+            }
 
-        final iterator = CancellableStreamIterator(response.stream, token);
-        await defer(iterator.cancel, () async {
-          while (await iterator.moveNext()) {
-            bytes.addAll(iterator.current);
-          }
-        });
-      });
+            final iterator = CancellableStreamIterator(response.stream, token);
+            await defer(iterator.cancel, () async {
+              while (await iterator.moveNext()) {
+                bytes.addAll(iterator.current);
+              }
+            });
+          });
+        },
+      );
 
       token.throwIfCancelled();
+
+      // Simulate external cancellation request.
+      // To initiate the cancellation of the remaining tasks
+      cancel();
+
       final result = String.fromCharCodes(bytes);
-      print('Processing feed: $uri');
+      _message('Processing feed: $uri');
       await Future<void>.delayed(Duration(seconds: 1));
       return result;
     });
