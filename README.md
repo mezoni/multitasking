@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 3.0.0
+Version: 3.1.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -370,7 +370,7 @@ import 'dart:async';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = Task.run<int>(name: 'my task', () {
+  final task = Task.run(() {
     return 42;
   });
 
@@ -482,7 +482,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 394815
+main(): count: 389722
 
 ```
 
@@ -590,8 +590,8 @@ Example of canceling the emulation of the `await for` statement using `ForEach` 
 ```dart
 import 'dart:async';
 
+import 'package:defer/defer.dart';
 import 'package:multitasking/multitasking.dart';
-import 'package:multitasking/stream/cancellable_stream_iterator.dart';
 
 Future<void> main(List<String> args) async {
   final controller = StreamController<int>.broadcast();
@@ -641,20 +641,20 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
   return Task.run(() async {
     await Task.sleep();
     final list = <int>[];
-    final iterator = CancellableStreamIterator(stream, token);
-    try {
-      while (await iterator.moveNext()) {
-        final event = iterator.current;
-        _message('Received event: $event');
-        list.add(event);
-        if (list.length == 1 && testBreak) {
-          _message('I want to break free...');
-          break;
+    final iterator = StreamIterator(stream);
+    await runCancellable(token, iterator.cancel, () async {
+      await defer(iterator.cancel, () async {
+        while (await iterator.moveNext()) {
+          final event = iterator.current;
+          _message('Received event: $event');
+          list.add(event);
+          if (list.length == 1 && testBreak) {
+            _message('I want to break free...');
+            break;
+          }
         }
-      }
-    } finally {
-      await iterator.cancel();
-    }
+      });
+    });
 
     token.throwIfCancelled();
     await Task.sleep();
@@ -712,7 +712,6 @@ import 'dart:async';
 import 'package:defer/defer.dart';
 import 'package:http/http.dart' as http;
 import 'package:multitasking/multitasking.dart';
-import 'package:multitasking/stream/cancellable_stream_iterator.dart';
 
 Future<void> main() async {
   final cts = CancellationTokenSource();
@@ -748,27 +747,28 @@ Future<void> main() async {
       token.throwIfCancelled();
       final client = http.Client();
 
-      await token.runGuarded(
-        onCancel: client.close,
-        () async {
-          await defer(() async {
-            client.close();
-          }, () async {
-            final request = http.Request('GET', uri);
-            final response = await client.send(request);
-            if (response.statusCode != 200) {
-              throw StateError('Http error (${response.statusCode}): $uri');
-            }
+      await runCancellable(token, client.close, () async {
+        await defer(() async {
+          client.close();
+        }, () async {
+          final response = await runAndDetach(() {
+            return client.send(http.Request('GET', uri));
+          });
 
-            final iterator = CancellableStreamIterator(response.stream, token);
+          if (response.statusCode != 200) {
+            throw StateError('Http error (${response.statusCode}): $uri');
+          }
+
+          final iterator = StreamIterator(response.stream);
+          await runCancellable(token, iterator.cancel, () async {
             await defer(iterator.cancel, () async {
               while (await iterator.moveNext()) {
                 bytes.addAll(iterator.current);
               }
             });
           });
-        },
-      );
+        });
+      });
 
       token.throwIfCancelled();
 
@@ -854,7 +854,6 @@ import 'dart:async';
 import 'package:defer/defer.dart';
 import 'package:http/http.dart' as http;
 import 'package:multitasking/multitasking.dart';
-import 'package:multitasking/stream/cancellable_stream_iterator.dart';
 
 Future<void> main() async {
   final cts = CancellationTokenSource();
@@ -905,29 +904,30 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     token.throwIfCancelled();
     final client = http.Client();
 
-    await token.runGuarded(
-      onCancel: client.close,
-      () async {
-        await defer(() async {
-          print('Close client');
-          client.close();
-          _message('Downloaded: ${bytes.length}');
-        }, () async {
-          final request = http.Request('GET', uri);
-          final response = await client.send(request);
-          if (response.statusCode != 200) {
-            throw StateError('Http error (${response.statusCode}): $uri');
-          }
+    await runCancellable(token, client.close, () async {
+      await defer(() async {
+        print('Close client');
+        client.close();
+        _message('Downloaded: ${bytes.length}');
+      }, () async {
+        final response = await runAndDetach(() {
+          return client.send(http.Request('GET', uri));
+        });
 
-          final iterator = CancellableStreamIterator(response.stream, token);
+        if (response.statusCode != 200) {
+          throw StateError('Http error (${response.statusCode}): $uri');
+        }
+
+        final iterator = StreamIterator(response.stream);
+        await runCancellable(token, iterator.cancel, () async {
           await defer(iterator.cancel, () async {
             while (await iterator.moveNext()) {
               bytes.addAll(iterator.current);
             }
           });
         });
-      },
-    );
+      });
+    });
 
     token.throwIfCancelled();
     // Save file to disk
@@ -948,9 +948,9 @@ Output:
 ```txt
 Cancelling...
 Close client
-Task(0): Downloaded: 446620
+Task(0): Downloaded: 1066729
 Close client
-Task(1): Downloaded: 459130
+Task(1): Downloaded: 1051736
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -967,6 +967,7 @@ An example of using tasks with isolates and their simultaneous cancellation.
 import 'dart:async';
 import 'dart:isolate';
 
+import 'package:defer/defer.dart';
 import 'package:multitasking/multitasking.dart';
 
 void main(List<String> args) async {
@@ -993,8 +994,10 @@ Future<void> bigWork(CancellationTokenSource cts) async {
       final results = <int>[];
       controller.stream.listen(results.add);
 
-      await _computeUsingIsolate(doWork, i, controller.sink, token);
-      await controller.close();
+      await defer(controller.close, () async {
+        await _computeUsingIsolate(doWork, i, controller.sink, token);
+      });
+
       _message('Received result: $results');
     });
 
@@ -1126,31 +1129,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 106566248
 main(): Adding task 1
+Isolate started: 568175167
 main(): Adding task 2
 main(): Adding task 3
-Isolate started: 44906977
-Isolate started: 889038758
 main(): Adding task 4
-Isolate started: 409947266
-Isolate started: 396193615
-Task(2): Received result: [11]
+Isolate started: 676163727
+Isolate started: 1025866319
+Isolate started: 920837384
+Isolate started: 121438340
 Task(1): Received result: [10]
-Task(3): Received result: [12]
+Task(2): Received result: [11]
 Task(4): Received result: [13]
+Task(3): Received result: [12]
 Task(5): Received result: [14]
 main(): ----------------------------------------
 main(): Adding task 0
+Isolate started: 481991585
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
-Isolate started: 302796838
+Isolate started: 437605760
 main(): Adding task 4
-Isolate started: 839679000
-Isolate started: 308093710
-Isolate started: 136292697
-Isolate started: 358471582
+Isolate started: 750013228
+Isolate started: 930649556
+Isolate started: 144587928
 main(): Cancelling...
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 

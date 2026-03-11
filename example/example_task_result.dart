@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = Task.run<int>(name: 'my task', () {
+  final task = Task.run(() {
     return 42;
   });
 

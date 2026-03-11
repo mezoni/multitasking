@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 
+import 'package:defer/defer.dart';
 import 'package:multitasking/multitasking.dart';
 
 void main(List<String> args) async {
@@ -27,8 +28,10 @@ Future<void> bigWork(CancellationTokenSource cts) async {
       final results = <int>[];
       controller.stream.listen(results.add);
 
-      await _computeUsingIsolate(doWork, i, controller.sink, token);
-      await controller.close();
+      await defer(controller.close, () async {
+        await _computeUsingIsolate(doWork, i, controller.sink, token);
+      });
+
       _message('Received result: $results');
     });
 

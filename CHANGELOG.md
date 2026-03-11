@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.1.0
+
+- Breaking change: Removed method `runGuarded` from class `CancellationToken`.
+- Added function `runCancellable()` to  `lib/src/task/cancellation.dart`.
+- Added function `runAndDetach()` to  `lib/src/task/cancellation.dart`.
+
 ## 3.0.0
 
 - Breaking change: The task immediately propagates an exception if it is an unhandled exception. An unhandled exception is considered to be an exception (except `TaskCanceledError`) that occurs after a task has completed.

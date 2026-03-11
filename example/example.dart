@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:defer/defer.dart';
 import 'package:http/http.dart' as http;
 import 'package:multitasking/multitasking.dart';
-import 'package:multitasking/stream/cancellable_stream_iterator.dart';
 
 Future<void> main() async {
   final cts = CancellationTokenSource();
@@ -54,29 +53,30 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     token.throwIfCancelled();
     final client = http.Client();
 
-    await token.runGuarded(
-      onCancel: client.close,
-      () async {
-        await defer(() async {
-          print('Close client');
-          client.close();
-          _message('Downloaded: ${bytes.length}');
-        }, () async {
-          final request = http.Request('GET', uri);
-          final response = await client.send(request);
-          if (response.statusCode != 200) {
-            throw StateError('Http error (${response.statusCode}): $uri');
-          }
+    await runCancellable(token, client.close, () async {
+      await defer(() async {
+        print('Close client');
+        client.close();
+        _message('Downloaded: ${bytes.length}');
+      }, () async {
+        final response = await runAndDetach(() {
+          return client.send(http.Request('GET', uri));
+        });
 
-          final iterator = CancellableStreamIterator(response.stream, token);
+        if (response.statusCode != 200) {
+          throw StateError('Http error (${response.statusCode}): $uri');
+        }
+
+        final iterator = StreamIterator(response.stream);
+        await runCancellable(token, iterator.cancel, () async {
           await defer(iterator.cancel, () async {
             while (await iterator.moveNext()) {
               bytes.addAll(iterator.current);
             }
           });
         });
-      },
-    );
+      });
+    });
 
     token.throwIfCancelled();
     // Save file to disk
