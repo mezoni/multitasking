@@ -1,3 +1,3 @@
-export 'src/task/cancellation.dart';
-export 'src/task/errors.dart';
-export 'src/task/task.dart';
+export 'src/multitasking/cancellation.dart';
+export 'src/multitasking/errors.dart';
+export 'src/multitasking/task.dart';

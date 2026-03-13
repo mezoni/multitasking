@@ -5,6 +5,7 @@ import 'package:meta/meta.dart';
 
 import 'cancellation.dart';
 import 'errors.dart';
+import 'zone_stats.dart';
 
 /// Type alias for a task of any type.
 typedef AnyTask = Task<Object?>;
@@ -110,23 +111,25 @@ final class Task<T> with _FutureMixin<T> {
 
   Zone? _zone;
 
+  ZoneStats? _zoneStats;
+
   /// Creates a task with the specified [action] callback and [name].
   Task(
     FutureOr<T> Function() action, {
     this.name,
     void Function(Object? error, StackTrace stackTrace)? onError,
   }) : _action = action {
+    final zoneStats = ZoneStats();
+    var specification = zoneStats.specification;
+    specification = ZoneSpecification.from(
+      specification,
+      handleUncaughtError: _handleUncaughtError,
+    );
+    _zoneStats = zoneStats;
     _zone = Zone.current.fork(
-        specification: ZoneSpecification(
-          handleUncaughtError: (self, parent, zone, error, stackTrace) {
-            if (error is TaskCanceledError) {
-              _complete(TaskState.cancelled, ErrorResult(error, stackTrace));
-            } else {
-              parent.handleUncaughtError(zone, error, stackTrace);
-            }
-          },
-        ),
-        zoneValues: {_taskKey: this});
+      specification: specification,
+      zoneValues: {_taskKey: this},
+    );
   }
 
   Task._raw(this._state, {this.name});
@@ -190,6 +193,8 @@ final class Task<T> with _FutureMixin<T> {
 
   /// Returns task state ([TaskState]).
   TaskState get state => _state;
+
+  ZoneStats? get zoneStats => _zoneStats;
 
   /// Starts execution of the task.
   void start() async {
@@ -288,6 +293,20 @@ final class Task<T> with _FutureMixin<T> {
     }
 
     return _resultCompleter!.future;
+  }
+
+  void _handleUncaughtError(
+    Zone self,
+    ZoneDelegate parent,
+    Zone zone,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    if (error is TaskCanceledError) {
+      _complete(TaskState.cancelled, ErrorResult(error, stackTrace));
+    } else {
+      parent.handleUncaughtError(zone, error, stackTrace);
+    }
   }
 
   /// Assigns a handler for the current task ([Task.current]) that will be

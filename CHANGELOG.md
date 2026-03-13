@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.2.0
+
+- Added example `example_task_wait_in_different_ways.dart`.
+- Added class `ZoneStats`
+- Added example `example_task_zone_stats.dart`.
+
 ## 3.1.0
 
 - Breaking change: Removed method `runGuarded` from class `CancellationToken`.

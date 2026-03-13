@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 3.1.0
+Version: 3.2.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -26,6 +26,8 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
     - [The task immediately propagates an exception if it is an unhandled exception](#the-task-immediately-propagates-an-exception-if-it-is-an-unhandled-exception)
     - [The task result can be accessed synchronously after the task is completed](#the-task-result-can-be-accessed-synchronously-after-the-task-is-completed)
     - [The name of the task can be specified](#the-name-of-the-task-can-be-specified)
+    - [Tasks can be waited for in different ways](#tasks-can-be-waited-for-in-different-ways)
+    - [The task zone provides access to statistics of the operations in the zone](#the-task-zone-provides-access-to-statistics-of-the-operations-in-the-zone)
     - [The task can be cancelled using a cancellation token](#the-task-can-be-cancelled-using-a-cancellation-token)
     - [The task can be cancelled during `Task.sleep()`](#the-task-can-be-cancelled-during-tasksleep)
     - [The task can be cancelled as a group of tasks](#the-task-can-be-cancelled-as-a-group-of-tasks)
@@ -237,6 +239,22 @@ BEGIN_EXAMPLE
 example_task_name
 END_EXAMPLE
 
+### Tasks can be waited for in different ways
+
+Example of waiting for in different ways:
+
+BEGIN_EXAMPLE
+example_task_wait_in_different_ways
+END_EXAMPLE
+
+### The task zone provides access to statistics of the operations in the zone
+
+Example of accessing task zone statistics:
+
+BEGIN_EXAMPLE
+example_task_zone_stats
+END_EXAMPLE
+
 ### The task can be cancelled using a cancellation token
 
 Canceling a task is a normal action that is supported by the implementation of the mechanism of task functioning.  
@@ -260,7 +278,7 @@ if (token.isCancelled) {
 
 All that is required for this is to pass the token as an argument to method `Task.sleep()`.
 
-Example of cancelling a task during task sleep`Task.sleep()`.
+Example of cancelling a task during task sleep`Task.sleep()`:
 
 BEGIN_EXAMPLE
 example_task_cancel_during_sleep
@@ -273,7 +291,7 @@ The interaction logic is completely determined by the developer.
 
 ### The task can be cancelled as a group of tasks
 
-Example of cancelled a group of tasks in case of any failure in any task.
+Example of cancelled a group of tasks in case of any failure in any task:
 
 BEGIN_EXAMPLE
 example_task_cancel_group_by_failure
@@ -281,7 +299,7 @@ END_EXAMPLE
 
 ### The task can be canceled while listening to the stream
 
-Example of canceling the emulation of the `await for` statement using `ForEach` class.
+Example of canceling the emulation of the `await for` statement using `ForEach` class:
 
 BEGIN_EXAMPLE
 example_task_cancel_during_stream_iteration
@@ -289,7 +307,7 @@ END_EXAMPLE
 
 ### The group of tasks can be safely cancelled while working with the network
 
-An example of group of tasks cancellation while working with the network.
+An example of group of tasks cancellation while working with the network:
 
 BEGIN_EXAMPLE
 example_task_cancel_network
@@ -297,7 +315,7 @@ END_EXAMPLE
 
 ### The tasks can be safely cancelled during long running network operation
 
-An example of task cancellation during long network operation.
+An example of task cancellation during long network operation:
 
 BEGIN_EXAMPLE
 example_task_cancel_long_network
@@ -307,7 +325,7 @@ END_EXAMPLE
 
 This example is not fundamental and is used for demonstration purposes only.
 
-An example of using tasks with isolates and their simultaneous cancellation.
+An example of using tasks with isolates and their simultaneous cancellation:
 
 BEGIN_EXAMPLE
 example_task_cancel_isolate
@@ -330,7 +348,7 @@ Release:
 If any calling code was blocked from executing, that code will continue executing and acquire the permit.  
 Otherwise, the counter is incremented.
 
-Example with a limit of no more than 3 simultaneously executed operations.
+Example with a limit of no more than 3 simultaneously executed operations:
 
 BEGIN_EXAMPLE
 example_counting_semaphore
@@ -370,7 +388,7 @@ It blocks execution of all zones that do not own this lock.
 The zone that acquired the permit becomes the owner of this lock.  
 The zone owner can enter and exit as long as it holds this lock.
 
-An example of reentering a `ReentrantLock`.
+An example of reentering a `ReentrantLock`:
 
 BEGIN_EXAMPLE
 example_reentrant_lock
@@ -382,7 +400,7 @@ END_EXAMPLE
 For example, this interface is implemented by the classes `BinarySemaphore` and  `ReentrantLock`.  
 These classes can be used for exclusive locking.  
 
-An example of using a binary semaphore as a locking mechanism.
+An example of using a binary semaphore as a locking mechanism:
 
 BEGIN_EXAMPLE
 example_lock
@@ -400,7 +418,7 @@ After that, a value can be accessed immediately using the [read] method.
 If an object is held by one or more `readers` and a `write` operation is requested, the `writer` will wait  for all previous `read` and `write`
 operations.
 
-An example of reading and writing a shared object simultaneously.
+An example of reading and writing a shared object simultaneously:
 
 BEGIN_EXAMPLE
 example_multiple_write_single_read_object

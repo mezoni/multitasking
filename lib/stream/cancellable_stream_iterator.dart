@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../src/task/cancellation.dart';
+import '../src/multitasking/cancellation.dart';
 
 class CancellableStreamIterator<T> implements StreamIterator<T> {
   void Function()? _handler;

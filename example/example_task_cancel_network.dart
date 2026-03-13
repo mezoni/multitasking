@@ -61,8 +61,6 @@ Future<void> main() async {
         });
       });
 
-      token.throwIfCancelled();
-
       // Simulate external cancellation request.
       // To initiate the cancellation of the remaining tasks
       cancel();

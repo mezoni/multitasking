@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 3.1.0
+Version: 3.2.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -26,6 +26,8 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
     - [The task immediately propagates an exception if it is an unhandled exception](#the-task-immediately-propagates-an-exception-if-it-is-an-unhandled-exception)
     - [The task result can be accessed synchronously after the task is completed](#the-task-result-can-be-accessed-synchronously-after-the-task-is-completed)
     - [The name of the task can be specified](#the-name-of-the-task-can-be-specified)
+    - [Tasks can be waited for in different ways](#tasks-can-be-waited-for-in-different-ways)
+    - [The task zone provides access to statistics of the operations in the zone](#the-task-zone-provides-access-to-statistics-of-the-operations-in-the-zone)
     - [The task can be cancelled using a cancellation token](#the-task-can-be-cancelled-using-a-cancellation-token)
     - [The task can be cancelled during `Task.sleep()`](#the-task-can-be-cancelled-during-tasksleep)
     - [The task can be cancelled as a group of tasks](#the-task-can-be-cancelled-as-a-group-of-tasks)
@@ -399,7 +401,7 @@ import 'dart:async';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = Task.run<int>(name: 'my task', () {
+  final task = Task.run(name: 'my task', () {
     return 1;
   });
 
@@ -413,6 +415,197 @@ Output:
 
 ```txt
 my task
+
+```
+
+### Tasks can be waited for in different ways
+
+Example of waiting for in different ways:
+
+[example/example_task_wait_in_different_ways.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_wait_in_different_ways.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  final tasks = [
+    doSomeWorkWithError(100),
+    doSomeWork1(1, 200),
+    doSomeWorkWithError(300),
+    doSomeWork1(2, 400),
+  ];
+
+  print('whenAny');
+  final firstTask = await whenAny(tasks);
+  print('$firstTask: ${firstTask.state.name}');
+  print('Tasks');
+  print(tasks.map((e) {
+    return '$e: ${e.state.name}';
+  }).join(', '));
+
+  print('whenAll');
+  await whenAll(tasks);
+
+  for (var i = 0; i < tasks.length; i++) {
+    final task = tasks[i];
+    var s = '$task: ${task.state.name}';
+    if (task.isCompleted) {
+      s += ', result: ${task.result}';
+    } else {
+      s += ', exception: ${task.exception!.error}';
+    }
+
+    print(s);
+  }
+}
+
+Task<int> doSomeWork1(int n, int ms) {
+  return Task.run(() async {
+    await Future<void>.delayed(Duration(milliseconds: ms));
+    return n;
+  });
+}
+
+Task<int> doSomeWorkWithError(int ms) {
+  return Task.run(() async {
+    await Future<void>.delayed(Duration(milliseconds: ms));
+    throw StateError('Some error');
+  });
+}
+
+Future<void> whenAll<T>(List<Task<T>> tasks) async {
+  final completer = Completer<void>();
+  var count = 0;
+  for (var i = 0; i < tasks.length; i++) {
+    final task = tasks[i];
+    unawaited(() async {
+      try {
+        await task;
+      } catch (e) {
+        //
+      } finally {
+        if (++count == tasks.length) {
+          completer.complete();
+        }
+      }
+    }());
+  }
+
+  return completer.future;
+}
+
+Future<Task<T>> whenAny<T>(List<Task<T>> tasks) async {
+  final completer = Completer<Task<T>>();
+  for (var i = 0; i < tasks.length; i++) {
+    final task = tasks[i];
+    unawaited(() async {
+      try {
+        await task;
+      } catch (e) {
+        //
+      } finally {
+        if (!completer.isCompleted) {
+          completer.complete(task);
+        }
+      }
+    }());
+  }
+
+  return completer.future;
+}
+
+```
+
+Output:
+
+```txt
+whenAny
+Task(0): failed
+Tasks
+Task(0): failed, Task(1): running, Task(2): running, Task(3): running
+whenAll
+Task(0): failed, exception: Bad state: Some error
+Task(1): completed, result: 1
+Task(2): failed, exception: Bad state: Some error
+Task(3): completed, result: 2
+
+```
+
+### The task zone provides access to statistics of the operations in the zone
+
+Example of accessing task zone statistics:
+
+[example/example_task_zone_stats.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_zone_stats.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  final task = Task(name: 'my task', () async {
+    print('-' * 40);
+    print('Task started');
+    Timer(Duration(milliseconds: 400), () {});
+    await Future<void>.delayed(const Duration());
+    return 42;
+  });
+
+  final zoneStats = task.zoneStats;
+  if (zoneStats != null) {
+    Timer.periodic(Duration(milliseconds: 100), (timer) {
+      print('-' * 40);
+      if (zoneStats.isZoneActive || !task.isStarted) {
+        print('Active microtasks: ${zoneStats.activeMicrotasks}');
+        print('Active periodic timers: ${zoneStats.activePeriodicTimers}');
+        print('Active timers: ${zoneStats.activeTimers}');
+      } else {
+        timer.cancel();
+        print('Scheduled microtasks: ${zoneStats.scheduledMicrotasks}');
+        print('Created periodic timers: ${zoneStats.createdPeriodicTimers}');
+        print('Created timers: ${zoneStats.createdTimers}');
+      }
+    });
+  }
+
+  await Future<void>.delayed(Duration(milliseconds: 100));
+  task.start();
+  await task;
+}
+
+```
+
+Output:
+
+```txt
+----------------------------------------
+Active microtasks: 0
+Active periodic timers: 0
+Active timers: 0
+----------------------------------------
+Task started
+----------------------------------------
+Active microtasks: 0
+Active periodic timers: 0
+Active timers: 1
+----------------------------------------
+Active microtasks: 0
+Active periodic timers: 0
+Active timers: 1
+----------------------------------------
+Active microtasks: 0
+Active periodic timers: 0
+Active timers: 1
+----------------------------------------
+Active microtasks: 0
+Active periodic timers: 0
+Active timers: 1
+----------------------------------------
+Scheduled microtasks: 0
+Created periodic timers: 0
+Created timers: 2
 
 ```
 
@@ -439,7 +632,7 @@ if (token.isCancelled) {
 
 All that is required for this is to pass the token as an argument to method `Task.sleep()`.
 
-Example of cancelling a task during task sleep`Task.sleep()`.
+Example of cancelling a task during task sleep`Task.sleep()`:
 
 [example/example_task_cancel_during_sleep.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_during_sleep.dart)
 
@@ -482,7 +675,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 389722
+main(): count: 379152
 
 ```
 
@@ -493,7 +686,7 @@ The interaction logic is completely determined by the developer.
 
 ### The task can be cancelled as a group of tasks
 
-Example of cancelled a group of tasks in case of any failure in any task.
+Example of cancelled a group of tasks in case of any failure in any task:
 
 [example/example_task_cancel_group_by_failure.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_group_by_failure.dart)
 
@@ -583,7 +776,7 @@ One or more errors occurred. (Failure in Task('Child 1', 1)) (TaskCanceledError)
 
 ### The task can be canceled while listening to the stream
 
-Example of canceling the emulation of the `await for` statement using `ForEach` class.
+Example of canceling the emulation of the `await for` statement using `ForEach` class:
 
 [example/example_task_cancel_during_stream_iteration.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_during_stream_iteration.dart)
 
@@ -702,7 +895,7 @@ Stopping the controller
 
 ### The group of tasks can be safely cancelled while working with the network
 
-An example of group of tasks cancellation while working with the network.
+An example of group of tasks cancellation while working with the network:
 
 [example/example_task_cancel_network.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_network.dart)
 
@@ -770,8 +963,6 @@ Future<void> main() async {
         });
       });
 
-      token.throwIfCancelled();
-
       // Simulate external cancellation request.
       // To initiate the cancellation of the remaining tasks
       cancel();
@@ -820,16 +1011,16 @@ Task(1): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Task(2): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Task(3): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Task(4): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Task(0): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Task(1): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 main(): Canceling
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): completed
+Task(0): cancelled
+No data
+----------------------------------------
+Task(1): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
-----------------------------------------
-Task(1): cancelled
-No data
 ----------------------------------------
 Task(2): cancelled
 No data
@@ -844,7 +1035,7 @@ No data
 
 ### The tasks can be safely cancelled during long running network operation
 
-An example of task cancellation during long network operation.
+An example of task cancellation during long network operation:
 
 [example/example_task_cancel_long_network.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_long_network.dart)
 
@@ -948,9 +1139,9 @@ Output:
 ```txt
 Cancelling...
 Close client
-Task(0): Downloaded: 1066729
+Task(0): Downloaded: 795160
 Close client
-Task(1): Downloaded: 1051736
+Task(1): Downloaded: 767952
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -959,7 +1150,7 @@ One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 This example is not fundamental and is used for demonstration purposes only.
 
-An example of using tasks with isolates and their simultaneous cancellation.
+An example of using tasks with isolates and their simultaneous cancellation:
 
 [example/example_task_cancel_isolate.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_isolate.dart)
 
@@ -1129,31 +1320,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
+Isolate started: 1061764860
 main(): Adding task 1
-Isolate started: 568175167
 main(): Adding task 2
+Isolate started: 1033680254
 main(): Adding task 3
 main(): Adding task 4
-Isolate started: 676163727
-Isolate started: 1025866319
-Isolate started: 920837384
-Isolate started: 121438340
+Isolate started: 786519912
+Isolate started: 34064989
+Isolate started: 659840641
+Task(3): Received result: [12]
+Task(5): Received result: [14]
 Task(1): Received result: [10]
 Task(2): Received result: [11]
 Task(4): Received result: [13]
-Task(3): Received result: [12]
-Task(5): Received result: [14]
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 481991585
 main(): Adding task 1
 main(): Adding task 2
+Isolate started: 916643425
 main(): Adding task 3
-Isolate started: 437605760
 main(): Adding task 4
-Isolate started: 750013228
-Isolate started: 930649556
-Isolate started: 144587928
+Isolate started: 122761409
+Isolate started: 731344819
+Isolate started: 279936172
+Isolate started: 371038781
 main(): Cancelling...
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 
@@ -1176,7 +1367,7 @@ Release:
 If any calling code was blocked from executing, that code will continue executing and acquire the permit.  
 Otherwise, the counter is incremented.
 
-Example with a limit of no more than 3 simultaneously executed operations.
+Example with a limit of no more than 3 simultaneously executed operations:
 
 [example/example_counting_semaphore.dart](https://github.com/mezoni/multitasking/blob/main/example/example_counting_semaphore.dart)
 
@@ -1526,7 +1717,7 @@ It blocks execution of all zones that do not own this lock.
 The zone that acquired the permit becomes the owner of this lock.  
 The zone owner can enter and exit as long as it holds this lock.
 
-An example of reentering a `ReentrantLock`.
+An example of reentering a `ReentrantLock`:
 
 [example/example_reentrant_lock.dart](https://github.com/mezoni/multitasking/blob/main/example/example_reentrant_lock.dart)
 
@@ -1589,7 +1780,7 @@ Task(2): Increment counter: 9
 For example, this interface is implemented by the classes `BinarySemaphore` and  `ReentrantLock`.  
 These classes can be used for exclusive locking.  
 
-An example of using a binary semaphore as a locking mechanism.
+An example of using a binary semaphore as a locking mechanism:
 
 [example/example_lock.dart](https://github.com/mezoni/multitasking/blob/main/example/example_lock.dart)
 
@@ -1646,7 +1837,7 @@ After that, a value can be accessed immediately using the [read] method.
 If an object is held by one or more `readers` and a `write` operation is requested, the `writer` will wait  for all previous `read` and `write`
 operations.
 
-An example of reading and writing a shared object simultaneously.
+An example of reading and writing a shared object simultaneously:
 
 [example/example_multiple_write_single_read_object.dart](https://github.com/mezoni/multitasking/blob/main/example/example_multiple_write_single_read_object.dart)
 
