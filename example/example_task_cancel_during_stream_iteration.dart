@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:defer/defer.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main(List<String> args) async {
@@ -51,22 +50,20 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
   return Task.run(() async {
     await Task.sleep();
     final list = <int>[];
-    final iterator = StreamIterator(stream);
-    await runCancellable(token, iterator.cancel, () async {
-      await defer(iterator.cancel, () async {
-        while (await iterator.moveNext()) {
-          final event = iterator.current;
-          _message('Received event: $event');
-          list.add(event);
-          if (list.length == 1 && testBreak) {
-            _message('I want to break free...');
-            break;
-          }
-        }
-      });
-    });
 
     token.throwIfCancelled();
+    StreamSubscription<int>? subscription;
+    subscription = stream.listen((data) {
+      _message('Received event: $data');
+      list.add(data);
+      if (list.length == 1 && testBreak) {
+        _message('I want to break free...');
+        // break;
+        subscription!.cancel();
+      }
+    });
+    await runCancellable(token, subscription.cancel, subscription.asFuture);
+
     await Task.sleep();
     _message('Processing data: $list');
     if (testBreak) {

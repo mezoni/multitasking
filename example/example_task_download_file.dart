@@ -1,52 +1,46 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:http/http.dart';
 import 'package:multitasking/multitasking.dart';
 
+import 'example_task_wait_in_different_ways.dart';
+
 Future<void> main() async {
   final cts = CancellationTokenSource();
   final token = cts.token;
-  final list = [
-    (
-      '3.11.1',
-      'https://storage.googleapis.com/dart-archive/channels/stable/release/3.11.1/sdk/dartsdk-windows-x64-release.zip'
-    ),
-    (
-      '3.10.9',
-      'https://storage.googleapis.com/dart-archive/channels/stable/release/3.10.9/sdk/dartsdk-windows-x64-release.zip'
-    )
-  ];
+  final progress = Progress((int byteCount) {
+    stdout.write('\r\x1B[2KDownloaded: $byteCount bytes');
+  });
 
-  final tasks = <AnyTask>[];
-  for (final element in list) {
-    final url = Uri.parse(element.$2);
-    final filename = element.$1;
-    final task = _download(url, filename, token);
-    tasks.add(task);
-  }
+  final url = Uri.parse(
+      'https://storage.googleapis.com/dart-archive/channels/stable/release/3.10.9/sdk/dartsdk-windows-x64-release.zip');
+  const filename = 'dart_sdk';
+  final task = _download(url, filename, token, progress: progress);
 
   // User request to cancel
-  Timer(Duration(seconds: 2), () {
+  Timer(Duration(seconds: 5), () {
+    print('');
     print('Cancelling...');
     cts.cancel();
   });
 
   try {
-    await Task.waitAll(tasks);
+    await task;
   } catch (e) {
     print('$e');
   }
 
-  for (final task in tasks) {
-    if (task.isCompleted) {
-      final filename = await task;
-      print('Done: $filename');
-    }
+  if (task.isCompleted) {
+    final filename = await task;
+    print('Done: $filename');
   }
 }
 
-Task<String> _download(Uri uri, String filename, CancellationToken token) {
+Task<String> _download(Uri uri, String filename, CancellationToken token,
+    {Progress<int>? progress}) {
   return Task.run(() async {
+    _message('Starting download');
     final bytes = <int>[];
 
     Task.onExit((task) {
@@ -69,7 +63,10 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
       }
 
       try {
-        await response.stream.listen(bytes.addAll).asFuture<void>();
+        await response.stream.listen((data) {
+          bytes.addAll(data);
+          progress?.report(bytes.length);
+        }).asFuture<void>();
       } on RequestAbortedException {
         throw TaskCanceledError();
       }

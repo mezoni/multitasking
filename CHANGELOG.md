@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.4.0
+
+- Changed example `example_task_cancel_long_network.dart`.
+- Changed example `example_task_cancel_network.dart`.
+- Changed example `example_task_cancel_during_stream_iteration.dart`.
+- Added class `Progress`
+- Changed example `example_task_download_file.dart`.
+
 ## 3.3.0
 
 - Non-breaking changes: Handlers of the `CancellationToken` class can be asynchronous and now they are executed in the `zone` where the handlers were created via the `scheduleMicrotask()` call.

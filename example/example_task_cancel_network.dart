@@ -1,7 +1,6 @@
 import 'dart:async';
 
-import 'package:defer/defer.dart';
-import 'package:http/http.dart' as http;
+import 'package:http/http.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
@@ -30,36 +29,33 @@ Future<void> main() async {
   }
 
   for (var i = 0; i < rss.length; i++) {
+    final uri = Uri.parse(rss[i]);
     final task = Task.run(() async {
-      final uri = Uri.parse(rss[i]);
       final bytes = <int>[];
       _message('Fetching feed: $uri');
 
       token.throwIfCancelled();
-      final client = http.Client();
+      final client = Client();
+      final abortTrigger = Completer<void>();
 
-      await runCancellable(token, client.close, () async {
-        await defer(() async {
-          client.close();
-        }, () async {
-          final response = await runAndDetach(() {
-            return client.send(http.Request('GET', uri));
-          });
+      Future<void> get() async {
+        final request =
+            AbortableRequest('GET', uri, abortTrigger: abortTrigger.future);
+        final StreamedResponse response;
+        try {
+          response = await client.send(request);
+        } on RequestAbortedException {
+          throw TaskCanceledError();
+        }
 
-          if (response.statusCode != 200) {
-            throw StateError('Http error (${response.statusCode}): $uri');
-          }
+        try {
+          await response.stream.listen(bytes.addAll).asFuture<void>();
+        } on RequestAbortedException {
+          throw TaskCanceledError();
+        }
+      }
 
-          final iterator = StreamIterator(response.stream);
-          await runCancellable(token, iterator.cancel, () async {
-            await defer(iterator.cancel, () async {
-              while (await iterator.moveNext()) {
-                bytes.addAll(iterator.current);
-              }
-            });
-          });
-        });
-      });
+      await runCancellable(token, abortTrigger.complete, get);
 
       // Simulate external cancellation request.
       // To initiate the cancellation of the remaining tasks
