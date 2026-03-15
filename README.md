@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 3.3.0
+Version: 3.4.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -718,7 +718,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 322361
+main(): count: 289693
 
 ```
 
@@ -1044,12 +1044,13 @@ Task(1): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Task(2): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Task(3): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Task(4): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Task(3): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
+Task(0): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 main(): Canceling
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 ----------------------------------------
-Task(0): cancelled
-No data
+Task(0): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(1): cancelled
 No data
@@ -1057,9 +1058,8 @@ No data
 Task(2): cancelled
 No data
 ----------------------------------------
-Task(3): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(3): cancelled
+No data
 ----------------------------------------
 Task(4): cancelled
 No data
@@ -1170,9 +1170,9 @@ Output:
 ```txt
 Cancelling...
 Task(0): cancelled
-Task(2): Downloaded: 3194878
+Task(2): Downloaded: 3538944
 Task(1): cancelled
-Task(2): Downloaded: 2932736
+Task(2): Downloaded: 3571712
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -1351,31 +1351,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 327952822
+Isolate started: 12279706
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 112754431
 main(): Adding task 3
+Isolate started: 132822179
+Isolate started: 1022403894
 main(): Adding task 4
-Isolate started: 821491889
-Isolate started: 926798401
-Isolate started: 31913118
+Isolate started: 808463492
+Isolate started: 1026275655
+Task(3): Received result: [12]
 Task(2): Received result: [11]
 Task(1): Received result: [10]
-Task(3): Received result: [12]
 Task(4): Received result: [13]
 Task(5): Received result: [14]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
-Isolate started: 445784151
+Isolate started: 813795105
 main(): Adding task 2
-Isolate started: 766589744
-Isolate started: 927302541
+Isolate started: 965250658
 main(): Adding task 3
-Isolate started: 64690667
 main(): Adding task 4
-Isolate started: 871230356
+Isolate started: 181604510
+Isolate started: 272015567
+Isolate started: 606370022
 main(): Cancelling...
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 
@@ -2000,8 +2000,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(0): 512
-Task(1): 514
-Task(2): 514
+Task(0): 520
+Task(1): 523
+Task(2): 523
 
 ```
