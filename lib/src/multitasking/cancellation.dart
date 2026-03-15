@@ -68,7 +68,7 @@ Future<void> runCancellable(
 }
 
 class CancellationToken {
-  final Set<void Function()> _handlers = {};
+  final Map<FutureOr<void> Function(), Zone> _handlers = {};
 
   bool _isCancelled = false;
 
@@ -107,22 +107,23 @@ class CancellationToken {
   ///   client.close();
   /// }
   /// ```
-  void Function()? addHandler(void Function() handler) {
+  FutureOr<void> Function()? addHandler(FutureOr<void> Function() callback) {
     if (_isCancelled) {
-      handler();
+      scheduleMicrotask(callback);
       return null;
     }
 
-    _handlers.add(handler);
-    return handler;
+    final zone = Zone.current;
+    _handlers[callback] = zone;
+    return callback;
   }
 
   // Removes the handler.\
   // The subscriber must call this method itself after the handler is no longer
   // needed to free up memory.
-  void removerHandler(void Function()? handler) {
-    if (handler != null) {
-      _handlers.remove(handler);
+  void removerHandler(FutureOr<void> Function()? callback) {
+    if (callback != null) {
+      _handlers.remove(callback);
     }
   }
 
@@ -141,10 +142,12 @@ class CancellationTokenSource {
   // Sets the token state to `canceled`.
   void cancel() {
     token._isCancelled = true;
-    final handlers = token._handlers.toList();
+    final handlers = {...token._handlers};
     token._handlers.clear();
-    for (final handler in handlers) {
-      handler();
+    for (final entry in handlers.entries) {
+      final callback = entry.key;
+      final zone = entry.value;
+      zone.scheduleMicrotask(callback);
     }
   }
 }

@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 3.2.0
+Version: 3.3.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -42,6 +42,7 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
     - [Reentrant lock](#reentrant-lock)
     - [Lock interface](#lock-interface)
     - [Multiple write single read object](#multiple-write-single-read-object)
+    - [Manual reset event](#manual-reset-event)
 
 ## About this software
 
@@ -432,25 +433,28 @@ import 'package:multitasking/multitasking.dart';
 Future<void> main() async {
   final tasks = [
     doSomeWorkWithError(100),
-    doSomeWork1(1, 200),
-    doSomeWorkWithError(300),
-    doSomeWork1(2, 400),
+    doSomeWork(1, 200),
+    doSomeWork(1, 300),
   ];
 
-  print('whenAny');
-  final firstTask = await whenAny(tasks);
-  print('$firstTask: ${firstTask.state.name}');
+  final progress = Progress((int percent) {
+    print('Waiting: $percent%');
+  });
+
+  print('whenAny()');
+  final firstTask = await whenAny(tasks, progress: progress);
+  print('${firstTask.toString()}: ${firstTask.state.name}');
   print('Tasks');
   print(tasks.map((e) {
     return '$e: ${e.state.name}';
   }).join(', '));
 
-  print('whenAll');
-  await whenAll(tasks);
+  print('whenAll()');
+  await whenAll(tasks, progress: progress);
 
   for (var i = 0; i < tasks.length; i++) {
     final task = tasks[i];
-    var s = '$task: ${task.state.name}';
+    var s = '${task.toString()}: ${task.state.name}';
     if (task.isCompleted) {
       s += ', result: ${task.result}';
     } else {
@@ -461,7 +465,7 @@ Future<void> main() async {
   }
 }
 
-Task<int> doSomeWork1(int n, int ms) {
+Task<int> doSomeWork(int n, int ms) {
   return Task.run(() async {
     await Future<void>.delayed(Duration(milliseconds: ms));
     return n;
@@ -475,7 +479,15 @@ Task<int> doSomeWorkWithError(int ms) {
   });
 }
 
-Future<void> whenAll<T>(List<Task<T>> tasks) async {
+Future<void> whenAll<T>(
+  List<Task<T>> tasks, {
+  Progress<int>? progress,
+}) async {
+  if (tasks.isEmpty) {
+    progress?.report(100);
+    return Future.value();
+  }
+
   final completer = Completer<void>();
   var count = 0;
   for (var i = 0; i < tasks.length; i++) {
@@ -486,7 +498,10 @@ Future<void> whenAll<T>(List<Task<T>> tasks) async {
       } catch (e) {
         //
       } finally {
-        if (++count == tasks.length) {
+        ++count;
+        final percent = count * 100 ~/ tasks.length;
+        progress?.report(percent);
+        if (count == tasks.length) {
           completer.complete();
         }
       }
@@ -496,7 +511,14 @@ Future<void> whenAll<T>(List<Task<T>> tasks) async {
   return completer.future;
 }
 
-Future<Task<T>> whenAny<T>(List<Task<T>> tasks) async {
+Future<Task<T>> whenAny<T>(
+  List<Task<T>> tasks, {
+  Progress<int>? progress,
+}) async {
+  if (tasks.isEmpty) {
+    throw ArgumentError('Task list must not be empty', 'tasks');
+  }
+
   final completer = Completer<Task<T>>();
   for (var i = 0; i < tasks.length; i++) {
     final task = tasks[i];
@@ -507,6 +529,8 @@ Future<Task<T>> whenAny<T>(List<Task<T>> tasks) async {
         //
       } finally {
         if (!completer.isCompleted) {
+          final percent = 1 * 100 ~/ tasks.length;
+          progress?.report(percent);
           completer.complete(task);
         }
       }
@@ -516,20 +540,39 @@ Future<Task<T>> whenAny<T>(List<Task<T>> tasks) async {
   return completer.future;
 }
 
+class Progress<T> {
+  final FutureOr<void> Function(T) _callback;
+
+  final Zone _zone;
+
+  Progress(final FutureOr<void> Function(T) callback)
+      : _callback = callback,
+        _zone = Zone.current;
+
+  void report(T event) {
+    _zone.scheduleMicrotask(() {
+      _callback(event);
+    });
+  }
+}
+
 ```
 
 Output:
 
 ```txt
-whenAny
+whenAny()
+Waiting: 33%
 Task(0): failed
 Tasks
-Task(0): failed, Task(1): running, Task(2): running, Task(3): running
-whenAll
+Task(0): failed, Task(1): running, Task(2): running
+whenAll()
+Waiting: 33%
+Waiting: 66%
+Waiting: 100%
 Task(0): failed, exception: Bad state: Some error
 Task(1): completed, result: 1
-Task(2): failed, exception: Bad state: Some error
-Task(3): completed, result: 2
+Task(2): completed, result: 1
 
 ```
 
@@ -675,7 +718,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 379152
+main(): count: 327820
 
 ```
 
@@ -1139,9 +1182,9 @@ Output:
 ```txt
 Cancelling...
 Close client
-Task(0): Downloaded: 795160
+Task(0): Downloaded: 2097152
 Close client
-Task(1): Downloaded: 767952
+Task(1): Downloaded: 1989340
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -1320,31 +1363,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 1061764860
+Isolate started: 265839875
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 1033680254
 main(): Adding task 3
+Isolate started: 185379929
+Isolate started: 970272795
 main(): Adding task 4
-Isolate started: 786519912
-Isolate started: 34064989
-Isolate started: 659840641
+Isolate started: 378499518
+Isolate started: 1009167860
+Task(1): Received result: [10]
 Task(3): Received result: [12]
 Task(5): Received result: [14]
-Task(1): Received result: [10]
 Task(2): Received result: [11]
 Task(4): Received result: [13]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 916643425
 main(): Adding task 3
 main(): Adding task 4
-Isolate started: 122761409
-Isolate started: 731344819
-Isolate started: 279936172
-Isolate started: 371038781
+Isolate started: 489416142
+Isolate started: 161437873
+Isolate started: 886378799
+Isolate started: 205781404
+Isolate started: 495734272
 main(): Cancelling...
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 
@@ -1359,7 +1402,7 @@ Synchronization primitives do not require the use of tasks, they work with zones
 
 ### Counting semaphore
 
-A counting semaphore is a synchronization primitive that maintains a counter that represents the number of available permits.  
+A  `CountingSemaphore` is a synchronization primitive that maintains a counter that represents the number of available permits.  
 Acquire:  
 If the counter is 0, the execution of the calling code is blocked until the count becomes greater than 0.  
 Otherwise, the counter is decremented, and the calling code acquires a permit.  
@@ -1492,7 +1535,7 @@ task 6: release
 
 ### Binary semaphore
 
-A [BinarySemaphore] is a synchronization primitive with an integer value restricted to 0 or 1, representing locked (0) or unlocked (1) states.
+A `BinarySemaphore` is a synchronization primitive with an integer value restricted to 0 or 1, representing locked (0) or unlocked (1) states.
 
 Unlike a mutex, a semaphore is a counting-based synchronizer.  
 If a semaphore is locked, it will be locked even for the current zone.
@@ -1776,7 +1819,7 @@ Task(2): Increment counter: 9
 
 ### Lock interface
 
-`Lock` is an interface that simplifies the use of `locking` primitives.  
+A `Lock` is an interface that simplifies the use of `locking` primitives.  
 For example, this interface is implemented by the classes `BinarySemaphore` and  `ReentrantLock`.  
 These classes can be used for exclusive locking.  
 
@@ -1914,5 +1957,63 @@ Task(2): write 2
 Task(3): read (after wait) 2
 Task(4): read (after wait) 2
 Task(5): read 2
+
+```
+
+### Manual reset event
+
+A `ManualResetEvent` is a synchronization primitive that is used to manage signaling.  
+When an event is in a `signaled` state, any calls to the `wait()` method will not block execution of the calling code.  
+When an event is in a `non-signaled` state, any calls to the `wait()` method will block execution of the calling code.
+
+Once switched to the `signaled` state, the event remains in the `signaled` state until it is manually `reset()`.
+
+An example of using a manual reset event to start tasks simultaneously.
+
+[example/example_manual_reset_event.dart](https://github.com/mezoni/multitasking/blob/main/example/example_manual_reset_event.dart)
+
+```dart
+import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/synchronization/reset_events.dart';
+
+Future<void> main(List<String> args) async {
+  final mre = ManualResetEvent(false);
+  final sw = Stopwatch();
+  final tasks = <AnyTask>[];
+  for (var i = 0; i < 3; i++) {
+    final task = Task.run(() async {
+      await mre.wait();
+      _message('${sw.elapsedMilliseconds}');
+    });
+
+    tasks.add(task);
+  }
+
+  const ms = 500;
+  sw.start();
+  _message('${sw.elapsedMilliseconds}');
+  _message('Waiting $ms ms');
+  await Future<void>.delayed(Duration(milliseconds: ms));
+  _message('Start');
+  await mre.set();
+  await Task.waitAll(tasks);
+}
+
+void _message(String text) {
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
+}
+
+```
+
+Output:
+
+```txt
+main(): 0
+main(): Waiting 500 ms
+main(): Start
+Task(0): 514
+Task(1): 516
+Task(2): 516
 
 ```

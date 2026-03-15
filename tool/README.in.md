@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 3.2.0
+Version: 3.3.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -42,6 +42,7 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
     - [Reentrant lock](#reentrant-lock)
     - [Lock interface](#lock-interface)
     - [Multiple write single read object](#multiple-write-single-read-object)
+    - [Manual reset event](#manual-reset-event)
 
 ## About this software
 
@@ -340,7 +341,7 @@ Synchronization primitives do not require the use of tasks, they work with zones
 
 ### Counting semaphore
 
-A counting semaphore is a synchronization primitive that maintains a counter that represents the number of available permits.  
+A  `CountingSemaphore` is a synchronization primitive that maintains a counter that represents the number of available permits.  
 Acquire:  
 If the counter is 0, the execution of the calling code is blocked until the count becomes greater than 0.  
 Otherwise, the counter is decremented, and the calling code acquires a permit.  
@@ -356,7 +357,7 @@ END_EXAMPLE
 
 ### Binary semaphore
 
-A [BinarySemaphore] is a synchronization primitive with an integer value restricted to 0 or 1, representing locked (0) or unlocked (1) states.
+A `BinarySemaphore` is a synchronization primitive with an integer value restricted to 0 or 1, representing locked (0) or unlocked (1) states.
 
 Unlike a mutex, a semaphore is a counting-based synchronizer.  
 If a semaphore is locked, it will be locked even for the current zone.
@@ -396,7 +397,7 @@ END_EXAMPLE
 
 ### Lock interface
 
-`Lock` is an interface that simplifies the use of `locking` primitives.  
+A `Lock` is an interface that simplifies the use of `locking` primitives.  
 For example, this interface is implemented by the classes `BinarySemaphore` and  `ReentrantLock`.  
 These classes can be used for exclusive locking.  
 
@@ -422,4 +423,18 @@ An example of reading and writing a shared object simultaneously:
 
 BEGIN_EXAMPLE
 example_multiple_write_single_read_object
+END_EXAMPLE
+
+### Manual reset event
+
+A `ManualResetEvent` is a synchronization primitive that is used to manage signaling.  
+When an event is in a `signaled` state, any calls to the `wait()` method will not block execution of the calling code.  
+When an event is in a `non-signaled` state, any calls to the `wait()` method will block execution of the calling code.
+
+Once switched to the `signaled` state, the event remains in the `signaled` state until it is manually `reset()`.
+
+An example of using a manual reset event to start tasks simultaneously.
+
+BEGIN_EXAMPLE
+example_manual_reset_event
 END_EXAMPLE

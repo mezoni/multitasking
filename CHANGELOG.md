@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.3.0
+
+- Non-breaking changes: Handlers of the `CancellationToken` class can be asynchronous and now they are executed in the `zone` where the handlers were created via the `scheduleMicrotask()` call.
+- Fixed a bug in `AutoResetEvent` and `ManualResetEvent`.
+
 ## 3.2.0
 
 - Added example `example_task_wait_in_different_ways.dart`.
@@ -14,7 +19,7 @@
 
 ## 3.0.0
 
-- Breaking change: The task immediately propagates an exception if it is an unhandled exception. An unhandled exception is considered to be an exception (except `TaskCanceledError`) that occurs after a task has completed.
+- Breaking change: The task immediately propagates an exception if it is an unhandled exception in the task zone. An unhandled exception in the task zone is considered to be an exception that occurs in the task zone after a task has completed.
 - Added method `runGuarded()` to class `CancellationToken`. Purpose: Perform asynchronous actions (especially when using I/O operations) with guaranteed protection from unhandled exceptions and "automatic" processing of task cancellation requests.
 - Added getter `result` to class `Task`.
 - Added example `example_task_handle_unhandled_error.dart`.

@@ -132,7 +132,7 @@ final class Task<T> with _FutureMixin<T> {
     );
   }
 
-  Task._raw(this._state, {this.name});
+  Task._raw(this._state, {this.name}) : _zoneStats = ZoneStats();
 
   ErrorResult? get exception {
     return _exception;
