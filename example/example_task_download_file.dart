@@ -2,9 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:http/http.dart';
+import 'package:multitasking/misc/progress.dart';
 import 'package:multitasking/multitasking.dart';
-
-import 'example_task_wait_in_different_ways.dart';
 
 Future<void> main() async {
   final cts = CancellationTokenSource();
