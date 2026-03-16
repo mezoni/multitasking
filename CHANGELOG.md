@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.5.0
+
+- Added method `runCancellable()` to  `CancellationToken` class. The `runCancellable()` function now forwards execution to this method.
+- Added `PauseToken` class
+- Added `Throughput` class
+
 ## 3.4.0
 
 - Changed example `example_task_cancel_long_network.dart`.

@@ -3,24 +3,31 @@ import 'dart:io';
 
 import 'package:http/http.dart';
 import 'package:multitasking/misc/progress.dart';
+import 'package:multitasking/misc/throughput.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
   final cts = CancellationTokenSource();
   final token = cts.token;
-  final progress = Progress((int byteCount) {
-    stdout.write('\r\x1B[2KDownloaded: $byteCount bytes');
+  final throughput = Throughput<int>();
+  final progress = Progress((({int byteCount, int percent}) data) {
+    final speed = (throughput.measure() / (1024 * 1024)).toStringAsFixed(2);
+    final (:byteCount, :percent) = data;
+    final size = (byteCount / (1024 * 1024)).toStringAsFixed(2);
+    stdout.write('\r\x1B[2KDownloaded: $size MB ($percent%, $speed Mbps)');
   });
 
   final url = Uri.parse(
       'https://storage.googleapis.com/dart-archive/channels/stable/release/3.10.9/sdk/dartsdk-windows-x64-release.zip');
   const filename = 'dart_sdk';
-  final task = _download(url, filename, token, progress: progress);
+  final task = _download(url, filename, token,
+      progress: progress, throughput: throughput);
 
+  const sec = 10;
   // User request to cancel
-  Timer(Duration(seconds: 5), () {
+  Timer(Duration(seconds: sec), () {
     print('');
-    print('Cancelling...');
+    print('Cancelling after $sec sec');
     cts.cancel();
   });
 
@@ -37,14 +44,15 @@ Future<void> main() async {
 }
 
 Task<String> _download(Uri uri, String filename, CancellationToken token,
-    {Progress<int>? progress}) {
+    {Progress<({int byteCount, int percent})>? progress,
+    Throughput<int>? throughput}) {
   return Task.run(() async {
     _message('Starting download');
     final bytes = <int>[];
 
     Task.onExit((task) {
       print('$task: ${task.state.name}');
-      _message('Downloaded: ${bytes.length}');
+      _message('Downloaded: ${bytes.length} bytes');
     });
 
     token.throwIfCancelled();
@@ -56,15 +64,25 @@ Task<String> _download(Uri uri, String filename, CancellationToken token,
           AbortableRequest('GET', uri, abortTrigger: abortTrigger.future);
       final StreamedResponse response;
       try {
+        throughput?.add(0);
         response = await client.send(request);
       } on RequestAbortedException {
         throw TaskCanceledError();
       }
 
+      final contentLength = response.contentLength;
       try {
         await response.stream.listen((data) {
+          throughput?.add(data.length);
           bytes.addAll(data);
-          progress?.report(bytes.length);
+          final byteCount = bytes.length;
+          final percent = contentLength != null && contentLength != 0
+              ? byteCount * 100 ~/ contentLength
+              : 0;
+          progress?.report((
+            byteCount: byteCount,
+            percent: percent,
+          ));
         }).asFuture<void>();
       } on RequestAbortedException {
         throw TaskCanceledError();

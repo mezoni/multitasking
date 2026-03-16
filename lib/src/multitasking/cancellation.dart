@@ -45,28 +45,12 @@ Future<void> runCancellable(
   CancellationToken token,
   void Function() onCancel,
   FutureOr<void> Function() action,
-) async {
-  var isExceptionThrown = false;
-  final handler = token.addHandler(() {
-    onCancel();
-  });
-
-  try {
-    await action();
-  } catch (e) {
-    if (e is TaskCanceledError) {
-      isExceptionThrown = true;
-    }
-
-    rethrow;
-  } finally {
-    token.removerHandler(handler);
-    if (token.isCancelled && !isExceptionThrown) {
-      token.throwIfCancelled();
-    }
-  }
+) {
+  return token.runCancellable(onCancel, action);
 }
 
+/// A [CancellationToken] is a mechanism for graceful cancellation of
+/// asynchronous operations.
 class CancellationToken {
   final Map<FutureOr<void> Function(), Zone> _handlers = {};
 
@@ -118,36 +102,81 @@ class CancellationToken {
     return callback;
   }
 
-  // Removes the handler.\
-  // The subscriber must call this method itself after the handler is no longer
-  // needed to free up memory.
+  /// Removes the handler.\
+  /// The subscriber must call this method itself after the handler is no longer
+  /// needed to free up memory.
   void removerHandler(FutureOr<void> Function()? callback) {
     if (callback != null) {
       _handlers.remove(callback);
     }
   }
 
-  // Throw the exception [TaskCanceledError] if the token is in the `canceled`
-  // state.
+  /// Performs the following actions:
+  ///
+  /// - Adds a cancellation handler [onCancel]
+  /// - Executes the [action] function
+  /// - Removes a cancellation handler [onCancel]
+  /// - Throws an [TaskCanceledError] exception if there was a cancellation
+  /// request and no [TaskCanceledError] exception was thrown during the
+  /// execution of the [action] function
+  ///
+  /// The [onCancel] handler function should initiate the cancellation procedure
+  /// which interrupts (or cancel) the execution of the [action] function.
+  Future<void> runCancellable(
+    void Function() onCancel,
+    FutureOr<void> Function() action,
+  ) async {
+    var isExceptionThrown = false;
+    final handler = addHandler(() {
+      onCancel();
+    });
+
+    try {
+      await action();
+    } catch (e) {
+      if (e is TaskCanceledError) {
+        isExceptionThrown = true;
+      }
+
+      rethrow;
+    } finally {
+      removerHandler(handler);
+      if (isCancelled && !isExceptionThrown) {
+        throwIfCancelled();
+      }
+    }
+  }
+
+  /// Throw the exception [TaskCanceledError] if the token is in the `canceled`
+  /// state.
   void throwIfCancelled() {
     if (_isCancelled) {
       throw TaskCanceledError();
     }
   }
-}
 
-class CancellationTokenSource {
-  final CancellationToken token = CancellationToken._();
-
-  // Sets the token state to `canceled`.
-  void cancel() {
-    token._isCancelled = true;
-    final handlers = {...token._handlers};
-    token._handlers.clear();
-    for (final entry in handlers.entries) {
+  void _cancel() {
+    _isCancelled = true;
+    final entries = _handlers.entries.toList();
+    _handlers.clear();
+    for (final entry in entries) {
       final callback = entry.key;
       final zone = entry.value;
       zone.scheduleMicrotask(callback);
     }
+  }
+}
+
+/// A [CancellationTokenSource] class manages the cancellation process for
+/// asynchronous operations.\
+/// It works in conjunction with the [CancellationToken] class, providing a
+/// `cooperative` cancellation mechanism.
+class CancellationTokenSource {
+  final CancellationToken token = CancellationToken._();
+
+  /// Signal to associated token that the operation executions should be
+  /// canceled.
+  void cancel() {
+    token._cancel();
   }
 }

@@ -1,7 +1,6 @@
 import 'dart:async';
 
-import 'package:defer/defer.dart';
-import 'package:http/http.dart' as http;
+import 'package:http/http.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
@@ -50,35 +49,34 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
   return Task.run(() async {
     final bytes = <int>[];
 
-    token.throwIfCancelled();
-    final client = http.Client();
-
-    await runCancellable(token, client.close, () async {
-      await defer(() async {
-        print('Close client');
-        client.close();
-        _message('Downloaded: ${bytes.length}');
-      }, () async {
-        final response = await runAndDetach(() {
-          return client.send(http.Request('GET', uri));
-        });
-
-        if (response.statusCode != 200) {
-          throw StateError('Http error (${response.statusCode}): $uri');
-        }
-
-        final iterator = StreamIterator(response.stream);
-        await runCancellable(token, iterator.cancel, () async {
-          await defer(iterator.cancel, () async {
-            while (await iterator.moveNext()) {
-              bytes.addAll(iterator.current);
-            }
-          });
-        });
-      });
+    Task.onExit((task) {
+      print('$task: ${task.state.name}');
+      _message('Downloaded: ${bytes.length}');
     });
 
     token.throwIfCancelled();
+    final client = Client();
+    final abortTrigger = Completer<void>();
+
+    Future<void> get() async {
+      final request =
+          AbortableRequest('GET', uri, abortTrigger: abortTrigger.future);
+      final StreamedResponse response;
+      try {
+        response = await client.send(request);
+      } on RequestAbortedException {
+        throw TaskCanceledError();
+      }
+
+      try {
+        await response.stream.listen(bytes.addAll).asFuture<void>();
+      } on RequestAbortedException {
+        throw TaskCanceledError();
+      }
+    }
+
+    await token.runCancellable(abortTrigger.complete, get);
+
     // Save file to disk
     await Future<void>.delayed(Duration(seconds: 1));
     return filename;

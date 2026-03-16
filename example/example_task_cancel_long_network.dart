@@ -75,7 +75,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
       }
     }
 
-    await runCancellable(token, abortTrigger.complete, get);
+    await token.runCancellable(abortTrigger.complete, get);
 
     // Save file to disk
     await Future<void>.delayed(Duration(seconds: 1));

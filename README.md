@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 3.4.0
+Version: 3.5.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -14,6 +14,10 @@ Version: 3.4.0
 ![Producer/consumer problem: Monitor and 2 condition variables operation](https://i.imgur.com/gkMEGId.gif)
 
 Producer/consumer problem: Monitor and 2 condition variables operation.
+
+![example_task_download_file.dart](https://i.imgur.com/IBny2xe.gif)
+
+[example_task_download_file.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_download_file.dart)
 
 - [Multitasking](#multitasking)
   - [About this software](#about-this-software)
@@ -718,7 +722,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 289693
+main(): count: 357319
 
 ```
 
@@ -888,7 +892,8 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
         subscription!.cancel();
       }
     });
-    await runCancellable(token, subscription.cancel, subscription.asFuture);
+
+    await token.runCancellable(subscription.cancel, subscription.asFuture);
 
     await Task.sleep();
     _message('Processing data: $list');
@@ -994,7 +999,7 @@ Future<void> main() async {
         }
       }
 
-      await runCancellable(token, abortTrigger.complete, get);
+      await token.runCancellable(abortTrigger.complete, get);
 
       // Simulate external cancellation request.
       // To initiate the cancellation of the remaining tasks
@@ -1150,7 +1155,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
       }
     }
 
-    await runCancellable(token, abortTrigger.complete, get);
+    await token.runCancellable(abortTrigger.complete, get);
 
     // Save file to disk
     await Future<void>.delayed(Duration(seconds: 1));
@@ -1170,9 +1175,9 @@ Output:
 ```txt
 Cancelling...
 Task(0): cancelled
-Task(2): Downloaded: 3538944
+Task(2): Downloaded: 2686976
 Task(1): cancelled
-Task(2): Downloaded: 3571712
+Task(2): Downloaded: 2727935
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -1351,31 +1356,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 12279706
+Isolate started: 720412547
 main(): Adding task 1
 main(): Adding task 2
+Isolate started: 674425475
 main(): Adding task 3
-Isolate started: 132822179
-Isolate started: 1022403894
+Isolate started: 111101362
 main(): Adding task 4
-Isolate started: 808463492
-Isolate started: 1026275655
+Isolate started: 219351649
+Isolate started: 721714202
+Task(1): Received result: [10]
 Task(3): Received result: [12]
 Task(2): Received result: [11]
-Task(1): Received result: [10]
-Task(4): Received result: [13]
 Task(5): Received result: [14]
+Task(4): Received result: [13]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
-Isolate started: 813795105
 main(): Adding task 2
-Isolate started: 965250658
+Isolate started: 758773124
 main(): Adding task 3
 main(): Adding task 4
-Isolate started: 181604510
-Isolate started: 272015567
-Isolate started: 606370022
+Isolate started: 13104647
+Isolate started: 180866442
+Isolate started: 410742170
+Isolate started: 494597645
 main(): Cancelling...
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
 
@@ -2000,8 +2005,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(0): 520
-Task(1): 523
-Task(2): 523
+Task(0): 513
+Task(1): 515
+Task(2): 515
 
 ```

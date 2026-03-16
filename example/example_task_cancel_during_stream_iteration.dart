@@ -62,7 +62,8 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
         subscription!.cancel();
       }
     });
-    await runCancellable(token, subscription.cancel, subscription.asFuture);
+
+    await token.runCancellable(subscription.cancel, subscription.asFuture);
 
     await Task.sleep();
     _message('Processing data: $list');

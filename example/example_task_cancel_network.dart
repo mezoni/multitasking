@@ -55,7 +55,7 @@ Future<void> main() async {
         }
       }
 
-      await runCancellable(token, abortTrigger.complete, get);
+      await token.runCancellable(abortTrigger.complete, get);
 
       // Simulate external cancellation request.
       // To initiate the cancellation of the remaining tasks
