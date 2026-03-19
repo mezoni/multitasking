@@ -73,9 +73,9 @@ Task<String> _download(Uri uri, String filename, CancellationToken token,
       final contentLength = response.contentLength;
       try {
         await response.stream.listen((data) {
-          throughput?.add(data.length);
-          bytes.addAll(data);
           final byteCount = bytes.length;
+          throughput?.add(byteCount);
+          bytes.addAll(data);
           final percent = contentLength != null && contentLength != 0
               ? byteCount * 100 ~/ contentLength
               : 0;

@@ -12,19 +12,21 @@ class BinarySemaphore extends Lock {
 
   static final Future<void> _void = Future.value();
 
+  final WaitQueue _entranceQueue = WaitQueue();
+
   bool _isLocked = false;
 
-  final WaitQueue _queue = WaitQueue();
+  final WaitQueue _waitQueue = WaitQueue();
 
   /// Acquires a permit from this semaphore.
   @override
   Future<void> acquire() {
-    if (!_isLocked) {
-      _isLocked = true;
-      return _void;
-    }
+    return _acquire(_entranceQueue);
+  }
 
-    return _queue.enqueue();
+  @override
+  Future<void> reacquire() {
+    return _acquire(_waitQueue);
   }
 
   /// Releases a permit.
@@ -34,8 +36,10 @@ class BinarySemaphore extends Lock {
       throw StateError('Unmatched call of \'release()()\' method');
     }
 
-    if (_queue.isNotEmpty) {
-      _queue.dequeue();
+    if (_waitQueue.isNotEmpty) {
+      _waitQueue.dequeue();
+    } else if (_entranceQueue.isNotEmpty) {
+      _entranceQueue.dequeue();
     } else {
       _isLocked = false;
     }
@@ -63,6 +67,15 @@ class BinarySemaphore extends Lock {
       return _true;
     }
 
-    return _queue.enqueue(timeout);
+    return _entranceQueue.enqueue(timeout);
+  }
+
+  Future<void> _acquire(WaitQueue queue) {
+    if (!_isLocked) {
+      _isLocked = true;
+      return _void;
+    }
+
+    return queue.enqueue();
   }
 }

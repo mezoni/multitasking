@@ -14,28 +14,20 @@ class ReentrantLock extends Lock {
 
   int _count = 0;
 
+  final WaitQueue _entranceQueue = WaitQueue();
+
   Zone? _owner;
 
-  final WaitQueue _queue = WaitQueue();
+  final WaitQueue _waitQueue = WaitQueue();
 
   @override
   Future<void> acquire() async {
-    if (_owner == null) {
-      _owner = Zone.current;
-      _count++;
-      return;
-    }
+    return _acquire(_entranceQueue);
+  }
 
-    if (_owner == Zone.current) {
-      _count++;
-      return;
-    }
-
-    final zone = Zone.current;
-    await _queue.enqueue();
-    _owner = zone;
-    _count++;
-    return;
+  @override
+  Future<void> reacquire() async {
+    return _acquire(_waitQueue);
   }
 
   @override
@@ -54,8 +46,10 @@ class ReentrantLock extends Lock {
     }
 
     _owner = null;
-    if (_queue.isNotEmpty) {
-      _queue.dequeue();
+    if (_waitQueue.isNotEmpty) {
+      _waitQueue.dequeue();
+    } else if (_entranceQueue.isNotEmpty) {
+      _entranceQueue.dequeue();
     }
 
     return _void;
@@ -75,12 +69,31 @@ class ReentrantLock extends Lock {
       return true;
     }
 
-    final isSuccess = await _queue.enqueue(timeout);
+    final isSuccess = await _entranceQueue.enqueue(timeout);
     if (isSuccess) {
       _owner = Zone.current;
       _count++;
     }
 
     return isSuccess;
+  }
+
+  Future<void> _acquire(WaitQueue queue) async {
+    if (_owner == null) {
+      _owner = Zone.current;
+      _count++;
+      return;
+    }
+
+    if (_owner == Zone.current) {
+      _count++;
+      return;
+    }
+
+    final zone = Zone.current;
+    await queue.enqueue();
+    _owner = zone;
+    _count++;
+    return;
   }
 }

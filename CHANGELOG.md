@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.6.0
+
+- Added method `reacquire()` to `Lock`  class. This method is implemented exclusively to ensure fair operation of reacquiring the lock in condition variable in the `wait()` method.
+
 ## 3.5.0
 
 - Added method `runCancellable()` to  `CancellationToken` class. The `runCancellable()` function now forwards execution to this method.

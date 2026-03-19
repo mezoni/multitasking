@@ -58,7 +58,7 @@ class ConditionVariable {
 
     await lock.release();
     await _queue.enqueue();
-    await lock.acquire();
+    await lock.reacquire();
     return TimeUtils.elapsedMicroseconds - started <= timeout.inMicroseconds;
   }
 
@@ -68,6 +68,6 @@ class ConditionVariable {
   Future<void> wait() async {
     await lock.release();
     await _queue.enqueue();
-    return lock.acquire();
+    return lock.reacquire();
   }
 }
