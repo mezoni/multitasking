@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../src/multitasking/cancellation.dart';
 import '../synchronization/reset_events.dart';
 
 /// A [PauseToken] is a mechanism for `cooperative` pause/resume of asynchronous
@@ -50,8 +51,29 @@ class PauseToken {
   /// calling code until it receives the `resume` signal.\
   /// If the token is not in the `paused` state, then execution of the calling
   /// code continues immediately.
-  Future<void> wait() {
-    return _event.wait();
+  ///
+  /// If a cancellation [token] is specified, the method may throw an
+  /// `TaskCanceledError` exception.
+  Future<void> wait({CancellationToken? token}) {
+    if (token == null) {
+      return _event.wait();
+    }
+
+    token.throwIfCancelled();
+    final completer = Completer<void>();
+
+    void complete() {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+    }
+
+    () async {
+      await _event.wait();
+      complete();
+    }();
+
+    return token.runCancellable(complete, () => completer.future);
   }
 
   void _executeHandlers(Map<FutureOr<void> Function(), Zone> handlers) {

@@ -17,7 +17,7 @@ import 'lock.dart';
 /// requested, the `writer` will wait  for all previous `read` and `write`
 /// operations.
 class MultipleWriteSingleReadObject<T> {
-  static const Future<void> Function() _emptyAction = _noop;
+  static const void Function() _emptyAction = _noop;
 
   static final Future<void> _void = Future.value();
 
@@ -58,7 +58,5 @@ class MultipleWriteSingleReadObject<T> {
     }
   }
 
-  static Future<void> _noop() {
-    return _void;
-  }
+  static void _noop() {}
 }

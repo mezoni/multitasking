@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.7.0
+
+- Changed signature of `wait()` method of `PauseToken` class to `Future<void> wait({CancellationToken? token})`. Now, when specifying a `CancellationToken`, the method can throw a `TaskCanceledError` exception.
+
 ## 3.6.0
 
 - Added method `reacquire()` to `Lock`  class. This method is implemented exclusively to ensure fair operation of reacquiring the lock in condition variable in the `wait()` method.
