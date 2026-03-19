@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../../synchronization/reset_events.dart';
+import '../synchronization/reset_events.dart';
 
 /// A [PauseToken] is a mechanism for `cooperative` pause/resume of asynchronous
 /// operations.

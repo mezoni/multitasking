@@ -3,6 +3,7 @@
 ## 3.6.0
 
 - Added method `reacquire()` to `Lock`  class. This method is implemented exclusively to ensure fair operation of reacquiring the lock in condition variable in the `wait()` method.
+- Fixed a bug in `ManualResetEvent`.
 
 ## 3.5.0
 

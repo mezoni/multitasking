@@ -90,6 +90,10 @@ class ManualResetEvent extends _ResetEvent {
   /// If the event is in the `signaled` state, the calling code continues
   /// execution.
   Future<void> wait() {
+    if (_isSet) {
+      return _ResetEvent._void;
+    }
+
     return _queue.enqueue();
   }
 }
