@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:core';
 
 import 'package:async/async.dart';
 import 'package:meta/meta.dart';
 
+import '../../misc/progress.dart';
 import 'cancellation.dart';
 import 'errors.dart';
 import 'zone_stats.dart';
@@ -41,8 +43,6 @@ typedef AnyTask = Task<Object?>;
 ///
 /// It all comes down to the fact that when accessing the [_future] field of a task, an instance of the [Future] object is created and at that moment its life cycle begins.
 final class Task<T> with _FutureMixin<T> {
-  static const Duration _zeroDuration = Duration();
-
   static final Zone _onExitZone = _createOnExitZone();
 
   static final Object _taskKey = Object();
@@ -359,7 +359,7 @@ final class Task<T> with _FutureMixin<T> {
     }
 
     final duration = milliseconds == 0
-        ? _zeroDuration
+        ? const Duration()
         : Duration(milliseconds: milliseconds);
     final completer = Completer<void>();
     void Function()? handler;
@@ -382,38 +382,160 @@ final class Task<T> with _FutureMixin<T> {
     return completer.future;
   }
 
-  static Future<void> waitAll<T>(List<Task<T>> tasks) async {
-    if (tasks.isEmpty) {
-      return Future.delayed(_zeroDuration);
-    }
-
+  /// Performs a wait operation for tasks to complete.\
+  /// If all tasks are completed successfully, then this method will also
+  /// complete successfully.
+  ///
+  /// If one of the tasks fails or is cancelled, then this method will complete
+  /// with an [AggregateError] error that will contain all errors.
+  ///
+  /// If the [progress] parameter is specified, it will call the `report()`
+  /// method whenever each task completes.
+  static Future<void> waitAll<T>(
+    List<Task<T>> tasks, {
+    Progress<({int count, int total})>? progress,
+  }) {
     final completer = Completer<void>();
-    final exceptions = <ErrorResult>[];
-    void complete() {
-      if (exceptions.isEmpty) {
-        completer.complete();
-      }
-
-      final error = AggregateError(exceptions);
-      completer.completeError(error);
+    if (tasks.isEmpty) {
+      progress?.report((count: 0, total: 0));
+      completer.complete();
+      return completer.future;
     }
 
-    final length = tasks.length;
+    final exceptions = <ErrorResult>[];
+    var count = 0;
     tasks = tasks.toList();
-    var n = 0;
     for (var i = 0; i < tasks.length; i++) {
       final task = tasks[i];
-      unawaited(task.then((_) {
-        if (++n == length) {
-          complete();
+      () async {
+        try {
+          await task;
+        } catch (e, s) {
+          exceptions.add(ErrorResult(e, s));
+        } finally {
+          count++;
+          if (progress != null) {
+            progress.report((count: count, total: tasks.length));
+          }
+
+          if (count == tasks.length) {
+            if (exceptions.isEmpty) {
+              completer.complete();
+            }
+
+            final error = AggregateError(exceptions);
+            completer.completeError(error);
+          }
         }
-      }).onError((error, stackTrace) {
-        error ??= '$error';
-        exceptions.add(ErrorResult(error, stackTrace));
-        if (++n == length) {
-          complete();
+      }();
+    }
+
+    return completer.future;
+  }
+
+  /// Performs a wait operation for tasks to complete.\
+  /// When all tasks have completed successfully, returns a new task with the
+  /// results of the awaited tasks.
+  ///
+  /// If one of the tasks fails, the returned task will be completed in the
+  /// `failed` state.
+  ///
+  /// If none of the tasks failed, but at least one of the tasks was canceled,
+  /// then the returned task will be completed in the `canceled` state.
+  ///
+  /// If the [progress] parameter is specified, it will call the `report()`
+  /// method whenever each task completes.
+  static Task<List<T>> whenAll<T>(
+    List<Task<T>> tasks, {
+    Progress<({int count, int total})>? progress,
+  }) {
+    final tcs = TaskCompletionSource<List<T>>();
+    if (tasks.isEmpty) {
+      progress?.report((count: 0, total: 0));
+      tcs.setResult([]);
+      return tcs.task;
+    }
+
+    final exceptions = <ErrorResult>[];
+    var hasFailed = true;
+    var count = 0;
+    tasks = tasks.toList();
+    for (var i = 0; i < tasks.length; i++) {
+      final task = tasks[i];
+      () async {
+        try {
+          await task;
+        } catch (e, s) {
+          exceptions.add(ErrorResult(e, s));
+          if (e is! TaskCanceledError) {
+            hasFailed = true;
+          }
+        } finally {
+          count++;
+          if (progress != null) {
+            progress.report((count: count, total: tasks.length));
+          }
+
+          if (count == tasks.length) {
+            if (exceptions.isEmpty) {
+              final list = <T>[];
+              for (var i = 0; i < tasks.length; i++) {
+                final task = tasks[i];
+                list.add(task.result);
+              }
+
+              tcs.setResult(list);
+            } else {
+              if (hasFailed) {
+                final error = AggregateError(exceptions);
+                tcs.setError(error, StackTrace.current);
+              } else {
+                tcs.setCancelled();
+              }
+            }
+          }
         }
-      }));
+      }();
+    }
+
+    return tcs.task;
+  }
+
+  /// Performs a wait operation for tasks to complete.\
+  /// As soon as one of the tasks is completed, it will be immediately returned
+  /// as the result of this method.
+  ///
+  /// If the [progress] parameter is specified, it will call the `report()`
+  /// method whenever each task completes.
+  static Future<Task<T>> whenAny<T>(
+    List<Task<T>> tasks, {
+    Progress<({int count, int total})>? progress,
+  }) {
+    if (tasks.isEmpty) {
+      throw ArgumentError('Task list must not be empty', 'tasks');
+    }
+
+    final completer = Completer<Task<T>>();
+    var count = 0;
+    tasks = tasks.toList();
+    for (var i = 0; i < tasks.length; i++) {
+      final task = tasks[i];
+      () async {
+        try {
+          await task;
+        } catch (e) {
+          // Ignore
+        } finally {
+          count++;
+          if (progress != null) {
+            progress.report((count: count, total: tasks.length));
+          }
+
+          if (!completer.isCompleted) {
+            completer.complete(task);
+          }
+        }
+      }();
     }
 
     return completer.future;
@@ -428,6 +550,68 @@ final class Task<T> with _FutureMixin<T> {
         parent.handleUncaughtError(zone, error, stackTrace);
       }
     }));
+  }
+}
+
+class TaskCompletionSource<T> {
+  bool _isComplete = false;
+
+  final Task<T> task = Task._raw(TaskState.running);
+
+  void setCancelled() {
+    if (_isComplete) {
+      _errorSteTaskState();
+    }
+
+    trySetCanceled();
+  }
+
+  void setError(Object error, StackTrace stackTrace) {
+    if (_isComplete) {
+      _errorSteTaskState();
+    }
+
+    trySetError(error, stackTrace);
+  }
+
+  void setResult(T value) {
+    if (_isComplete) {
+      _errorSteTaskState();
+    }
+
+    trySetResult(value);
+  }
+
+  void trySetCanceled() {
+    if (_isComplete) {
+      return;
+    }
+
+    _isComplete = true;
+    task._complete(TaskState.cancelled,
+        ErrorResult(TaskCanceledError(), StackTrace.current));
+  }
+
+  void trySetError(Object error, StackTrace stackTrace) {
+    if (_isComplete) {
+      return;
+    }
+
+    _isComplete = true;
+    task._complete(TaskState.failed, ErrorResult(error, stackTrace));
+  }
+
+  void trySetResult(T value) {
+    if (_isComplete) {
+      return;
+    }
+
+    _isComplete = true;
+    task._complete(TaskState.completed, ValueResult(value));
+  }
+
+  Never _errorSteTaskState() {
+    throw TaskStateError('Failed to set final state of completed task');
   }
 }
 

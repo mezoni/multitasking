@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:multitasking/misc/progress.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
@@ -9,12 +10,14 @@ Future<void> main() async {
     doSomeWork(1, 300),
   ];
 
-  final progress = Progress((int percent) {
-    print('Waiting: $percent%');
+  final progress = Progress((({int count, int total}) info) {
+    final (:count, :total) = info;
+    final percent = (total == 0 ? 100 : 100 * count / total).toStringAsFixed(2);
+    print('Ready: $percent%');
   });
 
   print('whenAny()');
-  final firstTask = await whenAny(tasks, progress: progress);
+  final firstTask = await Task.whenAny(tasks, progress: progress);
   print('${firstTask.toString()}: ${firstTask.state.name}');
   print('Tasks');
   print(tasks.map((e) {
@@ -22,7 +25,12 @@ Future<void> main() async {
   }).join(', '));
 
   print('whenAll()');
-  await whenAll(tasks, progress: progress);
+  final task = Task.whenAll(tasks);
+  try {
+    await task;
+  } catch (e) {
+    print('Error: $e');
+  }
 
   for (var i = 0; i < tasks.length; i++) {
     final task = tasks[i];
@@ -49,81 +57,4 @@ Task<int> doSomeWorkWithError(int ms) {
     await Future<void>.delayed(Duration(milliseconds: ms));
     throw StateError('Some error');
   });
-}
-
-Future<void> whenAll<T>(
-  List<Task<T>> tasks, {
-  Progress<int>? progress,
-}) async {
-  if (tasks.isEmpty) {
-    progress?.report(100);
-    return Future.value();
-  }
-
-  final completer = Completer<void>();
-  var count = 0;
-  for (var i = 0; i < tasks.length; i++) {
-    final task = tasks[i];
-    unawaited(() async {
-      try {
-        await task;
-      } catch (e) {
-        //
-      } finally {
-        ++count;
-        final percent = count * 100 ~/ tasks.length;
-        progress?.report(percent);
-        if (count == tasks.length) {
-          completer.complete();
-        }
-      }
-    }());
-  }
-
-  return completer.future;
-}
-
-Future<Task<T>> whenAny<T>(
-  List<Task<T>> tasks, {
-  Progress<int>? progress,
-}) async {
-  if (tasks.isEmpty) {
-    throw ArgumentError('Task list must not be empty', 'tasks');
-  }
-
-  final completer = Completer<Task<T>>();
-  for (var i = 0; i < tasks.length; i++) {
-    final task = tasks[i];
-    unawaited(() async {
-      try {
-        await task;
-      } catch (e) {
-        //
-      } finally {
-        if (!completer.isCompleted) {
-          final percent = 1 * 100 ~/ tasks.length;
-          progress?.report(percent);
-          completer.complete(task);
-        }
-      }
-    }());
-  }
-
-  return completer.future;
-}
-
-class Progress<T> {
-  final FutureOr<void> Function(T) _callback;
-
-  final Zone _zone;
-
-  Progress(final FutureOr<void> Function(T) callback)
-      : _callback = callback,
-        _zone = Zone.current;
-
-  void report(T event) {
-    _zone.scheduleMicrotask(() {
-      _callback(event);
-    });
-  }
 }

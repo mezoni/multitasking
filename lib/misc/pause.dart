@@ -61,19 +61,11 @@ class PauseToken {
 
     token.throwIfCancelled();
     final completer = Completer<void>();
-
-    void complete() {
-      if (!completer.isCompleted) {
-        completer.complete();
-      }
-    }
-
     () async {
       await _event.wait();
-      complete();
+      completer.tryComplete();
     }();
-
-    return token.runCancellable(complete, () => completer.future);
+    return token.runCancellable(completer.tryComplete, () => completer.future);
   }
 
   void _executeHandlers(Map<FutureOr<void> Function(), Zone> handlers) {
@@ -124,5 +116,13 @@ class PauseTokenSource {
   /// resumed.
   void resume() {
     token._resume();
+  }
+}
+
+extension<T> on Completer<T> {
+  void tryComplete([T? value]) {
+    if (!isCompleted) {
+      complete();
+    }
   }
 }

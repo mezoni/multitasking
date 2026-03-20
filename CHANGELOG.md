@@ -1,8 +1,14 @@
 # Changelog
 
+## 3.8.0
+
+- Added method `whenAny()` to `Task` class.
+- Added method `whenAll()` to `Task` class.
+- Changed signature of `waitAll()` method of `Task` class to `Future<void> waitAll<T>(List<Task<T>> tasks, {Progress<({int count, int total})>? progress})`. Now, when specifying a `progress` parameter it is possible to track the progress of the wait operation.
+
 ## 3.7.0
 
-- Changed signature of `wait()` method of `PauseToken` class to `Future<void> wait({CancellationToken? token})`. Now, when specifying a `CancellationToken`, the method can throw a `TaskCanceledError` exception.
+- Changed signature of `wait()` method of `PauseToken` class to `Future<void> wait({CancellationToken? token})`. Now, when specifying a `token` parameter, the method can throw a `TaskCanceledError` exception.
 
 ## 3.6.0
 

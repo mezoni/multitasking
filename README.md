@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 3.7.0
+Version: 3.8.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -432,6 +432,7 @@ Example of waiting for in different ways:
 ```dart
 import 'dart:async';
 
+import 'package:multitasking/misc/progress.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
@@ -441,12 +442,14 @@ Future<void> main() async {
     doSomeWork(1, 300),
   ];
 
-  final progress = Progress((int percent) {
-    print('Waiting: $percent%');
+  final progress = Progress((({int count, int total}) info) {
+    final (:count, :total) = info;
+    final percent = (total == 0 ? 100 : 100 * count / total).toStringAsFixed(2);
+    print('Ready: $percent%');
   });
 
   print('whenAny()');
-  final firstTask = await whenAny(tasks, progress: progress);
+  final firstTask = await Task.whenAny(tasks, progress: progress);
   print('${firstTask.toString()}: ${firstTask.state.name}');
   print('Tasks');
   print(tasks.map((e) {
@@ -454,7 +457,12 @@ Future<void> main() async {
   }).join(', '));
 
   print('whenAll()');
-  await whenAll(tasks, progress: progress);
+  final task = Task.whenAll(tasks);
+  try {
+    await task;
+  } catch (e) {
+    print('Error: $e');
+  }
 
   for (var i = 0; i < tasks.length; i++) {
     final task = tasks[i];
@@ -483,97 +491,20 @@ Task<int> doSomeWorkWithError(int ms) {
   });
 }
 
-Future<void> whenAll<T>(
-  List<Task<T>> tasks, {
-  Progress<int>? progress,
-}) async {
-  if (tasks.isEmpty) {
-    progress?.report(100);
-    return Future.value();
-  }
-
-  final completer = Completer<void>();
-  var count = 0;
-  for (var i = 0; i < tasks.length; i++) {
-    final task = tasks[i];
-    unawaited(() async {
-      try {
-        await task;
-      } catch (e) {
-        //
-      } finally {
-        ++count;
-        final percent = count * 100 ~/ tasks.length;
-        progress?.report(percent);
-        if (count == tasks.length) {
-          completer.complete();
-        }
-      }
-    }());
-  }
-
-  return completer.future;
-}
-
-Future<Task<T>> whenAny<T>(
-  List<Task<T>> tasks, {
-  Progress<int>? progress,
-}) async {
-  if (tasks.isEmpty) {
-    throw ArgumentError('Task list must not be empty', 'tasks');
-  }
-
-  final completer = Completer<Task<T>>();
-  for (var i = 0; i < tasks.length; i++) {
-    final task = tasks[i];
-    unawaited(() async {
-      try {
-        await task;
-      } catch (e) {
-        //
-      } finally {
-        if (!completer.isCompleted) {
-          final percent = 1 * 100 ~/ tasks.length;
-          progress?.report(percent);
-          completer.complete(task);
-        }
-      }
-    }());
-  }
-
-  return completer.future;
-}
-
-class Progress<T> {
-  final FutureOr<void> Function(T) _callback;
-
-  final Zone _zone;
-
-  Progress(final FutureOr<void> Function(T) callback)
-      : _callback = callback,
-        _zone = Zone.current;
-
-  void report(T event) {
-    _zone.scheduleMicrotask(() {
-      _callback(event);
-    });
-  }
-}
-
 ```
 
 Output:
 
 ```txt
 whenAny()
-Waiting: 33%
+Ready: 33.33%
 Task(0): failed
 Tasks
 Task(0): failed, Task(1): running, Task(2): running
 whenAll()
-Waiting: 33%
-Waiting: 66%
-Waiting: 100%
+Ready: 66.67%
+Ready: 100.00%
+Error: One or more errors occurred. (Bad state: Some error)
 Task(0): failed, exception: Bad state: Some error
 Task(1): completed, result: 1
 Task(2): completed, result: 1
@@ -722,7 +653,7 @@ Output:
 
 ```txt
 TaskCanceledError
-main(): count: 357319
+main(): count: 378031
 
 ```
 
@@ -1175,9 +1106,9 @@ Output:
 ```txt
 Cancelling...
 Task(0): cancelled
-Task(2): Downloaded: 2686976
+Task(2): Downloaded: 2097152
 Task(1): cancelled
-Task(2): Downloaded: 2727935
+Task(2): Downloaded: 2046686
 One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
 
 ```
@@ -1356,33 +1287,25 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 720412547
+Isolate started: 993301568
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 674425475
 main(): Adding task 3
-Isolate started: 111101362
 main(): Adding task 4
-Isolate started: 219351649
-Isolate started: 721714202
+Isolate started: 753427000
+Isolate started: 525215511
+Isolate started: 878528440
+Isolate started: 499878651
 Task(1): Received result: [10]
-Task(3): Received result: [12]
 Task(2): Received result: [11]
-Task(5): Received result: [14]
 Task(4): Received result: [13]
-main(): ----------------------------------------
-main(): Adding task 0
-main(): Adding task 1
-main(): Adding task 2
-Isolate started: 758773124
-main(): Adding task 3
-main(): Adding task 4
-Isolate started: 13104647
-Isolate started: 180866442
-Isolate started: 410742170
-Isolate started: 494597645
-main(): Cancelling...
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
+Task(3): Received result: [12]
+Task(5): Received result: [14]
+Unhandled exception:
+Invalid argument(s) (exceptions): Exception list must not be empty
+#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
+#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
+<asynchronous suspension>
 
 ```
 
@@ -1500,29 +1423,11 @@ task 6:   acquired
 task 4: release
 task 5: release
 task 6: release
-----------------------------------------
-main(): Round with synchronous entry in the task body
-task 0: acquire
-task 1: acquire
-task 2: acquire
-task 3: acquire
-task 4: acquire
-task 5: acquire
-task 6: acquire
-task 0:   acquired
-task 1:   acquired
-task 2:   acquired
-task 0: release
-task 3:   acquired
-task 1: release
-task 4:   acquired
-task 2: release
-task 5:   acquired
-task 3: release
-task 6:   acquired
-task 4: release
-task 5: release
-task 6: release
+Unhandled exception:
+Invalid argument(s) (exceptions): Exception list must not be empty
+#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
+#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
+<asynchronous suspension>
 
 ```
 
@@ -1597,6 +1502,11 @@ task 3:   acquired
 task 3: release
 task 4:   acquired
 task 4: release
+Unhandled exception:
+Invalid argument(s) (exceptions): Exception list must not be empty
+#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
+#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
+<asynchronous suspension>
 
 ```
 
@@ -1741,8 +1651,11 @@ consumer: products: {}
 consumer: notFull.notifyAll()
 consumer: lock.release()
 consumer: consumed product: 2
-main(): produced: 3
-main(): consumed: 3
+Unhandled exception:
+Invalid argument(s) (exceptions): Exception list must not be empty
+#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
+#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
+<asynchronous suspension>
 
 ```
 
@@ -1807,6 +1720,11 @@ Task(1): Increment counter: 6
 Task(2): Increment counter: 7
 Task(2): Increment counter: 8
 Task(2): Increment counter: 9
+Unhandled exception:
+Invalid argument(s) (exceptions): Exception list must not be empty
+#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
+#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
+<asynchronous suspension>
 
 ```
 
@@ -1858,6 +1776,11 @@ Task(1): Enter
 Task(1): Leave
 Task(2): Enter
 Task(2): Leave
+Unhandled exception:
+Invalid argument(s) (exceptions): Exception list must not be empty
+#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
+#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
+<asynchronous suspension>
 
 ```
 
@@ -1950,6 +1873,11 @@ Task(2): write 2
 Task(3): read (after wait) 2
 Task(4): read (after wait) 2
 Task(5): read 2
+Unhandled exception:
+Invalid argument(s) (exceptions): Exception list must not be empty
+#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
+#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
+<asynchronous suspension>
 
 ```
 
@@ -2006,7 +1934,12 @@ main(): 0
 main(): Waiting 500 ms
 main(): Start
 Task(0): 513
-Task(1): 515
-Task(2): 515
+Task(1): 516
+Task(2): 516
+Unhandled exception:
+Invalid argument(s) (exceptions): Exception list must not be empty
+#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
+#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
+<asynchronous suspension>
 
 ```
