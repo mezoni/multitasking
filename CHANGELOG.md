@@ -5,6 +5,7 @@
 - Added method `whenAny()` to `Task` class.
 - Added method `whenAll()` to `Task` class.
 - Changed signature of `waitAll()` method of `Task` class to `Future<void> waitAll<T>(List<Task<T>> tasks, {Progress<({int count, int total})>? progress})`. Now, when specifying a `progress` parameter it is possible to track the progress of the wait operation.
+- Added class `CountdownTimer`
 
 ## 3.7.0
 
