@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 3.8.0
+Version: 4.0.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -174,6 +174,8 @@ Exceptions in task can be observed in one of the following ways:
 
 - `await task`
 - `Task.waitAll()`
+- `Task.whenAll()`
+- `Task.whenAny()`
 - `task.asStream()` (inherited from [Future])
 - `task.catchError()` (inherited from [Future])
 - `task.then()` (inherited from [Future])

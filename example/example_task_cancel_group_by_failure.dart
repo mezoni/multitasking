@@ -16,14 +16,14 @@ Future<void> main() async {
 
   parent = Task.run<void>(name: 'Parent', () async {
     Task.onExit((task) {
-      print('On exit: $task (${task.state.name})');
+      print('On exit: ${task.toString()} (${task.state.name})');
       onExit(task);
     });
 
     for (var i = 1; i <= 3; i++) {
       final t = Task<int>(name: 'Child $i', () async {
         Task.onExit((task) {
-          print('On exit: $task (${task.state.name})');
+          print('On exit: ${task.toString()} (${task.state.name})');
           onExit(task);
         });
 
@@ -49,7 +49,7 @@ Future<void> main() async {
     }
 
     for (final task in group) {
-      task.start();
+      await task.start();
       await Task.sleep();
     }
 

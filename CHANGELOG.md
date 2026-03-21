@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.0.0
+
+- Breaking change: Code cleanup, removed the following functions: `runAndDetach()`, `runCancellable()`.
+- Breaking change: Code cleanup, removed the classes: `CancellableStreamIterator`.
+- Breaking change: Code normalization, renamed `TaskCanceledError` class to `TaskCanceledException`. Also, this class now implements the `Exception` interface and no longer extends the `Error` class.
+- Non-breaking change: The following methods now return `Future<void>` instead of `void`: `Task.start()`, `PauseToken.pause()`, `PauseToken.resume()`.
+
 ## 3.8.0
 
 - Added method `whenAny()` to `Task` class.
@@ -57,7 +64,7 @@
 
 ## 2.11.0
 
-The `ConditionVariable.wait()` implementation has been adjusted to make the implementation more consistent with the Moore monitor (as described by Andrew D. Birrell).
+The `ConditionVariable.wait()` implementation has been adjusted to make the implementation more consistent with the Moore monitor.
 
 ## 2.10.0
 

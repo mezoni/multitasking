@@ -61,10 +61,10 @@ class PauseToken {
 
     token.throwIfCancelled();
     final completer = Completer<void>();
-    () async {
+    unawaited(() async {
       await _event.wait();
       completer.tryComplete();
-    }();
+    }());
     return token.runCancellable(completer.tryComplete, () => completer.future);
   }
 
@@ -73,29 +73,28 @@ class PauseToken {
     handlers.clear();
     for (final entry in entries) {
       final callback = entry.key;
-      final zone = entry.value;
-      zone.scheduleMicrotask(callback);
+      entry.value.scheduleMicrotask(callback);
     }
   }
 
-  void _pause() {
+  Future<void> _pause() async {
     if (_isPaused) {
       return;
     }
 
     _isPaused = true;
     _executeHandlers(_onPause);
-    _event.reset();
+    await _event.reset();
   }
 
-  void _resume() {
+  Future<void> _resume() async {
     if (!_isPaused) {
       return;
     }
 
     _isPaused = false;
     _executeHandlers(_onResume);
-    _event.set();
+    await _event.set();
   }
 }
 
@@ -108,14 +107,14 @@ class PauseTokenSource {
 
   /// Signal to associated token that the operation executions should be
   /// paused.
-  void pause() {
-    token._pause();
+  Future<void> pause() {
+    return token._pause();
   }
 
   /// Signal to associated token that the operation executions should be
   /// resumed.
-  void resume() {
-    token._resume();
+  Future<void> resume() {
+    return token._resume();
   }
 }
 

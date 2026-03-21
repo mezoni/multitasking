@@ -15,6 +15,7 @@ Future<void> main() async {
     final (:byteCount, :percent) = data;
     final size = (byteCount / (1024 * 1024)).toStringAsFixed(2);
     stdout.write('\r\x1B[2KDownloaded: $size MB ($percent%, $speed Mbps)');
+    return null;
   });
 
   final url = Uri.parse(
@@ -51,7 +52,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token,
     final bytes = <int>[];
 
     Task.onExit((task) {
-      print('$task: ${task.state.name}');
+      print('${task.toString()}: ${task.state.name}');
       _message('Downloaded: ${bytes.length} bytes');
     });
 
@@ -67,7 +68,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token,
         throughput?.add(0);
         response = await client.send(request);
       } on RequestAbortedException {
-        throw TaskCanceledError();
+        throw TaskCanceledException();
       }
 
       final contentLength = response.contentLength;
@@ -85,7 +86,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token,
           ));
         }).asFuture<void>();
       } on RequestAbortedException {
-        throw TaskCanceledError();
+        throw TaskCanceledException();
       }
     }
 

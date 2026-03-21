@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 3.8.0
+Version: 4.0.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -174,6 +174,8 @@ Exceptions in task can be observed in one of the following ways:
 
 - `await task`
 - `Task.waitAll()`
+- `Task.whenAll()`
+- `Task.whenAny()`
 - `task.asStream()` (inherited from [Future])
 - `task.catchError()` (inherited from [Future])
 - `task.then()` (inherited from [Future])
@@ -286,9 +288,9 @@ Future<void> main() async {
     Object? handle;
 
     Task.onExit((task) {
-      print('$task exit with status: \'${task.state.name}\'');
+      print("${task.toString()} exit with status: '${task.state.name}'");
       if (handle != null) {
-        print('$task frees up: \'handle\'');
+        print("${task.toString()} frees up: 'handle'");
       }
     });
 
@@ -453,7 +455,7 @@ Future<void> main() async {
   print('${firstTask.toString()}: ${firstTask.state.name}');
   print('Tasks');
   print(tasks.map((e) {
-    return '$e: ${e.state.name}';
+    return '${e.toString()}: ${e.state.name}';
   }).join(', '));
 
   print('whenAll()');
@@ -504,7 +506,7 @@ Task(0): failed, Task(1): running, Task(2): running
 whenAll()
 Ready: 66.67%
 Ready: 100.00%
-Error: One or more errors occurred. (Bad state: Some error)
+Error: AggregateError: One or more errors occurred. (Bad state: Some error)
 Task(0): failed, exception: Bad state: Some error
 Task(1): completed, result: 1
 Task(2): completed, result: 1
@@ -549,7 +551,7 @@ Future<void> main() async {
   }
 
   await Future<void>.delayed(Duration(milliseconds: 100));
-  task.start();
+  await task.start();
   await task;
 }
 
@@ -652,8 +654,8 @@ void _message(String text) {
 Output:
 
 ```txt
-TaskCanceledError
-main(): count: 378031
+TaskStateException
+main(): count: 343171
 
 ```
 
@@ -687,14 +689,14 @@ Future<void> main() async {
 
   parent = Task.run<void>(name: 'Parent', () async {
     Task.onExit((task) {
-      print('On exit: $task (${task.state.name})');
+      print('On exit: ${task.toString()} (${task.state.name})');
       onExit(task);
     });
 
     for (var i = 1; i <= 3; i++) {
       final t = Task<int>(name: 'Child $i', () async {
         Task.onExit((task) {
-          print('On exit: $task (${task.state.name})');
+          print('On exit: ${task.toString()} (${task.state.name})');
           onExit(task);
         });
 
@@ -720,7 +722,7 @@ Future<void> main() async {
     }
 
     for (final task in group) {
-      task.start();
+      await task.start();
       await Task.sleep();
     }
 
@@ -748,7 +750,7 @@ On exit: Task('Child 2', 2) (cancelled)
 Task('Child 3', 3) works: 1 of 4
 On exit: Task('Child 3', 3) (cancelled)
 On exit: Task('Parent', 0) (failed)
-One or more errors occurred. (Failure in Task('Child 1', 1)) (TaskCanceledError) (TaskCanceledError)
+AggregateError: One or more errors occurred. (Failure in Task('Child 1', 1)) (TaskStateException) (TaskStateException)
 
 ```
 
@@ -777,7 +779,7 @@ Future<void> main(List<String> args) async {
     if (n > 5) {
       print('Stopping the controller');
       timer.cancel();
-      controller.close();
+      unawaited(controller.close());
     }
   });
 
@@ -820,11 +822,12 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
       if (list.length == 1 && testBreak) {
         _message('I want to break free...');
         // break;
-        subscription!.cancel();
+        unawaited(subscription!.cancel());
       }
     });
 
-    await token.runCancellable(subscription.cancel, subscription.asFuture);
+    await token.runCancellable(
+        subscription.cancel, subscription.asFuture<void>);
 
     await Task.sleep();
     _message('Processing data: $list');
@@ -890,12 +893,12 @@ Future<void> main() async {
     'https://rss.nytimes.com/services/xml/rss/nyt/Music.xml'
   ];
 
-  final cancellationRequest = Completer<void>()
-    // ignore: unawaited_futures
-    ..future.then((_) {
-      _message('Canceling');
-      cts.cancel();
-    });
+  final cancellationRequest = Completer<void>();
+  unawaited(() async {
+    await cancellationRequest.future;
+    _message('Canceling');
+    cts.cancel();
+  }());
 
   void cancel() {
     if (!cancellationRequest.isCompleted) {
@@ -920,13 +923,13 @@ Future<void> main() async {
         try {
           response = await client.send(request);
         } on RequestAbortedException {
-          throw TaskCanceledError();
+          throw TaskCanceledException();
         }
 
         try {
           await response.stream.listen(bytes.addAll).asFuture<void>();
         } on RequestAbortedException {
-          throw TaskCanceledError();
+          throw TaskCanceledException();
         }
       }
 
@@ -982,7 +985,7 @@ Task(3): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Task(4): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Task(0): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 main(): Canceling
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError) (TaskCanceledError) (TaskCanceledError)
+AggregateError: One or more errors occurred. (TaskStateException) (TaskStateException) (TaskStateException) (TaskStateException)
 ----------------------------------------
 Task(0): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
@@ -1061,7 +1064,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     final bytes = <int>[];
 
     Task.onExit((task) {
-      print('$task: ${task.state.name}');
+      print('${task.toString()}: ${task.state.name}');
       _message('Downloaded: ${bytes.length}');
     });
 
@@ -1076,13 +1079,13 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
       try {
         response = await client.send(request);
       } on RequestAbortedException {
-        throw TaskCanceledError();
+        throw TaskCanceledException();
       }
 
       try {
         await response.stream.listen(bytes.addAll).asFuture<void>();
       } on RequestAbortedException {
-        throw TaskCanceledError();
+        throw TaskCanceledException();
       }
     }
 
@@ -1106,10 +1109,10 @@ Output:
 ```txt
 Cancelling...
 Task(0): cancelled
-Task(2): Downloaded: 2097152
+Task(2): Downloaded: 2383871
 Task(1): cancelled
-Task(2): Downloaded: 2046686
-One or more errors occurred. (TaskCanceledError) (TaskCanceledError)
+Task(2): Downloaded: 2572286
+AggregateError: One or more errors occurred. (TaskStateException) (TaskStateException)
 
 ```
 
@@ -1172,7 +1175,7 @@ Future<void> bigWork(CancellationTokenSource cts) async {
   }
 }
 
-void doWork((SendPort, int) message) async {
+Future<void> doWork((SendPort, int) message) async {
   final (sendPort, arg) = message;
   final port = ReceivePort();
   try {
@@ -1230,7 +1233,7 @@ Future<void> _computeUsingIsolate<T, R>(
   errorPort.listen((message) {
     if (!resultCompleter.isCompleted) {
       final exception = message as List<Object?>;
-      final error = exception[0] as Object;
+      final error = exception[0]!;
       final stackTraceString = exception[1];
       StackTrace? stackTrace;
       if (stackTraceString is String) {
@@ -1287,25 +1290,33 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 993301568
+Isolate started: 692554047
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
+Isolate started: 973599299
+Isolate started: 622203251
 main(): Adding task 4
-Isolate started: 753427000
-Isolate started: 525215511
-Isolate started: 878528440
-Isolate started: 499878651
+Isolate started: 754897680
+Isolate started: 259818069
 Task(1): Received result: [10]
-Task(2): Received result: [11]
 Task(4): Received result: [13]
 Task(3): Received result: [12]
 Task(5): Received result: [14]
-Unhandled exception:
-Invalid argument(s) (exceptions): Exception list must not be empty
-#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
-#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
-<asynchronous suspension>
+Task(2): Received result: [11]
+main(): ----------------------------------------
+main(): Adding task 0
+main(): Adding task 1
+main(): Adding task 2
+main(): Adding task 3
+Isolate started: 30655969
+Isolate started: 622416604
+main(): Adding task 4
+Isolate started: 47830973
+Isolate started: 85732898
+Isolate started: 612079705
+main(): Cancelling...
+AggregateError: One or more errors occurred. (TaskStateException) (TaskStateException) (TaskStateException) (TaskStateException) (TaskStateException)
 
 ```
 
@@ -1423,11 +1434,29 @@ task 6:   acquired
 task 4: release
 task 5: release
 task 6: release
-Unhandled exception:
-Invalid argument(s) (exceptions): Exception list must not be empty
-#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
-#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
-<asynchronous suspension>
+----------------------------------------
+main(): Round with synchronous entry in the task body
+task 0: acquire
+task 1: acquire
+task 2: acquire
+task 3: acquire
+task 4: acquire
+task 5: acquire
+task 6: acquire
+task 0:   acquired
+task 1:   acquired
+task 2:   acquired
+task 0: release
+task 3:   acquired
+task 1: release
+task 4:   acquired
+task 2: release
+task 5:   acquired
+task 3: release
+task 6:   acquired
+task 4: release
+task 5: release
+task 6: release
 
 ```
 
@@ -1502,11 +1531,6 @@ task 3:   acquired
 task 3: release
 task 4:   acquired
 task 4: release
-Unhandled exception:
-Invalid argument(s) (exceptions): Exception list must not be empty
-#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
-#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
-<asynchronous suspension>
 
 ```
 
@@ -1651,11 +1675,8 @@ consumer: products: {}
 consumer: notFull.notifyAll()
 consumer: lock.release()
 consumer: consumed product: 2
-Unhandled exception:
-Invalid argument(s) (exceptions): Exception list must not be empty
-#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
-#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
-<asynchronous suspension>
+main(): produced: 3
+main(): consumed: 3
 
 ```
 
@@ -1720,11 +1741,6 @@ Task(1): Increment counter: 6
 Task(2): Increment counter: 7
 Task(2): Increment counter: 8
 Task(2): Increment counter: 9
-Unhandled exception:
-Invalid argument(s) (exceptions): Exception list must not be empty
-#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
-#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
-<asynchronous suspension>
 
 ```
 
@@ -1776,11 +1792,6 @@ Task(1): Enter
 Task(1): Leave
 Task(2): Enter
 Task(2): Leave
-Unhandled exception:
-Invalid argument(s) (exceptions): Exception list must not be empty
-#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
-#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
-<asynchronous suspension>
 
 ```
 
@@ -1873,11 +1884,6 @@ Task(2): write 2
 Task(3): read (after wait) 2
 Task(4): read (after wait) 2
 Task(5): read 2
-Unhandled exception:
-Invalid argument(s) (exceptions): Exception list must not be empty
-#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
-#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
-<asynchronous suspension>
 
 ```
 
@@ -1933,13 +1939,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(0): 513
-Task(1): 516
-Task(2): 516
-Unhandled exception:
-Invalid argument(s) (exceptions): Exception list must not be empty
-#0      new AggregateError (package:multitasking/src/multitasking/errors.dart:17:7)
-#1      Task.waitAll.<anonymous closure> (package:multitasking/src/multitasking/task.dart:426:27)
-<asynchronous suspension>
+Task(0): 516
+Task(1): 518
+Task(2): 519
 
 ```

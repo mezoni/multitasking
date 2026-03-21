@@ -50,7 +50,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     final bytes = <int>[];
 
     Task.onExit((task) {
-      print('$task: ${task.state.name}');
+      print('${task.toString()}: ${task.state.name}');
       _message('Downloaded: ${bytes.length}');
     });
 
@@ -65,13 +65,13 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
       try {
         response = await client.send(request);
       } on RequestAbortedException {
-        throw TaskCanceledError();
+        throw TaskCanceledException();
       }
 
       try {
         await response.stream.listen(bytes.addAll).asFuture<void>();
       } on RequestAbortedException {
-        throw TaskCanceledError();
+        throw TaskCanceledException();
       }
     }
 

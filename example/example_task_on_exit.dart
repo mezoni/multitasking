@@ -7,9 +7,9 @@ Future<void> main() async {
     Object? handle;
 
     Task.onExit((task) {
-      print('$task exit with status: \'${task.state.name}\'');
+      print("${task.toString()} exit with status: '${task.state.name}'");
       if (handle != null) {
-        print('$task frees up: \'handle\'');
+        print("${task.toString()} frees up: 'handle'");
       }
     });
 

@@ -2,53 +2,6 @@ import 'dart:async';
 
 import 'errors.dart';
 
-/// Performs the following actions:
-///
-/// - Creates a separate zone for catching exceptions
-/// - Executes the [action] function
-/// - Waits for the function [action] to complete and returns the result (value
-/// or error)
-/// - Ignores (suppresses) all unhandled exceptions in the created zone after
-/// returning the result
-///
-/// This method can be used for the case where a synchronous method (e.g.
-/// `close()`) does not throw an exception immediately, but may throw it later
-/// asynchronously.\
-/// This can be useful in cases where it is known in advance that an error will
-/// (or may) be thrown, and this situation will be handled in a special way.
-Future<T> runAndDetach<T>(FutureOr<T> Function() action) {
-  final completer = Completer<T>();
-  runZonedGuarded(() async {
-    final result = await action();
-    completer.complete(result);
-  }, (error, stackTrace) {
-    if (!completer.isCompleted) {
-      completer.completeError(error, stackTrace);
-    }
-  });
-
-  return completer.future;
-}
-
-/// Performs the following actions:
-///
-/// - Adds a cancellation handler [onCancel]
-/// - Executes the [action] function
-/// - Removes a cancellation handler [onCancel]
-/// - Throws an [TaskCanceledError] exception if there was a cancellation
-/// request and no [TaskCanceledError] exception was thrown during the
-/// execution of the [action] function
-///
-/// The [onCancel] handler function should initiate the cancellation procedure
-/// which interrupts (or cancel) the execution of the [action] function.
-Future<void> runCancellable(
-  CancellationToken token,
-  void Function() onCancel,
-  FutureOr<void> Function() action,
-) {
-  return token.runCancellable(onCancel, action);
-}
-
 /// A [CancellationToken] is a mechanism for graceful cancellation of
 /// asynchronous operations.
 class CancellationToken {
@@ -122,9 +75,9 @@ class CancellationToken {
   ///
   /// The [onCancel] handler function should initiate the cancellation procedure
   /// which interrupts (or cancel) the execution of the [action] function.
-  Future<void> runCancellable(
+  Future<T> runCancellable<T>(
     void Function() onCancel,
-    FutureOr<void> Function() action,
+    FutureOr<T> Function() action,
   ) async {
     var isExceptionThrown = false;
     final handler = addHandler(() {
@@ -132,9 +85,9 @@ class CancellationToken {
     });
 
     try {
-      await action();
+      return await action();
     } catch (e) {
-      if (e is TaskCanceledError) {
+      if (e is TaskCanceledException) {
         isExceptionThrown = true;
       }
 
@@ -151,7 +104,7 @@ class CancellationToken {
   /// state.
   void throwIfCancelled() {
     if (_isCancelled) {
-      throw TaskCanceledError();
+      throw TaskCanceledException();
     }
   }
 

@@ -58,8 +58,7 @@ final class Task<T> with _FutureMixin<T> {
   static final AnyTask _main = Task._raw(TaskState.running, name: 'main()');
 
   /// Global error handler for tasks `onExit` handlers.
-  static FutureOr<void> Function(Object error, StackTrace? stackTrace)?
-      handleOnExitError;
+  static void Function(Object error, StackTrace? stackTrace)? handleOnExitError;
 
   static int _taskId = 0;
 
@@ -117,7 +116,6 @@ final class Task<T> with _FutureMixin<T> {
   Task(
     FutureOr<T> Function() action, {
     this.name,
-    void Function(Object? error, StackTrace stackTrace)? onError,
   }) : _action = action {
     final zoneStats = ZoneStats();
     var specification = zoneStats.specification;
@@ -187,7 +185,7 @@ final class Task<T> with _FutureMixin<T> {
       }
     } else {
       throw TaskStateError(
-          'Result is not available for the task with the state \'${_state.name}\'');
+          "Result is not available for the task with the state '${_state.name}'");
     }
   }
 
@@ -197,7 +195,7 @@ final class Task<T> with _FutureMixin<T> {
   ZoneStats? get zoneStats => _zoneStats;
 
   /// Starts execution of the task.
-  void start() async {
+  Future<void> start() async {
     if (_state != TaskState.created) {
       throw TaskStateError('Task has already been started: ${toString()}');
     }
@@ -217,7 +215,7 @@ final class Task<T> with _FutureMixin<T> {
       try {
         final value = await action();
         _complete(TaskState.completed, ValueResult(value));
-      } on TaskCanceledError catch (e, s) {
+      } on TaskCanceledException catch (e, s) {
         _complete(TaskState.cancelled, ErrorResult(e, s));
       } catch (e, s) {
         _complete(TaskState.failed, ErrorResult(e, s));
@@ -231,7 +229,7 @@ final class Task<T> with _FutureMixin<T> {
       return 'Task($id)';
     }
 
-    return 'Task(\'$name\', $id)';
+    return "Task('$name', $id)";
   }
 
   void _complete(TaskState state, Result<T> result) {
@@ -302,7 +300,7 @@ final class Task<T> with _FutureMixin<T> {
     Object error,
     StackTrace stackTrace,
   ) {
-    if (error is TaskCanceledError) {
+    if (error is TaskCanceledException) {
       _complete(TaskState.cancelled, ErrorResult(error, stackTrace));
     } else {
       parent.handleUncaughtError(zone, error, stackTrace);
@@ -330,7 +328,7 @@ final class Task<T> with _FutureMixin<T> {
   static void onExit(FutureOr<void> Function(AnyTask task) handler) {
     final current = Task.current;
     if (current._onExit != null) {
-      throw TaskStateError('\'Task.onExit()\' can be called only once');
+      throw TaskStateError("'Task.onExit()' can be called only once");
     }
 
     current._onExit = handler;
@@ -340,7 +338,7 @@ final class Task<T> with _FutureMixin<T> {
   /// [name].
   static Task<T> run<T>(FutureOr<T> Function() action, {String? name}) {
     final task = Task<T>(action, name: name);
-    task.start();
+    unawaited(task.start());
     return task;
   }
 
@@ -374,7 +372,7 @@ final class Task<T> with _FutureMixin<T> {
       handler = token.addHandler(() {
         timer.cancel();
         if (!completer.isCompleted) {
-          completer.completeError(TaskCanceledError(), StackTrace.current);
+          completer.completeError(TaskCanceledException(), StackTrace.current);
         }
       });
     }
@@ -407,7 +405,7 @@ final class Task<T> with _FutureMixin<T> {
     tasks = tasks.toList();
     for (var i = 0; i < tasks.length; i++) {
       final task = tasks[i];
-      () async {
+      unawaited(() async {
         try {
           await task;
         } catch (e, s) {
@@ -421,13 +419,13 @@ final class Task<T> with _FutureMixin<T> {
           if (count == tasks.length) {
             if (exceptions.isEmpty) {
               completer.complete();
+            } else {
+              final error = AggregateError(exceptions);
+              completer.completeError(error);
             }
-
-            final error = AggregateError(exceptions);
-            completer.completeError(error);
           }
         }
-      }();
+      }());
     }
 
     return completer.future;
@@ -462,12 +460,12 @@ final class Task<T> with _FutureMixin<T> {
     tasks = tasks.toList();
     for (var i = 0; i < tasks.length; i++) {
       final task = tasks[i];
-      () async {
+      unawaited(() async {
         try {
           await task;
         } catch (e, s) {
           exceptions.add(ErrorResult(e, s));
-          if (e is! TaskCanceledError) {
+          if (e is! TaskCanceledException) {
             hasFailed = true;
           }
         } finally {
@@ -495,7 +493,7 @@ final class Task<T> with _FutureMixin<T> {
             }
           }
         }
-      }();
+      }());
     }
 
     return tcs.task;
@@ -520,7 +518,7 @@ final class Task<T> with _FutureMixin<T> {
     tasks = tasks.toList();
     for (var i = 0; i < tasks.length; i++) {
       final task = tasks[i];
-      () async {
+      unawaited(() async {
         try {
           await task;
         } catch (e) {
@@ -535,7 +533,7 @@ final class Task<T> with _FutureMixin<T> {
             completer.complete(task);
           }
         }
-      }();
+      }());
     }
 
     return completer.future;
@@ -589,7 +587,7 @@ class TaskCompletionSource<T> {
 
     _isComplete = true;
     task._complete(TaskState.cancelled,
-        ErrorResult(TaskCanceledError(), StackTrace.current));
+        ErrorResult(TaskCanceledException(), StackTrace.current));
   }
 
   void trySetError(Object error, StackTrace stackTrace) {

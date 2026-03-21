@@ -5,13 +5,13 @@ class Progress<T> {
 
   final Zone _zone;
 
-  Progress(final FutureOr<void> Function(T) callback)
+  Progress(FutureOr<void> Function(T) callback)
       : _callback = callback,
         _zone = Zone.current;
 
   void report(T event) {
-    _zone.scheduleMicrotask(() {
-      _callback(event);
+    _zone.scheduleMicrotask(() async {
+      await _callback(event);
     });
   }
 }

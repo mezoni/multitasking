@@ -56,7 +56,7 @@ class CountingSemaphore {
     }
 
     if (_count + 1 > _maxCount) {
-      throw StateError('Unmatched call of \'release()()\' method');
+      throw StateError("Unmatched call of 'release()()' method");
     }
 
     _count++;

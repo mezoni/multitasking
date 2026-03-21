@@ -16,7 +16,7 @@ Future<void> main(List<String> args) async {
     if (n > 5) {
       print('Stopping the controller');
       timer.cancel();
-      controller.close();
+      unawaited(controller.close());
     }
   });
 
@@ -59,11 +59,12 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
       if (list.length == 1 && testBreak) {
         _message('I want to break free...');
         // break;
-        subscription!.cancel();
+        unawaited(subscription!.cancel());
       }
     });
 
-    await token.runCancellable(subscription.cancel, subscription.asFuture);
+    await token.runCancellable(
+        subscription.cancel, subscription.asFuture<void>);
 
     await Task.sleep();
     _message('Processing data: $list');

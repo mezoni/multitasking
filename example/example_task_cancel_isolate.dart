@@ -48,7 +48,7 @@ Future<void> bigWork(CancellationTokenSource cts) async {
   }
 }
 
-void doWork((SendPort, int) message) async {
+Future<void> doWork((SendPort, int) message) async {
   final (sendPort, arg) = message;
   final port = ReceivePort();
   try {
@@ -106,7 +106,7 @@ Future<void> _computeUsingIsolate<T, R>(
   errorPort.listen((message) {
     if (!resultCompleter.isCompleted) {
       final exception = message as List<Object?>;
-      final error = exception[0] as Object;
+      final error = exception[0]!;
       final stackTraceString = exception[1];
       StackTrace? stackTrace;
       if (stackTraceString is String) {

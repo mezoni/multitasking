@@ -15,12 +15,12 @@ Future<void> main() async {
     'https://rss.nytimes.com/services/xml/rss/nyt/Music.xml'
   ];
 
-  final cancellationRequest = Completer<void>()
-    // ignore: unawaited_futures
-    ..future.then((_) {
-      _message('Canceling');
-      cts.cancel();
-    });
+  final cancellationRequest = Completer<void>();
+  unawaited(() async {
+    await cancellationRequest.future;
+    _message('Canceling');
+    cts.cancel();
+  }());
 
   void cancel() {
     if (!cancellationRequest.isCompleted) {
@@ -45,13 +45,13 @@ Future<void> main() async {
         try {
           response = await client.send(request);
         } on RequestAbortedException {
-          throw TaskCanceledError();
+          throw TaskCanceledException();
         }
 
         try {
           await response.stream.listen(bytes.addAll).asFuture<void>();
         } on RequestAbortedException {
-          throw TaskCanceledError();
+          throw TaskCanceledException();
         }
       }
 

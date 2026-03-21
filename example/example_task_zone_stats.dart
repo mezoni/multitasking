@@ -29,6 +29,6 @@ Future<void> main() async {
   }
 
   await Future<void>.delayed(Duration(milliseconds: 100));
-  task.start();
+  await task.start();
   await task;
 }

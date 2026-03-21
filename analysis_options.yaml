@@ -6,13 +6,43 @@ analyzer:
     strict-raw-types: true
 linter:
   rules:
+    - annotate_overrides
     - always_declare_return_types
     - avoid_annotating_with_dynamic
+    - avoid_bool_literals_in_conditional_expressions
     - avoid_empty_else
+    - avoid_escaping_inner_quotes
+    - avoid_final_parameters
+    - avoid_field_initializers_in_const_classes
+    - avoid_init_to_null
+    - avoid_multiple_declarations_per_line
     - avoid_relative_lib_imports
+    - avoid_returning_null_for_void
+    - avoid_returning_this
+    - avoid_setters_without_getters
     - avoid_shadowing_type_parameters
+    - avoid_slow_async_io
     - avoid_types_as_parameter_names
+    - avoid_types_on_closure_parameters
+    - avoid_unused_constructor_parameters
+    - avoid_void_async
+    - await_only_futures
+    - cancel_subscriptions
+    - cast_nullable_to_non_nullable
+    - close_sinks
+    - collection_methods_unrelated_type
+    - combinators_ordering
+    - control_flow_in_finally
+    - curly_braces_in_flow_control_structures
+    - dangling_library_doc_comments
+    - depend_on_referenced_packages
+    - deprecated_consistency
+    - deprecated_member_use_from_same_package
     - directives_ordering
+    - discarded_futures
+    - document_ignores
+    - empty_catches
+    - exhaustive_cases
     - no_duplicate_case_values
     - null_closures
     - prefer_const_constructors_in_immutables

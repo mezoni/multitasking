@@ -10,6 +10,9 @@ import 'dart:async';
 /// - Get remaining time ([remainingMicroseconds])
 /// - Cancel timer ([cancel])
 /// - Check if the timer is active ([isActive])
+///
+/// When the timer reaches the countdown point, the callback will be called
+/// without any protection (unguarded) for performance reasons.
 class CountdownTimer implements Timer {
   static final Timer _initialTimer = Timer(const Duration(), () {});
 

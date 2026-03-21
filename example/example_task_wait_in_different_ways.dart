@@ -21,7 +21,7 @@ Future<void> main() async {
   print('${firstTask.toString()}: ${firstTask.state.name}');
   print('Tasks');
   print(tasks.map((e) {
-    return '$e: ${e.state.name}';
+    return '${e.toString()}: ${e.state.name}';
   }).join(', '));
 
   print('whenAll()');

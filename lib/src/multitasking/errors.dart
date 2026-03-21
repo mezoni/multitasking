@@ -3,7 +3,8 @@ import 'dart:collection';
 import 'package:async/async.dart';
 import 'package:stack_trace/stack_trace.dart';
 
-/// Represents an error that aggregates other errors and their stack traces.
+/// Represents an error that aggregates other errors amd exceptions and
+/// their stack traces.
 class AggregateError extends _Error {
   final List<ErrorResult> _exceptions;
 
@@ -21,7 +22,7 @@ class AggregateError extends _Error {
   @override
   String toString() {
     final buffer = StringBuffer();
-    buffer.write('One or more errors occurred. ');
+    buffer.write('AggregateError: One or more errors occurred. ');
     buffer.write(_exceptions.map((e) => '(${e.error})').join(' '));
     return '$buffer';
   }
@@ -33,9 +34,20 @@ class AggregateError extends _Error {
   }
 }
 
-/// Represents the error that will be thrown if the task is stopped.
-class TaskCanceledError extends _Error {
-  TaskCanceledError([super.message]);
+/// Represents an exception used to signal and indicate task cancellation.
+class TaskCanceledException implements Exception {
+  final String? message;
+
+  TaskCanceledException([this.message]);
+
+  @override
+  String toString() {
+    if (message == null) {
+      return 'TaskStateException';
+    }
+
+    return 'TaskStateException: $message';
+  }
 }
 
 /// Represents an error that occurs when an operation is requested on a [Task]

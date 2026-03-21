@@ -177,6 +177,7 @@ void _testConditionVariable() {
     }
 
     Future<void> consume() async {
+      // Unused un test
       // ignore: unused_local_variable
       int? product;
       await lock.acquire();
@@ -343,9 +344,9 @@ void _testManualResetEvent() {
       }
     }
 
-    Timer.run(() {
+    Timer.run(() async {
       isOpen = false;
-      evt.set();
+      await evt.set();
     });
 
     await f();

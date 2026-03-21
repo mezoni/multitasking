@@ -21,11 +21,11 @@ void main() {
     unawaited(token.runPausable(sub.pause, sub.resume, sub.asFuture<void>));
 
     await Task.sleep(500);
-    pts.pause();
+    await pts.pause();
     final count2 = count;
     await Task.sleep(500);
     expect(count == count2, true, reason: 'pause does not works');
-    pts.resume();
+    await pts.resume();
     await Task.sleep(500);
     expect(count != count2, true, reason: 'resume does not works');
     await sub.cancel();
@@ -45,11 +45,11 @@ void main() {
     }());
 
     await Task.sleep(500);
-    pts.pause();
+    await pts.pause();
     final count2 = count;
     await Task.sleep(500);
     expect(count == count2, true, reason: 'pause does not works');
-    pts.resume();
+    await pts.resume();
     await Task.sleep(500);
     expect(count != count2, true, reason: 'resume does not works');
     cancel = true;
