@@ -127,9 +127,29 @@ class CancellationToken {
 class CancellationTokenSource {
   final CancellationToken token = CancellationToken._();
 
+  Timer? _timer;
+
   /// Signal to associated token that the operation executions should be
   /// canceled.
   void cancel() {
     token._cancel();
+  }
+
+  /// Signal to associated token that the operation executions should be
+  /// canceled after the specified [duration].
+  ///
+  /// Subsequent calls to [cancelAfter] will reset the [duration] for this
+  /// [CancellationTokenSource], if it has not been canceled already.
+  void cancelAfter(Duration duration) {
+    if (duration.isNegative) {
+      throw ArgumentError.value(duration, 'duration', 'Must be not negative');
+    }
+
+    if (token._isCanceled) {
+      return;
+    }
+
+    _timer?.cancel();
+    _timer = Timer(duration, token._cancel);
   }
 }

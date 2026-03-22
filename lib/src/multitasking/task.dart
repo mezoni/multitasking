@@ -89,22 +89,24 @@ final class Task<T> with _FutureMixin<T> {
   /// Returns a unique integer identifier for the task.
   final int id = _taskId++;
 
-  ErrorResult? _exception;
-
   /// Returns the task name.
   final String? name;
 
   FutureOr<T> Function()? _action;
 
-  bool _isCompleted = false;
+  final Completer<T> _completer = Completer();
+
+  ErrorResult? _exception;
+
+  bool _isAttachedToFinalizer = false;
+
+  bool _isObserved = false;
 
   FutureOr<void> Function(AnyTask task)? _onExit;
 
+  T? _result;
+
   TaskState _state = TaskState.created;
-
-  Result<T>? _result;
-
-  Completer<T>? _resultCompleter;
 
   Zone? _zone;
 
@@ -117,18 +119,18 @@ final class Task<T> with _FutureMixin<T> {
   }) : _action = action {
     final zoneStats = ZoneStats();
     var specification = zoneStats.specification;
-    specification = ZoneSpecification.from(
-      specification,
-      handleUncaughtError: _handleUncaughtError,
-    );
+    specification = ZoneSpecification.from(specification);
     _zoneStats = zoneStats;
     _zone = Zone.current.fork(
       specification: specification,
       zoneValues: {_taskKey: this},
     );
+    unawaited(_handleCompletion());
   }
 
-  Task._raw(this._state, {this.name}) : _zoneStats = ZoneStats();
+  Task._raw(this._state, {this.name}) : _zoneStats = ZoneStats() {
+    unawaited(_handleCompletion());
+  }
 
   ErrorResult? get exception {
     return _exception;
@@ -170,21 +172,12 @@ final class Task<T> with _FutureMixin<T> {
   }
 
   T get result {
-    final result = _result;
-    if (result != null) {
-      if (result.isValue) {
-        final valueResult = result.asValue!;
-        return valueResult.value;
-      } else {
-        final errorResult = result.asError!;
-        final error = errorResult.error;
-        final stackTrace = errorResult.stackTrace;
-        Error.throwWithStackTrace(error, stackTrace);
-      }
-    } else {
-      throw TaskStateError(
-          "Result is not available for the task with the state '${_state.name}'");
+    if (_state == TaskState.completed) {
+      return _result as T;
     }
+
+    throw TaskStateError(
+        "Result is not available for the task with the state '${_state.name}'");
   }
 
   /// Returns task state ([TaskState]).
@@ -212,11 +205,9 @@ final class Task<T> with _FutureMixin<T> {
     unawaited(zone.run(() async {
       try {
         final value = await action();
-        _complete(zone, TaskState.completed, ValueResult(value));
-      } on TaskCanceledException catch (e, s) {
-        _complete(zone, TaskState.canceled, ErrorResult(e, s));
+        _completer.complete(value);
       } catch (e, s) {
-        _complete(zone, TaskState.failed, ErrorResult(e, s));
+        _completer.completeError(e, s);
       }
     }));
   }
@@ -230,87 +221,41 @@ final class Task<T> with _FutureMixin<T> {
     return "Task('$name', $id)";
   }
 
-  void _complete(Zone zone, TaskState state, Result<T> result) {
-    if (_isCompleted) {
-      if (result.isError) {
-        final errorValue = result.asError!;
-        final error = errorValue.error;
-        final stackTrace = errorValue.stackTrace;
-        zone.handleUncaughtError(error, stackTrace);
-      }
-
-      return;
-    }
-
-    _isCompleted = true;
-    _state = state;
-    if (result is ErrorResult) {
-      _exception = result;
-    }
-
-    _result = result;
-    if (_resultCompleter != null) {
-      _completeResult(_resultCompleter!, result);
-    } else {
-      if (_exception != null) {
-        _finalizer.attach(this, _exception!, detach: this);
-      }
-    }
-
-    final onExit = _onExit;
-    if (onExit != null) {
-      zone.runGuarded(() async {
-        await onExit(this);
-      });
-    }
-  }
-
-  void _completeResult(Completer<T> completer, Result<T> result) {
-    if (result.isValue) {
-      final valueResult = result.asValue!;
-      completer.complete(valueResult.value);
-    } else {
-      final errorResult = result.asError!;
-      final error = errorResult.error;
-      final stackTrace = errorResult.stackTrace;
-      completer.completeError(error, stackTrace);
-    }
-  }
-
   @override
   Future<T> _getFuture() {
-    if (_resultCompleter == null) {
-      if (_state == TaskState.created) {
-        throw TaskStateError('Task has not started yet: ${toString()}');
-      }
-
-      _resultCompleter = Completer();
-      if (_result != null) {
-        _completeResult(_resultCompleter!, _result!);
-        if (_result is ErrorResult) {
-          _finalizer.detach(this);
-        }
-      }
+    if (_isAttachedToFinalizer) {
+      _isAttachedToFinalizer = false;
+      _finalizer.detach(this);
     }
 
-    return _resultCompleter!.future;
+    _isObserved = true;
+    return _completer.future;
   }
 
-  void _handleUncaughtError(
-    Zone self,
-    ZoneDelegate parent,
-    Zone zone,
-    Object error,
-    StackTrace stackTrace,
-  ) {
-    if (error is TaskCanceledException) {
-      if (!_isCompleted) {
-        _complete(self, TaskState.canceled, ErrorResult(error, stackTrace));
-        return;
+  Future<void> _handleCompletion() async {
+    try {
+      final value = await _completer.future;
+      _result = value;
+      _state = TaskState.completed;
+    } catch (e, s) {
+      final exception = ErrorResult(e, s);
+      _exception = exception;
+      if (e is TaskCanceledException) {
+        _state = TaskState.canceled;
+      } else {
+        _state = TaskState.failed;
+      }
+
+      if (!_isObserved) {
+        _isAttachedToFinalizer = true;
+        _finalizer.attach(this, exception, detach: this);
+      }
+    } finally {
+      final onExit = _onExit;
+      if (onExit != null) {
+        onExit(this);
       }
     }
-
-    parent.handleUncaughtError(zone, error, stackTrace);
   }
 
   /// Creates a task that will complete after a time delay.
@@ -615,14 +560,11 @@ final class Task<T> with _FutureMixin<T> {
 }
 
 class TaskCompletionSource<T> {
-  bool _isComplete = false;
-
-  final zone = Zone.current.fork();
-
   final Task<T> task = Task._raw(TaskState.running);
 
   void setCanceled() {
-    if (_isComplete) {
+    final completer = task._completer;
+    if (completer.isCompleted) {
       _errorSteTaskState();
     }
 
@@ -630,7 +572,8 @@ class TaskCompletionSource<T> {
   }
 
   void setError(Object error, StackTrace stackTrace) {
-    if (_isComplete) {
+    final completer = task._completer;
+    if (completer.isCompleted) {
       _errorSteTaskState();
     }
 
@@ -638,7 +581,8 @@ class TaskCompletionSource<T> {
   }
 
   void setResult(T result) {
-    if (_isComplete) {
+    final completer = task._completer;
+    if (completer.isCompleted) {
       _errorSteTaskState();
     }
 
@@ -646,31 +590,30 @@ class TaskCompletionSource<T> {
   }
 
   void trySetCanceled() {
-    if (_isComplete) {
+    final completer = task._completer;
+    if (completer.isCompleted) {
       return;
     }
 
-    _isComplete = true;
-    task._complete(zone, TaskState.canceled,
-        ErrorResult(TaskCanceledException(), StackTrace.current));
+    completer.completeError(TaskCanceledException(), StackTrace.current);
   }
 
   void trySetError(Object error, StackTrace stackTrace) {
-    if (_isComplete) {
+    final completer = task._completer;
+    if (completer.isCompleted) {
       return;
     }
 
-    _isComplete = true;
-    task._complete(zone, TaskState.failed, ErrorResult(error, stackTrace));
+    completer.completeError(error, stackTrace);
   }
 
   void trySetResult(T value) {
-    if (_isComplete) {
+    final completer = task._completer;
+    if (completer.isCompleted) {
       return;
     }
 
-    _isComplete = true;
-    task._complete(zone, TaskState.completed, ValueResult(value));
+    completer.complete(value);
   }
 
   Never _errorSteTaskState() {

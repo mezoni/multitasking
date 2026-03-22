@@ -76,69 +76,6 @@ In this case, the task does not replace `Future<T>` (doesn't reinvent the wheel)
 Thus, a `Task<T>` is an object that implements the `Future<T>`  interface by using `Completer<T>`.  
 This task only adds the ability (to `Future<T>`) to start its execution on command and track the completion state of the action.
 
-Very simplified `Task` code:
-
-```dart
-class Task<T> implements Future<T> {
-  final FutureOr<T> Function() _action;
-
-  final Completer<Result<T>> _taskCompleter = Completer();
-
-  Future<T>? _future;
-
-  Task(this._action);
-
-  Future<T> get future async {
-    if (_future != null) {
-      return _future as Future<T>;
-    }
-
-    if (_state == TaskState.created) {
-      throw StateError('Task has not yet been started: ${toString()}');
-    }
-
-    final result = await _taskCompleter.future;
-    if (result.isValue) {
-      final valueResult = result.asValue!;
-      final value = valueResult.value;
-      final future = Future.value(value);
-      _future = future;
-      return future;
-    } else {
-      final errorResult = result.asError!;
-      _finalizer.detach(this);
-      final error = errorResult.error;
-      final stackTrace = errorResult.stackTrace;
-      final future = Future<T>.error(error, stackTrace);
-      _future = future;
-      return future;
-    }
-  }
-
-  Future<void> start() async {
-    unawaited(runZoned(() async {
-      try {
-        final value = await _action();
-        _complete(TaskState.completed, ValueResult(value));
-      } catch (e, s) {
-        _complete(TaskState.failed, ErrorResult(e, s));
-      }
-    }));
-  }
-
-  @override
-  Future<R> then<R>(FutureOr<R> Function(T value) onValue,
-      {Function? onError}) {
-    return future.then(onValue, onError: onError);
-  }
-
-  void _complete(TaskState state, Result<T> result) {
-    // Invoke destructor
-    // Set task state and and complete `_taskCompleter`
-  }
-}
-```
-
 The main purpose of tasks is to conveniently manage a large number of asynchronous tasks with nested subtasks running simultaneously and cooperatively, with the ability to perform their soft, controlled, and broadly functional stop (cancellation), and the ability to write a task destructor in the body of the task itself.  
 In this way, a request to cancel tasks (and all nested subtasks and all internal critically important operations) can be handled in such a way that everything happens harmoniously and completely safely.  
 A cancellation request is made using a special token. A task cancellation token can be used synchronously (blocking) or asynchronously (via a subscription, which attaches a handler only for the duration of a critical and potentially very long operation).
@@ -316,9 +253,9 @@ Future<void> main() async {
 Output:
 
 ```txt
+Do some work
 Task(0) exit with status: 'failed'
 Task(0) frees up: 'handle'
-Do some work
 Work completed
 Error
 
@@ -701,7 +638,7 @@ Future<void> main(List<String> args) async {
     }
   });
 
-  Timer(Duration(seconds: 1), cts.cancel);
+  cts.cancelAfter(Duration(seconds: 1));
 
   try {
     await task;
@@ -723,7 +660,7 @@ Output:
 
 ```txt
 TaskCanceledException
-main(): count: 178870
+main(): count: 165752
 
 ```
 
@@ -1050,19 +987,19 @@ Task(1): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Task(2): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Task(3): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Task(4): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Task(2): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Task(0): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 main(): Canceling
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 ----------------------------------------
-Task(0): canceled
-No data
+Task(0): completed
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(1): canceled
 No data
 ----------------------------------------
-Task(2): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(2): canceled
+No data
 ----------------------------------------
 Task(3): canceled
 No data
@@ -1176,9 +1113,9 @@ Output:
 ```txt
 Canceling...
 Task(0): canceled
-Task(0): Downloaded: 1350381
+main(): Downloaded: 2637824
 Task(1): canceled
-Task(1): Downloaded: 1293019
+main(): Downloaded: 2752512
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException)
 
 ```
@@ -1357,31 +1294,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 311455952
+Isolate started: 309032484
 main(): Adding task 1
+Isolate started: 773868892
 main(): Adding task 2
-Isolate started: 302608792
 main(): Adding task 3
-Isolate started: 358837185
 main(): Adding task 4
-Isolate started: 31585975
-Isolate started: 698973482
+Isolate started: 841200298
+Isolate started: 317504268
+Isolate started: 77832318
+Task(2): Received result: [11]
+Task(5): Received result: [14]
 Task(1): Received result: [10]
 Task(3): Received result: [12]
 Task(4): Received result: [13]
-Task(5): Received result: [14]
-Task(2): Received result: [11]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 395330321
-Isolate started: 373944999
+Isolate started: 80309934
+Isolate started: 33325083
 main(): Adding task 3
 main(): Adding task 4
-Isolate started: 278527570
-Isolate started: 70920348
-Isolate started: 875461473
+Isolate started: 70046
+Isolate started: 312044792
+Isolate started: 784905832
 main(): Canceling...
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 
@@ -2006,8 +1943,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(0): 522
-Task(1): 524
-Task(2): 525
+Task(0): 513
+Task(1): 514
+Task(2): 515
 
 ```

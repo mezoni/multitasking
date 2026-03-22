@@ -3,6 +3,7 @@
         "Finalizer",
         "macrotasks",
         "Microtask",
+        "microtasks",
         "mrsw",
         "unawaited",
         "unpark",

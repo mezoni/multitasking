@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.2.0
+
+- Added method `cancelAfter()` to `CancellationTokenSource` class.
+- The operating algorithm of the `Task` has been improved. It has become more reliable and simpler. At the moment it sufficiently fulfills its purpose of being a wrapper over `Future<T>`.
+
 ## 4.1.0
 
 - Changed example `example_task_wait_in_different_ways.dart`.

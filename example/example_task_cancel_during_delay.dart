@@ -14,7 +14,7 @@ Future<void> main(List<String> args) async {
     }
   });
 
-  Timer(Duration(seconds: 1), cts.cancel);
+  cts.cancelAfter(Duration(seconds: 1));
 
   try {
     await task;
