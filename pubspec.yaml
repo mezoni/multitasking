@@ -12,10 +12,10 @@ environment:
   sdk: '>=3.0.0 <4.0.0'
 dependencies:
   async: ^2.13.0
-  meta:
-  stack_trace:
+  meta: ^1.18.2
+  stack_trace: ^1.12.1
 dev_dependencies:
-  defer:
-  http:
-  lints:
-  test:
+  defer: ^1.0.0
+  http: ^1.6.0
+  lints: ^6.1.0
+  test: ^1.31.0
