@@ -7,13 +7,13 @@ import 'errors.dart';
 class CancellationToken {
   final Map<FutureOr<void> Function(), Zone> _handlers = {};
 
-  bool _isCancelled = false;
+  bool _isCanceled = false;
 
   CancellationToken._();
 
   /// Returns the state of the token.
-  bool get isCancelled {
-    return _isCancelled;
+  bool get isCanceled {
+    return _isCanceled;
   }
 
   /// Adds and returns a handler if the token is not in the `canceled` state.
@@ -45,7 +45,7 @@ class CancellationToken {
   /// }
   /// ```
   FutureOr<void> Function()? addHandler(FutureOr<void> Function() callback) {
-    if (_isCancelled) {
+    if (_isCanceled) {
       scheduleMicrotask(callback);
       return null;
     }
@@ -75,7 +75,7 @@ class CancellationToken {
   ///
   /// The [onCancel] handler function should initiate the cancellation procedure
   /// which interrupts (or cancel) the execution of the [action] function.
-  Future<T> runCancellable<T>(
+  Future<T> runCancelable<T>(
     void Function() onCancel,
     FutureOr<T> Function() action,
   ) async {
@@ -94,22 +94,22 @@ class CancellationToken {
       rethrow;
     } finally {
       removerHandler(handler);
-      if (isCancelled && !isExceptionThrown) {
-        throwIfCancelled();
+      if (isCanceled && !isExceptionThrown) {
+        throwIfCanceled();
       }
     }
   }
 
   /// Throw the exception [TaskCanceledError] if the token is in the `canceled`
   /// state.
-  void throwIfCancelled() {
-    if (_isCancelled) {
+  void throwIfCanceled() {
+    if (_isCanceled) {
       throw TaskCanceledException();
     }
   }
 
   void _cancel() {
-    _isCancelled = true;
+    _isCanceled = true;
     final entries = _handlers.entries.toList();
     _handlers.clear();
     for (final entry in entries) {

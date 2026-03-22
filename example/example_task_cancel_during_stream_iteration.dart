@@ -51,7 +51,7 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
     await Task.sleep();
     final list = <int>[];
 
-    token.throwIfCancelled();
+    token.throwIfCanceled();
     StreamSubscription<int>? subscription;
     subscription = stream.listen((data) {
       _message('Received event: $data');
@@ -63,8 +63,7 @@ Task<int> _doWork(Stream<int> stream, CancellationToken token,
       }
     });
 
-    await token.runCancellable(
-        subscription.cancel, subscription.asFuture<void>);
+    await token.runCancelable(subscription.cancel, subscription.asFuture<void>);
 
     await Task.sleep();
     _message('Processing data: $list');

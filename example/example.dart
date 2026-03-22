@@ -27,7 +27,7 @@ Future<void> main() async {
 
   // User request to cancel
   Timer(Duration(seconds: 2), () {
-    print('Cancelling...');
+    print('Canceling...');
     cts.cancel();
   });
 
@@ -54,7 +54,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
       _message('Downloaded: ${bytes.length}');
     });
 
-    token.throwIfCancelled();
+    token.throwIfCanceled();
     final client = Client();
     final abortTrigger = Completer<void>();
 
@@ -75,7 +75,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
       }
     }
 
-    await token.runCancellable(abortTrigger.complete, get);
+    await token.runCancelable(abortTrigger.complete, get);
 
     // Save file to disk
     await Future<void>.delayed(Duration(seconds: 1));

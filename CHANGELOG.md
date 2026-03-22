@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.1.0
+
+- Changed example `example_task_wait_in_different_ways.dart`.
+- Added example `example_task_stream.dart`.
+- Added method `whenEach()` to `Task` class.
+- Added method `delay()` to `Task` class.
+- Breaking change: Code normalization, the `cancelled` identifiers have been renamed to `canceled`.
+- Breaking change: Code normalization, the `cancellable` identifiers have been renamed to `cancelable`.
+
 ## 4.0.0
 
 - Breaking change: Code cleanup, removed the following functions: `runAndDetach()`, `runCancellable()`.

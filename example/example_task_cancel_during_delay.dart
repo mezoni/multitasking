@@ -10,7 +10,7 @@ Future<void> main(List<String> args) async {
   final task = Task.run(() async {
     while (true) {
       count++;
-      await Task.sleep(0, token);
+      await Task.delay(0, token);
     }
   });
 

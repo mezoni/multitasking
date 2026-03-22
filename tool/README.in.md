@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 4.0.0
+Version: 4.1.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -31,13 +31,14 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
     - [The task result can be accessed synchronously after the task is completed](#the-task-result-can-be-accessed-synchronously-after-the-task-is-completed)
     - [The name of the task can be specified](#the-name-of-the-task-can-be-specified)
     - [Tasks can be waited for in different ways](#tasks-can-be-waited-for-in-different-ways)
+    - [Tasks can be waited for as a stream](#tasks-can-be-waited-for-as-a-stream)
     - [The task zone provides access to statistics of the operations in the zone](#the-task-zone-provides-access-to-statistics-of-the-operations-in-the-zone)
-    - [The task can be cancelled using a cancellation token](#the-task-can-be-cancelled-using-a-cancellation-token)
-    - [The task can be cancelled during `Task.sleep()`](#the-task-can-be-cancelled-during-tasksleep)
-    - [The task can be cancelled as a group of tasks](#the-task-can-be-cancelled-as-a-group-of-tasks)
+    - [The task can be canceled using a cancellation token](#the-task-can-be-canceled-using-a-cancellation-token)
+    - [The task can be canceled during `Task.delay()`](#the-task-can-be-canceled-during-taskdelay)
+    - [The task can be canceled as a group of tasks](#the-task-can-be-canceled-as-a-group-of-tasks)
     - [The task can be canceled while listening to the stream](#the-task-can-be-canceled-while-listening-to-the-stream)
-    - [The group of tasks can be safely cancelled while working with the network](#the-group-of-tasks-can-be-safely-cancelled-while-working-with-the-network)
-    - [The tasks can be safely cancelled during long running network operation](#the-tasks-can-be-safely-cancelled-during-long-running-network-operation)
+    - [The group of tasks can be safely canceled while working with the network](#the-group-of-tasks-can-be-safely-canceled-while-working-with-the-network)
+    - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
     - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
@@ -254,6 +255,14 @@ BEGIN_EXAMPLE
 example_task_wait_in_different_ways
 END_EXAMPLE
 
+### Tasks can be waited for as a stream
+
+Example of waiting for tasks as a stream
+
+BEGIN_EXAMPLE
+example_task_stream
+END_EXAMPLE
+
 ### The task zone provides access to statistics of the operations in the zone
 
 Example of accessing task zone statistics:
@@ -262,7 +271,7 @@ BEGIN_EXAMPLE
 example_task_zone_stats
 END_EXAMPLE
 
-### The task can be cancelled using a cancellation token
+### The task can be canceled using a cancellation token
 
 Canceling a task is a normal action that is supported by the implementation of the mechanism of task functioning.  
 Canceling a task is safe for the task and the runtime. But that does not  mean it is safe for the application.  
@@ -271,24 +280,24 @@ For this reason, task cancellation is only performed in cases where the develope
 There are different ways to handle task cancellation.
 
 ```dart
-token.throwIfCancelled();
+token.throwIfCanceled();
 ```
 
 ```dart
-if (token.isCancelled) {
+if (token.isCanceled) {
   // Handle cancellation
   throw TaskCanceledError();
 }
 ```
 
-### The task can be cancelled during `Task.sleep()`
+### The task can be canceled during `Task.delay()`
 
-All that is required for this is to pass the token as an argument to method `Task.sleep()`.
+All that is required for this is to pass the token as an argument to method `Task.delay()`.
 
-Example of cancelling a task during task sleep`Task.sleep()`:
+Example of cancelling a task during task sleep`Task.delay()`:
 
 BEGIN_EXAMPLE
-example_task_cancel_during_sleep
+example_task_cancel_during_delay
 END_EXAMPLE
 
 Remark:  
@@ -296,9 +305,9 @@ The terms `parent task` and `child task` are rather arbitrary, since there is no
 They are used to simplify the logical understanding of the interaction of tasks.  
 The interaction logic is completely determined by the developer.
 
-### The task can be cancelled as a group of tasks
+### The task can be canceled as a group of tasks
 
-Example of cancelled a group of tasks in case of any failure in any task:
+Example of canceling a group of tasks in case of any failure in any task:
 
 BEGIN_EXAMPLE
 example_task_cancel_group_by_failure
@@ -312,7 +321,7 @@ BEGIN_EXAMPLE
 example_task_cancel_during_stream_iteration
 END_EXAMPLE
 
-### The group of tasks can be safely cancelled while working with the network
+### The group of tasks can be safely canceled while working with the network
 
 An example of group of tasks cancellation while working with the network:
 
@@ -320,7 +329,7 @@ BEGIN_EXAMPLE
 example_task_cancel_network
 END_EXAMPLE
 
-### The tasks can be safely cancelled during long running network operation
+### The tasks can be safely canceled during long running network operation
 
 An example of task cancellation during long network operation:
 

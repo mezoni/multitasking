@@ -27,8 +27,7 @@ class WaitQueue {
     }
 
     if (timeout.isNegative) {
-      throw ArgumentError.value(
-          timeout, 'timeout', 'Timeout must not be negative');
+      throw ArgumentError.value(timeout, 'timeout', 'Must not be negative');
     }
 
     if (timeout.inMicroseconds == 0) {

@@ -5,10 +5,14 @@ import 'package:multitasking/multitasking.dart';
 Future<void> main() async {
   await runZonedGuarded(() async {
     final task = Task.run(() {
-      Timer(Duration(seconds: 1), () {
-        throw 'Error 2';
+      Task.onExit((task) {
+        throw 'Error on exit';
       });
-      throw 'Error 1';
+
+      Timer(const Duration(), () {
+        throw 'Error in timer';
+      });
+      throw 'Error in body';
     });
 
     try {

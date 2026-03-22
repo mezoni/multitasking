@@ -34,7 +34,7 @@ Future<void> main() async {
       final bytes = <int>[];
       _message('Fetching feed: $uri');
 
-      token.throwIfCancelled();
+      token.throwIfCanceled();
       final client = Client();
       final abortTrigger = Completer<void>();
 
@@ -55,7 +55,7 @@ Future<void> main() async {
         }
       }
 
-      await token.runCancellable(abortTrigger.complete, get);
+      await token.runCancelable(abortTrigger.complete, get);
 
       // Simulate external cancellation request.
       // To initiate the cancellation of the remaining tasks

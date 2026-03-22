@@ -33,7 +33,7 @@ Future<void> main() async {
           print('${Task.current} works: $i of 4');
           result++;
 
-          token.throwIfCancelled();
+          token.throwIfCanceled();
 
           await Future<void>.delayed(Duration(seconds: 2));
           if (n == 1) {

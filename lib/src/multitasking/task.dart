@@ -43,8 +43,6 @@ typedef AnyTask = Task<Object?>;
 ///
 /// It all comes down to the fact that when accessing the [_future] field of a task, an instance of the [Future] object is created and at that moment its life cycle begins.
 final class Task<T> with _FutureMixin<T> {
-  static final Zone _onExitZone = _createOnExitZone();
-
   static final Object _taskKey = Object();
 
   static final Expando<AnyTask> _tempTasks = Expando();
@@ -136,10 +134,10 @@ final class Task<T> with _FutureMixin<T> {
     return _exception;
   }
 
-  /// Returns `true` if the task is in the [TaskState.cancelled] state. ; otherwise, returns
+  /// Returns `true` if the task is in the [TaskState.canceled] state. ; otherwise, returns
   /// `false`.
   bool get isCanceled {
-    return _state == TaskState.cancelled;
+    return _state == TaskState.canceled;
   }
 
   /// Returns `true` if the task is in the [TaskState.completed] state. ; otherwise, returns
@@ -214,11 +212,11 @@ final class Task<T> with _FutureMixin<T> {
     unawaited(zone.run(() async {
       try {
         final value = await action();
-        _complete(TaskState.completed, ValueResult(value));
+        _complete(zone, TaskState.completed, ValueResult(value));
       } on TaskCanceledException catch (e, s) {
-        _complete(TaskState.cancelled, ErrorResult(e, s));
+        _complete(zone, TaskState.canceled, ErrorResult(e, s));
       } catch (e, s) {
-        _complete(TaskState.failed, ErrorResult(e, s));
+        _complete(zone, TaskState.failed, ErrorResult(e, s));
       }
     }));
   }
@@ -232,8 +230,15 @@ final class Task<T> with _FutureMixin<T> {
     return "Task('$name', $id)";
   }
 
-  void _complete(TaskState state, Result<T> result) {
+  void _complete(Zone zone, TaskState state, Result<T> result) {
     if (_isCompleted) {
+      if (result.isError) {
+        final errorValue = result.asError!;
+        final error = errorValue.error;
+        final stackTrace = errorValue.stackTrace;
+        zone.handleUncaughtError(error, stackTrace);
+      }
+
       return;
     }
 
@@ -243,23 +248,21 @@ final class Task<T> with _FutureMixin<T> {
       _exception = result;
     }
 
-    _onExitZone.runGuarded(() async {
-      try {
-        final onExit = _onExit;
-        if (onExit != null) {
-          await onExit(this);
-        }
-      } finally {
-        _result = result;
-        if (_resultCompleter != null) {
-          _completeResult(_resultCompleter!, result);
-        } else {
-          if (_exception != null) {
-            _finalizer.attach(this, _exception!, detach: this);
-          }
-        }
+    _result = result;
+    if (_resultCompleter != null) {
+      _completeResult(_resultCompleter!, result);
+    } else {
+      if (_exception != null) {
+        _finalizer.attach(this, _exception!, detach: this);
       }
-    });
+    }
+
+    final onExit = _onExit;
+    if (onExit != null) {
+      zone.runGuarded(() async {
+        await onExit(this);
+      });
+    }
   }
 
   void _completeResult(Completer<T> completer, Result<T> result) {
@@ -301,30 +304,65 @@ final class Task<T> with _FutureMixin<T> {
     StackTrace stackTrace,
   ) {
     if (error is TaskCanceledException) {
-      _complete(TaskState.cancelled, ErrorResult(error, stackTrace));
-    } else {
-      parent.handleUncaughtError(zone, error, stackTrace);
+      if (!_isCompleted) {
+        _complete(self, TaskState.canceled, ErrorResult(error, stackTrace));
+        return;
+      }
     }
+
+    parent.handleUncaughtError(zone, error, stackTrace);
   }
 
-  /// Assigns a handler for the current task ([Task.current]) that will be
-  /// executed as the last thing before it terminates.
+  /// Creates a task that will complete after a time delay.
+  static Task<void> delay([int milliseconds = 0, CancellationToken? token]) {
+    if (milliseconds < 0) {
+      throw ArgumentError.value(
+          milliseconds, 'milliseconds', 'Must not be negative');
+    }
+
+    final duration = milliseconds == 0
+        ? const Duration()
+        : Duration(milliseconds: milliseconds);
+    final tcs = TaskCompletionSource<void>();
+    final task = tcs.task;
+    if (token == null) {
+      Timer(duration, () {
+        tcs.setResult(null);
+      });
+    } else {
+      void Function()? handler;
+      final timer = Timer(duration, () {
+        if (!task.isTerminated) {
+          token.removerHandler(handler);
+          tcs.setResult(null);
+        }
+      });
+
+      handler = token.addHandler(() {
+        timer.cancel();
+        if (!task.isTerminated) {
+          tcs.setCanceled();
+        }
+      });
+    }
+
+    return task;
+  }
+
+  /// Assigns a `handler` for the [current] task that will be executed as the
+  /// last thing before it terminates.
   ///
-  /// Only one handler can be assigned to a task.
+  /// Only one `handler` can be assigned to a task.
   ///
-  /// It is important to understand that executing a handler in the context of a
-  /// task is not possible, since the task execution context can be deactivated
-  /// (execution of microtasks and timers is disabled).
-  ///
-  /// For this reason, the handler is executed in the fork of the root zone
-  /// ([Zone.root]), that is, independently of the task execution context.
-  ///
-  /// All unhandled exceptions that may occur will be dispatched to the global
-  /// `onExit` error handler [Task.handleOnExitError].
-  ///
-  /// If [Task.handleOnExitError] is not set, then all unhandled errors that
-  /// occur in the `onExit` processing will be propagated to the root zone
-  /// ([Zone.root]).
+  /// If an exception is thrown in a `handler`, it will be considered an
+  /// `unhandled` exception.\
+  /// If an exception is also thrown during task execution, that exception will
+  /// be considered an `unobserved` exception.\
+  /// This will cause the exception thrown in that `handler` to be rethrown
+  /// before the `unobserved` exception.\
+  /// This is because the `unobserved` exception is in a state of `awaiting` for
+  /// appropriate handling and it is not considered an `unhandled` exception at
+  /// this stage.
   static void onExit(FutureOr<void> Function(AnyTask task) handler) {
     final current = Task.current;
     if (current._onExit != null) {
@@ -353,7 +391,7 @@ final class Task<T> with _FutureMixin<T> {
   static Future<void> sleep([int milliseconds = 0, CancellationToken? token]) {
     if (milliseconds < 0) {
       throw ArgumentError.value(
-          milliseconds, 'milliseconds', 'Milliseconds must not be negative');
+          milliseconds, 'milliseconds', 'Must not be negative');
     }
 
     final duration = milliseconds == 0
@@ -384,7 +422,7 @@ final class Task<T> with _FutureMixin<T> {
   /// If all tasks are completed successfully, then this method will also
   /// complete successfully.
   ///
-  /// If one of the tasks fails or is cancelled, then this method will complete
+  /// If one of the tasks fails or is canceled, then this method will complete
   /// with an [AggregateError] error that will contain all errors.
   ///
   /// If the [progress] parameter is specified, it will call the `report()`
@@ -488,7 +526,7 @@ final class Task<T> with _FutureMixin<T> {
                 final error = AggregateError(exceptions);
                 tcs.setError(error, StackTrace.current);
               } else {
-                tcs.setCancelled();
+                tcs.setCanceled();
               }
             }
           }
@@ -505,15 +543,15 @@ final class Task<T> with _FutureMixin<T> {
   ///
   /// If the [progress] parameter is specified, it will call the `report()`
   /// method whenever each task completes.
-  static Future<Task<T>> whenAny<T>(
+  static Task<Task<T>> whenAny<T>(
     List<Task<T>> tasks, {
     Progress<({int count, int total})>? progress,
   }) {
     if (tasks.isEmpty) {
-      throw ArgumentError('Task list must not be empty', 'tasks');
+      throw ArgumentError('Must not be empty', 'tasks');
     }
 
-    final completer = Completer<Task<T>>();
+    final tcs = TaskCompletionSource<Task<T>>();
     var count = 0;
     tasks = tasks.toList();
     for (var i = 0; i < tasks.length; i++) {
@@ -522,41 +560,68 @@ final class Task<T> with _FutureMixin<T> {
         try {
           await task;
         } catch (e) {
-          // Ignore
+          // Ignore exception
         } finally {
           count++;
-          if (progress != null) {
-            progress.report((count: count, total: tasks.length));
-          }
-
-          if (!completer.isCompleted) {
-            completer.complete(task);
+          progress?.report((count: count, total: tasks.length));
+          if (count == 1) {
+            tcs.setResult(task);
           }
         }
       }());
     }
 
-    return completer.future;
+    return tcs.task;
   }
 
-  static Zone _createOnExitZone() {
-    return Zone.root.fork(specification: ZoneSpecification(
-        handleUncaughtError: (self, parent, zone, error, stackTrace) {
-      if (handleOnExitError != null) {
-        handleOnExitError!(error, stackTrace);
-      } else {
-        parent.handleUncaughtError(zone, error, stackTrace);
-      }
-    }));
+  /// Returns a [Stream] to which each [Task] in the [tasks] list will be added,
+  /// in the order in which they were completed.
+  ///
+  /// If the [progress] parameter is specified, it will call the `report()`
+  /// method whenever each task completes.
+  static Stream<Task<T>> whenEach<T>(
+    List<Task<T>> tasks, {
+    Progress<({int count, int total})>? progress,
+  }) {
+    if (tasks.isEmpty) {
+      progress?.report((count: 0, total: 0));
+      return Stream.empty();
+    }
+
+    final controller = StreamController<Task<T>>();
+    var count = 0;
+    tasks = tasks.toList();
+    for (var i = 0; i < tasks.length; i++) {
+      final task = tasks[i];
+      unawaited(() async {
+        try {
+          await task;
+        } catch (e) {
+          // Ignore exception
+        } finally {
+          count++;
+          progress?.report((count: count, total: tasks.length));
+          controller.add(task);
+        }
+
+        if (count == tasks.length) {
+          await controller.close();
+        }
+      }());
+    }
+
+    return controller.stream;
   }
 }
 
 class TaskCompletionSource<T> {
   bool _isComplete = false;
 
+  final zone = Zone.current.fork();
+
   final Task<T> task = Task._raw(TaskState.running);
 
-  void setCancelled() {
+  void setCanceled() {
     if (_isComplete) {
       _errorSteTaskState();
     }
@@ -572,12 +637,12 @@ class TaskCompletionSource<T> {
     trySetError(error, stackTrace);
   }
 
-  void setResult(T value) {
+  void setResult(T result) {
     if (_isComplete) {
       _errorSteTaskState();
     }
 
-    trySetResult(value);
+    trySetResult(result);
   }
 
   void trySetCanceled() {
@@ -586,7 +651,7 @@ class TaskCompletionSource<T> {
     }
 
     _isComplete = true;
-    task._complete(TaskState.cancelled,
+    task._complete(zone, TaskState.canceled,
         ErrorResult(TaskCanceledException(), StackTrace.current));
   }
 
@@ -596,7 +661,7 @@ class TaskCompletionSource<T> {
     }
 
     _isComplete = true;
-    task._complete(TaskState.failed, ErrorResult(error, stackTrace));
+    task._complete(zone, TaskState.failed, ErrorResult(error, stackTrace));
   }
 
   void trySetResult(T value) {
@@ -605,7 +670,7 @@ class TaskCompletionSource<T> {
     }
 
     _isComplete = true;
-    task._complete(TaskState.completed, ValueResult(value));
+    task._complete(zone, TaskState.completed, ValueResult(value));
   }
 
   Never _errorSteTaskState() {
@@ -615,8 +680,8 @@ class TaskCompletionSource<T> {
 
 /// Represents the state of a task.
 enum TaskState {
-  /// The task was cancelled (by throwing an exception [TaskCanceledError]).
-  cancelled,
+  /// The task was canceled (by throwing an exception [TaskCanceledError]).
+  canceled,
 
   /// The task was completed successfully.
   completed,

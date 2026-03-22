@@ -10,7 +10,7 @@ void main(List<String> args) async {
 
   cts = CancellationTokenSource();
   Timer(Duration(seconds: 2), () {
-    _message('Cancelling...');
+    _message('Canceling...');
     cts.cancel();
   });
 
@@ -59,7 +59,7 @@ Future<void> doWork((SendPort, int) message) async {
 
     for (var i = 0; i < 10; i++) {
       await Future<void>.delayed(Duration(milliseconds: 250));
-      token.throwIfCancelled();
+      token.throwIfCanceled();
       result++;
       //throw 'Error';
     }

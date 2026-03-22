@@ -59,13 +59,13 @@ class PauseToken {
       return _event.wait();
     }
 
-    token.throwIfCancelled();
+    token.throwIfCanceled();
     final completer = Completer<void>();
     unawaited(() async {
       await _event.wait();
       completer.tryComplete();
     }());
-    return token.runCancellable(completer.tryComplete, () => completer.future);
+    return token.runCancelable(completer.tryComplete, () => completer.future);
   }
 
   void _executeHandlers(Map<FutureOr<void> Function(), Zone> handlers) {

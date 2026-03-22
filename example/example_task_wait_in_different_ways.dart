@@ -7,7 +7,7 @@ Future<void> main() async {
   final tasks = [
     doSomeWorkWithError(100),
     doSomeWork(1, 200),
-    doSomeWork(1, 300),
+    doSomeWork(2, 300),
   ];
 
   final progress = Progress((({int count, int total}) info) {
@@ -18,16 +18,23 @@ Future<void> main() async {
 
   print('whenAny()');
   final firstTask = await Task.whenAny(tasks, progress: progress);
-  print('${firstTask.toString()}: ${firstTask.state.name}');
-  print('Tasks');
+  print('First task: ${firstTask.toString()} (${firstTask.state.name})');
+  try {
+    final result = await firstTask;
+    print('First result: $result');
+  } catch (e) {
+    print('Error: $e');
+  }
+
+  print('Tasks:');
   print(tasks.map((e) {
-    return '${e.toString()}: ${e.state.name}';
+    return '${e.toString()} (${e.state.name})';
   }).join(', '));
 
   print('whenAll()');
-  final task = Task.whenAll(tasks);
   try {
-    await task;
+    final results = await Task.whenAll(tasks);
+    print('Results: $results');
   } catch (e) {
     print('Error: $e');
   }

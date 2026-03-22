@@ -15,7 +15,7 @@ class AggregateError extends _Error {
       : _exceptions = UnmodifiableListView(exceptions),
         stackTrace = _buildAggregateStackTrace(exceptions) {
     if (exceptions.isEmpty) {
-      throw ArgumentError('Exception list must not be empty', 'exceptions');
+      throw ArgumentError('Must not be empty', 'exceptions');
     }
   }
 
@@ -43,10 +43,10 @@ class TaskCanceledException implements Exception {
   @override
   String toString() {
     if (message == null) {
-      return 'TaskStateException';
+      return 'TaskCanceledException';
     }
 
-    return 'TaskStateException: $message';
+    return 'TaskCanceledException: $message';
   }
 }
 
