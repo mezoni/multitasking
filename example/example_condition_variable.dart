@@ -70,7 +70,7 @@ Future<void> main(List<String> args) async {
     }
   });
 
-  await Task.waitAll([consumer, producer]);
+  await Task.whenAll([consumer, producer]);
 
   _message('produced: $produced');
   _message('consumed: $consumed');

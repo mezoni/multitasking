@@ -16,7 +16,7 @@ Future<void> main(List<String> args) async {
     tasks.add(task);
   }
 
-  await Task.waitAll(tasks);
+  await Task.whenAll(tasks);
 }
 
 void _message(String text) {

@@ -42,7 +42,7 @@ typedef AnyTask = Task<Object?>;
 /// - `task.whenComplete()` (inherited from [Future])
 ///
 /// It all comes down to the fact that when accessing the [_future] field of a task, an instance of the [Future] object is created and at that moment its life cycle begins.
-final class Task<T> with _FutureMixin<T> {
+final class Task<T> implements Future<T> {
   static final Object _taskKey = Object();
 
   static final Expando<AnyTask> _tempTasks = Expando();
@@ -54,9 +54,6 @@ final class Task<T> with _FutureMixin<T> {
   });
 
   static final AnyTask _main = Task._raw(TaskState.running, name: 'main()');
-
-  /// Global error handler for tasks `onExit` handlers.
-  static void Function(Object error, StackTrace? stackTrace)? handleOnExitError;
 
   static int _taskId = 0;
 
@@ -94,17 +91,13 @@ final class Task<T> with _FutureMixin<T> {
 
   FutureOr<T> Function()? _action;
 
-  final Completer<T> _completer = Completer();
-
   ErrorResult? _exception;
 
-  bool _isAttachedToFinalizer = false;
-
-  bool _isObserved = false;
-
-  FutureOr<void> Function(AnyTask task)? _onExit;
+  FutureOr<void> Function(AnyTask)? _onExit;
 
   T? _result;
+
+  Completer<T>? _resultCompleter;
 
   TaskState _state = TaskState.created;
 
@@ -125,12 +118,9 @@ final class Task<T> with _FutureMixin<T> {
       specification: specification,
       zoneValues: {_taskKey: this},
     );
-    unawaited(_handleCompletion());
   }
 
-  Task._raw(this._state, {this.name}) : _zoneStats = ZoneStats() {
-    unawaited(_handleCompletion());
-  }
+  Task._raw(this._state, {this.name});
 
   ErrorResult? get exception {
     return _exception;
@@ -185,31 +175,101 @@ final class Task<T> with _FutureMixin<T> {
 
   ZoneStats? get zoneStats => _zoneStats;
 
+  Future<T> get _future {
+    var completer = _resultCompleter;
+    if (completer != null) {
+      return completer.future;
+    }
+
+    completer = Completer();
+    _resultCompleter = completer;
+    switch (_state) {
+      case TaskState.completed:
+        completer.complete(_result);
+        break;
+      case TaskState.canceled:
+      case TaskState.failed:
+        final exception = _exception!;
+        final error = exception.error;
+        final stackTrace = exception.stackTrace;
+        completer.completeError(error, stackTrace);
+        _finalizer.detach(this);
+        break;
+      default:
+    }
+
+    return completer.future;
+  }
+
+  @override
+  Stream<T> asStream() {
+    return _future.asStream();
+  }
+
+  @override
+  Future<T> catchError(Function onError, {bool Function(Object error)? test}) {
+    return _future.catchError(onError, test: test);
+  }
+
   /// Starts execution of the task.
   Future<void> start() async {
     if (_state != TaskState.created) {
       throw TaskStateError('Task has already been started: ${toString()}');
     }
 
-    final zone = _zone;
-    if (zone == null) {
-      throw TaskStateError('Failed to start task: ${toString()}');
-    }
-
     final action = _action;
     if (action == null) {
-      throw TaskStateError('Failed to start task: ${toString()}');
+      throw TaskStateError(
+          'Failed to start task without action: ${toString()}');
+    }
+
+    final zone = _zone;
+    if (zone == null) {
+      throw TaskStateError('Failed to start task without zone: ${toString()}');
     }
 
     _state = TaskState.running;
     unawaited(zone.run(() async {
       try {
         final value = await action();
-        _completer.complete(value);
-      } catch (e, s) {
-        _completer.completeError(e, s);
+        _result = value;
+        _state = TaskState.completed;
+        _resultCompleter?.complete(value);
+      } catch (error, stackTrace) {
+        final exception = ErrorResult(error, stackTrace);
+        _exception = exception;
+        if (error is TaskCanceledException) {
+          _state = TaskState.canceled;
+        } else {
+          _state = TaskState.failed;
+        }
+
+        final completer = _resultCompleter;
+        if (completer == null) {
+          _finalizer.attach(this, exception, detach: this);
+        } else {
+          completer.completeError(error, stackTrace);
+        }
+      } finally {
+        final handler = _onExit;
+        if (handler != null) {
+          unawaited(zone.run(() async {
+            await handler(this);
+          }));
+        }
       }
     }));
+  }
+
+  @override
+  Future<R> then<R>(FutureOr<R> Function(T value) onValue,
+      {Function? onError}) {
+    return _future.then(onValue, onError: onError);
+  }
+
+  @override
+  Future<T> timeout(Duration timeLimit, {FutureOr<T> Function()? onTimeout}) {
+    return _future.timeout(timeLimit, onTimeout: onTimeout);
   }
 
   @override
@@ -222,40 +282,8 @@ final class Task<T> with _FutureMixin<T> {
   }
 
   @override
-  Future<T> _getFuture() {
-    if (_isAttachedToFinalizer) {
-      _isAttachedToFinalizer = false;
-      _finalizer.detach(this);
-    }
-
-    _isObserved = true;
-    return _completer.future;
-  }
-
-  Future<void> _handleCompletion() async {
-    try {
-      final value = await _completer.future;
-      _result = value;
-      _state = TaskState.completed;
-    } catch (e, s) {
-      final exception = ErrorResult(e, s);
-      _exception = exception;
-      if (e is TaskCanceledException) {
-        _state = TaskState.canceled;
-      } else {
-        _state = TaskState.failed;
-      }
-
-      if (!_isObserved) {
-        _isAttachedToFinalizer = true;
-        _finalizer.attach(this, exception, detach: this);
-      }
-    } finally {
-      final onExit = _onExit;
-      if (onExit != null) {
-        onExit(this);
-      }
-    }
+  Future<T> whenComplete(FutureOr<void> Function() action) {
+    return _future.whenComplete(action);
   }
 
   /// Creates a task that will complete after a time delay.
@@ -294,24 +322,32 @@ final class Task<T> with _FutureMixin<T> {
     return task;
   }
 
-  /// Assigns a `handler` for the [current] task that will be executed as the
-  /// last thing before it terminates.
+  /// Assigns a `handler` for the [current] task that will be executed after the
+  /// task is terminated
   ///
-  /// Only one `handler` can be assigned to a task.
-  ///
-  /// If an exception is thrown in a `handler`, it will be considered an
-  /// `unhandled` exception.\
-  /// If an exception is also thrown during task execution, that exception will
-  /// be considered an `unobserved` exception.\
-  /// This will cause the exception thrown in that `handler` to be rethrown
-  /// before the `unobserved` exception.\
-  /// This is because the `unobserved` exception is in a state of `awaiting` for
-  /// appropriate handling and it is not considered an `unhandled` exception at
-  /// this stage.
+  /// The handler cannot be added to synthetic tasks.
   static void onExit(FutureOr<void> Function(AnyTask task) handler) {
     final current = Task.current;
+    var isSynthetic = false;
+    if (identical(current, _main)) {
+      isSynthetic = true;
+    } else {
+      isSynthetic = Zone.current[_taskKey] == null;
+    }
+
+    if (isSynthetic) {
+      throw TaskStateError(
+          "Failed to add 'onExit()' handler to synthetic task: ${current.toString()}");
+    }
+
     if (current._onExit != null) {
-      throw TaskStateError("'Task.onExit()' can be called only once");
+      throw TaskStateError(
+          "'Task.onExit()' can only be called once: ${current.toString()}");
+    }
+
+    if (current.isTerminated) {
+      throw TaskStateError(
+          "'Task.onExit()' can only be called on an unterminated task: ${current.toString()}");
     }
 
     current._onExit = handler;
@@ -343,15 +379,17 @@ final class Task<T> with _FutureMixin<T> {
         ? const Duration()
         : Duration(milliseconds: milliseconds);
     final completer = Completer<void>();
-    void Function()? handler;
-    final timer = Timer(duration, () {
-      if (!completer.isCompleted) {
-        token?.removerHandler(handler);
-        completer.complete();
-      }
-    });
+    if (token == null) {
+      Timer(duration, completer.complete);
+    } else {
+      void Function()? handler;
+      final timer = Timer(duration, () {
+        if (!completer.isCompleted) {
+          token.removerHandler(handler);
+          completer.complete();
+        }
+      });
 
-    if (token != null) {
       handler = token.addHandler(() {
         timer.cancel();
         if (!completer.isCompleted) {
@@ -372,6 +410,7 @@ final class Task<T> with _FutureMixin<T> {
   ///
   /// If the [progress] parameter is specified, it will call the `report()`
   /// method whenever each task completes.
+  @Deprecated("Will be removed in the next version Use 'whenAll' instead")
   static Future<void> waitAll<T>(
     List<Task<T>> tasks, {
     Progress<({int count, int total})>? progress,
@@ -560,63 +599,67 @@ final class Task<T> with _FutureMixin<T> {
 }
 
 class TaskCompletionSource<T> {
+  final Completer<T> _completer = Completer();
+
   final Task<T> task = Task._raw(TaskState.running);
 
+  TaskCompletionSource() {
+    task._resultCompleter = _completer;
+  }
+
   void setCanceled() {
-    final completer = task._completer;
-    if (completer.isCompleted) {
-      _errorSteTaskState();
+    if (!_completer.isCompleted) {
+      task._state = TaskState.canceled;
+      _completer.completeError(TaskCanceledException(), StackTrace.current);
+      return;
     }
 
-    trySetCanceled();
+    _errorSetTaskState();
   }
 
   void setError(Object error, StackTrace stackTrace) {
-    final completer = task._completer;
-    if (completer.isCompleted) {
-      _errorSteTaskState();
+    if (!_completer.isCompleted) {
+      task._state = TaskState.failed;
+      _completer.completeError(error, stackTrace);
+      return;
     }
 
-    trySetError(error, stackTrace);
+    _errorSetTaskState();
   }
 
   void setResult(T result) {
-    final completer = task._completer;
-    if (completer.isCompleted) {
-      _errorSteTaskState();
+    if (!_completer.isCompleted) {
+      task._state = TaskState.completed;
+      _completer.complete(result);
+      return;
     }
-
-    trySetResult(result);
   }
 
   void trySetCanceled() {
-    final completer = task._completer;
-    if (completer.isCompleted) {
+    if (!_completer.isCompleted) {
+      task._state = TaskState.canceled;
+      _completer.completeError(TaskCanceledException(), StackTrace.current);
       return;
     }
-
-    completer.completeError(TaskCanceledException(), StackTrace.current);
   }
 
   void trySetError(Object error, StackTrace stackTrace) {
-    final completer = task._completer;
-    if (completer.isCompleted) {
+    if (!_completer.isCompleted) {
+      task._state = TaskState.failed;
+      _completer.completeError(error, stackTrace);
       return;
     }
-
-    completer.completeError(error, stackTrace);
   }
 
   void trySetResult(T value) {
-    final completer = task._completer;
-    if (completer.isCompleted) {
+    if (!_completer.isCompleted) {
+      task._state = TaskState.completed;
+      _completer.complete(value);
       return;
     }
-
-    completer.complete(value);
   }
 
-  Never _errorSteTaskState() {
+  Never _errorSetTaskState() {
     throw TaskStateError('Failed to set final state of completed task');
   }
 }
@@ -637,34 +680,4 @@ enum TaskState {
 
   /// The task is running.
   running,
-}
-
-mixin _FutureMixin<T> implements Future<T> {
-  @override
-  Stream<T> asStream() {
-    return _getFuture().asStream();
-  }
-
-  @override
-  Future<T> catchError(Function onError, {bool Function(Object error)? test}) {
-    return _getFuture().catchError(onError, test: test);
-  }
-
-  @override
-  Future<R> then<R>(FutureOr<R> Function(T value) onValue,
-      {Function? onError}) {
-    return _getFuture().then(onValue, onError: onError);
-  }
-
-  @override
-  Future<T> timeout(Duration timeLimit, {FutureOr<T> Function()? onTimeout}) {
-    return _getFuture().timeout(timeLimit, onTimeout: onTimeout);
-  }
-
-  @override
-  Future<T> whenComplete(FutureOr<void> Function() action) {
-    return _getFuture().whenComplete(action);
-  }
-
-  Future<T> _getFuture();
 }

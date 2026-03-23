@@ -78,7 +78,7 @@ void _testWaitAll() {
 
     Object? error;
     try {
-      await Task.waitAll(tasks);
+      await Task.whenAll(tasks);
     } catch (e) {
       error = e;
     }
@@ -115,7 +115,7 @@ void _testWaitAll() {
 
     Object? error;
     try {
-      await Task.waitAll(tasks);
+      await Task.whenAll(tasks);
     } catch (e) {
       error = e;
     }

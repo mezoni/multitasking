@@ -404,7 +404,7 @@ void _testMultipleWriteSingleReadObject() {
     scheduleRead(200);
     scheduleRead(400);
 
-    await Task.waitAll(tasks);
+    await Task.whenAll(tasks);
     expect(modes, ['read', 'wait/read', 'wait/read', 'read'],
         reason: 'wring read modes');
     expect(values, [0, 2, 2, 2], reason: 'wring values');
@@ -437,7 +437,7 @@ void _testReentrantLock() {
       tasks.add(t);
     }
 
-    await Task.waitAll(tasks);
+    await Task.whenAll(tasks);
 
     expect(list, ['01', '02', '03', '14', '15', '16', '27', '28', '29'],
         reason: 'mutex does not works');
@@ -489,7 +489,7 @@ void _testReentrantLock() {
       tasks.add(t);
     }
 
-    await Task.waitAll(tasks);
+    await Task.whenAll(tasks);
 
     expect(list, ['01', '02', '03', '24', '25', '26'],
         reason: 'mutex does not works');

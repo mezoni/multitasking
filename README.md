@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 4.1.0
+Version: 4.2.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -253,9 +253,9 @@ Future<void> main() async {
 Output:
 
 ```txt
-Do some work
 Task(0) exit with status: 'failed'
 Task(0) frees up: 'handle'
+Do some work
 Work completed
 Error
 
@@ -660,7 +660,7 @@ Output:
 
 ```txt
 TaskCanceledException
-main(): count: 165752
+main(): count: 216772
 
 ```
 
@@ -731,7 +731,7 @@ Future<void> main() async {
       await Task.sleep();
     }
 
-    await Task.waitAll(group);
+    await Task.whenAll(group);
   });
 
   try {
@@ -746,16 +746,16 @@ Future<void> main() async {
 Output:
 
 ```txt
-Task('Child 1', 1) works: 0 of 4
-Task('Child 2', 2) works: 0 of 4
-Task('Child 3', 3) works: 0 of 4
-On exit: Task('Child 1', 1) (failed)
-Task('Child 2', 2) works: 1 of 4
-On exit: Task('Child 2', 2) (canceled)
-Task('Child 3', 3) works: 1 of 4
-On exit: Task('Child 3', 3) (canceled)
+Task('Child 1', 2) works: 0 of 4
+Task('Child 2', 3) works: 0 of 4
+Task('Child 3', 4) works: 0 of 4
+On exit: Task('Child 1', 2) (failed)
+Task('Child 2', 3) works: 1 of 4
+On exit: Task('Child 2', 3) (canceled)
+Task('Child 3', 4) works: 1 of 4
+On exit: Task('Child 3', 4) (canceled)
 On exit: Task('Parent', 0) (failed)
-AggregateError: One or more errors occurred. (Failure in Task('Child 1', 1)) (TaskCanceledException) (TaskCanceledException)
+AggregateError: One or more errors occurred. (Failure in Task('Child 1', 2)) (TaskCanceledException) (TaskCanceledException)
 
 ```
 
@@ -800,7 +800,7 @@ Future<void> main(List<String> args) async {
   }
 
   try {
-    await Task.waitAll(tasks);
+    await Task.whenAll(tasks);
   } catch (e) {
     print(e);
   }
@@ -953,7 +953,7 @@ Future<void> main() async {
   }
 
   try {
-    await Task.waitAll(tasks);
+    await Task.whenAll(tasks);
   } catch (e) {
     print(e);
   }
@@ -987,16 +987,16 @@ Task(1): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Task(2): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Task(3): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Task(4): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Task(0): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Task(1): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 main(): Canceling
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 ----------------------------------------
-Task(0): completed
+Task(0): canceled
+No data
+----------------------------------------
+Task(1): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
-----------------------------------------
-Task(1): canceled
-No data
 ----------------------------------------
 Task(2): canceled
 No data
@@ -1050,7 +1050,7 @@ Future<void> main() async {
   });
 
   try {
-    await Task.waitAll(tasks);
+    await Task.whenAll(tasks);
   } catch (e) {
     print('$e');
   }
@@ -1113,9 +1113,9 @@ Output:
 ```txt
 Canceling...
 Task(0): canceled
-main(): Downloaded: 2637824
-Task(1): canceled
-main(): Downloaded: 2752512
+Task(0): Downloaded: 2891775
+Task(2): canceled
+Task(2): Downloaded: 2801664
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException)
 
 ```
@@ -1173,7 +1173,7 @@ Future<void> bigWork(CancellationTokenSource cts) async {
   }
 
   try {
-    await Task.waitAll(tasks);
+    await Task.whenAll(tasks);
   } catch (e) {
     print(e);
   }
@@ -1294,31 +1294,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 309032484
+Isolate started: 693425803
 main(): Adding task 1
-Isolate started: 773868892
+Isolate started: 905182430
 main(): Adding task 2
 main(): Adding task 3
+Isolate started: 1006870447
 main(): Adding task 4
-Isolate started: 841200298
-Isolate started: 317504268
-Isolate started: 77832318
-Task(2): Received result: [11]
-Task(5): Received result: [14]
+Isolate started: 798679432
+Isolate started: 260330579
+Task(4): Received result: [13]
 Task(1): Received result: [10]
 Task(3): Received result: [12]
-Task(4): Received result: [13]
+Task(5): Received result: [14]
+Task(2): Received result: [11]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 80309934
-Isolate started: 33325083
+Isolate started: 802428445
 main(): Adding task 3
+Isolate started: 614209794
 main(): Adding task 4
-Isolate started: 70046
-Isolate started: 312044792
-Isolate started: 784905832
+Isolate started: 133241999
+Isolate started: 678367537
+Isolate started: 79583466
 main(): Canceling...
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 
@@ -1372,7 +1372,7 @@ Future<void> main(List<String> args) async {
   }
 
   try {
-    await Task.waitAll(tasks);
+    await Task.whenAll(tasks);
   } catch (e) {
     print(e);
   }
@@ -1400,7 +1400,7 @@ Future<void> main(List<String> args) async {
   }
 
   try {
-    await Task.waitAll(tasks);
+    await Task.whenAll(tasks);
   } catch (e) {
     print(e);
   }
@@ -1504,7 +1504,7 @@ Future<void> main(List<String> args) async {
   }
 
   try {
-    await Task.waitAll(tasks);
+    await Task.whenAll(tasks);
   } catch (e) {
     print(e);
   }
@@ -1620,7 +1620,7 @@ Future<void> main(List<String> args) async {
     }
   });
 
-  await Task.waitAll([consumer, producer]);
+  await Task.whenAll([consumer, producer]);
 
   _message('produced: $produced');
   _message('consumed: $consumed');
@@ -1723,7 +1723,7 @@ Future<void> main(List<String> args) async {
     tasks.add(t);
   }
 
-  await Task.waitAll(tasks);
+  await Task.whenAll(tasks);
 }
 
 void _message(String text) {
@@ -1777,7 +1777,7 @@ Future<void> main(List<String> args) async {
     tasks.add(task);
   }
 
-  await Task.waitAll(tasks);
+  await Task.whenAll(tasks);
 }
 
 void _message(String text) {
@@ -1865,7 +1865,7 @@ Future<void> main(List<String> args) async {
   scheduleRead(200);
   scheduleRead(400);
 
-  await Task.waitAll(tasks);
+  await Task.whenAll(tasks);
 }
 
 void _message(String text) {
@@ -1927,7 +1927,7 @@ Future<void> main(List<String> args) async {
   await Future<void>.delayed(Duration(milliseconds: ms));
   _message('Start');
   await mre.set();
-  await Task.waitAll(tasks);
+  await Task.whenAll(tasks);
 }
 
 void _message(String text) {
@@ -1943,8 +1943,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(0): 513
-Task(1): 514
-Task(2): 515
+Task(0): 517
+Task(1): 519
+Task(2): 519
 
 ```

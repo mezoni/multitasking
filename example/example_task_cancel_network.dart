@@ -71,7 +71,7 @@ Future<void> main() async {
   }
 
   try {
-    await Task.waitAll(tasks);
+    await Task.whenAll(tasks);
   } catch (e) {
     print(e);
   }

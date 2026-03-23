@@ -21,7 +21,7 @@ Future<void> main(List<String> args) async {
   await Future<void>.delayed(Duration(milliseconds: ms));
   _message('Start');
   await mre.set();
-  await Task.waitAll(tasks);
+  await Task.whenAll(tasks);
 }
 
 void _message(String text) {

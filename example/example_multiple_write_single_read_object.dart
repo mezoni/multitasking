@@ -47,7 +47,7 @@ Future<void> main(List<String> args) async {
   scheduleRead(200);
   scheduleRead(400);
 
-  await Task.waitAll(tasks);
+  await Task.whenAll(tasks);
 }
 
 void _message(String text) {

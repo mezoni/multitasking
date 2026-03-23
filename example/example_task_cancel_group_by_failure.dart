@@ -53,7 +53,7 @@ Future<void> main() async {
       await Task.sleep();
     }
 
-    await Task.waitAll(group);
+    await Task.whenAll(group);
   });
 
   try {
