@@ -14,8 +14,8 @@ class WaitQueue {
     final node = _list.first;
     final timer = node.timer;
     final completer = node.completer;
-    node.unlink();
     timer?.cancel();
+    _list.remove(node);
     completer.complete(true);
   }
 
@@ -37,7 +37,7 @@ class WaitQueue {
     final node = _Node();
     final completer = node.completer;
     node.timer = Timer(timeout, () {
-      node.unlink();
+      _list.remove(node);
       node.timer = null;
       completer.complete(false);
     });
@@ -51,7 +51,7 @@ class WaitQueue {
     final completer = node.completer;
     final timer = node.timer;
     timer?.cancel();
-    node.unlink();
+    _list.remove(node);
     return completer;
   }
 }

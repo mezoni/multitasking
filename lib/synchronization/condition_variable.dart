@@ -26,7 +26,7 @@ class ConditionVariable {
   /// from the queue element to run.
   Future<void> notify() {
     if (_queue.isNotEmpty) {
-      _queue.removeFirst().complete(true);
+      _queue.dequeue();
     }
 
     return _void;
@@ -38,7 +38,7 @@ class ConditionVariable {
   /// from the queue elements to run.
   Future<void> notifyAll() {
     while (_queue.isNotEmpty) {
-      _queue.removeFirst().complete(true);
+      _queue.dequeue();
     }
 
     return _void;

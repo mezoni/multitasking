@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.3.0
+
+- Several typos have been corrected.
+
 ## 4.2.0
 
 - Added method `cancelAfter()` to `CancellationTokenSource` class.

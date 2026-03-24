@@ -33,7 +33,7 @@ class BinarySemaphore extends Lock {
   @override
   Future<void> release() {
     if (!_isLocked) {
-      throw StateError("Unmatched call of 'release()()' method");
+      throw StateError("Unmatched call of 'release()' method");
     }
 
     if (_waitQueue.isNotEmpty) {
