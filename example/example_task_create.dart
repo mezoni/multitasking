@@ -14,7 +14,7 @@ Future<void> main() async {
       final result = i;
       await Task.sleep();
       if (i == 2) {
-        throw 'Error in ${Task.current}';
+        throw Exception('Error in ${Task.current}');
       }
 
       return result;

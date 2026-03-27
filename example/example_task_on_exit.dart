@@ -14,7 +14,7 @@ Future<void> main() async {
     });
 
     handle = Object();
-    throw 'Error';
+    throw Exception('Error');
   });
 
   print('Do some work');

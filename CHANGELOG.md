@@ -3,6 +3,11 @@
 ## 4.3.0
 
 - Several typos have been corrected.
+- Added example `example_task_await_in_order_of_receipt.dart`.
+- Added class `TokenBucket`.
+- Added class `SpeedTest`.
+- Deprecated class `Throughput`.
+- Added example `example_token_bucker.dart`.
 
 ## 4.2.0
 

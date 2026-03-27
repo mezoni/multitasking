@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = Task.run<int>(() => throw 'Error');
+  final task = Task.run<int>(() => throw Exception('Error'));
 
   print('Do some work');
   await Future<void>.delayed(Duration(seconds: 1));

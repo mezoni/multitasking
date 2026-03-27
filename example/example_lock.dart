@@ -1,7 +1,7 @@
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/binary_semaphore.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final sem = BinarySemaphore();
   final tasks = <AnyTask>[];
   for (var i = 0; i < 3; i++) {

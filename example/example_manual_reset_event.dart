@@ -1,7 +1,7 @@
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/reset_events.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final mre = ManualResetEvent(false);
   final sw = Stopwatch();
   final tasks = <AnyTask>[];

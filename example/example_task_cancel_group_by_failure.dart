@@ -37,7 +37,7 @@ Future<void> main() async {
 
           await Future<void>.delayed(Duration(seconds: 2));
           if (n == 1) {
-            throw 'Failure in ${Task.current}';
+            throw Exception('Failure in ${Task.current}');
           }
         }
 

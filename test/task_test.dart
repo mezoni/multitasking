@@ -14,7 +14,7 @@ Future<void> _delay(int milliseconds) {
 }
 
 void _testFailed() {
-  const error10 = 'Error10';
+  final error10 = Exception('Error10');
   test('Task failure: Exception in body', () async {
     var exit10 = false;
     final t1 = Task.run<int>(() async {
@@ -97,8 +97,7 @@ void _testWaitAll() {
   });
 
   test('Task.wait.All(): success and failure', () async {
-    const err = 'Error';
-
+    final error = Exception('Error');
     final tasks = <Task<int>>[];
     for (var i = 0; i < 4; i++) {
       final t = Task.run<int>(name: 'task $i', () async {
@@ -107,20 +106,20 @@ void _testWaitAll() {
           return i;
         }
 
-        throw err;
+        throw error;
       });
 
       tasks.add(t);
     }
 
-    Object? error;
+    Object? err;
     try {
       await Task.whenAll(tasks);
     } catch (e) {
-      error = e;
+      err = e;
     }
 
-    expect(error, isA<AggregateError>(), reason: 'has no errors');
+    expect(err, isA<AggregateError>(), reason: 'has no errors');
     for (var i = 0; i < tasks.length; i++) {
       final task = tasks[i];
       if (i % 2 == 0) {
@@ -129,7 +128,7 @@ void _testWaitAll() {
         try {
           await task;
         } catch (e) {
-          expect(e, err, reason: 'task $i error not valid');
+          expect(e, error, reason: 'task $i error not valid');
         }
       }
     }

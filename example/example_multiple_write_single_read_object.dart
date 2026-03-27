@@ -1,7 +1,7 @@
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/multiple_write_single_read_object.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final object = MultipleWriteSingleReadObject(0);
   final tasks = <AnyTask>[];
 

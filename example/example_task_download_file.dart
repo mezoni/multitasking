@@ -3,26 +3,35 @@ import 'dart:io';
 
 import 'package:http/http.dart';
 import 'package:multitasking/misc/progress.dart';
-import 'package:multitasking/misc/throughput.dart';
+import 'package:multitasking/misc/speed_meter.dart';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
   final cts = CancellationTokenSource();
   final token = cts.token;
-  final throughput = Throughput<int>();
+  final meter = SpeedMeter();
+  var percent = 0;
   final progress = Progress((({int byteCount, int percent}) data) {
-    final speed = (throughput.measure() / (1024 * 1024)).toStringAsFixed(2);
-    final (:byteCount, :percent) = data;
-    final size = (byteCount / (1024 * 1024)).toStringAsFixed(2);
-    stdout.write('\r\x1B[2KDownloaded: $size MB ($percent%, $speed Mbps)');
+    percent = data.percent;
     return null;
+  });
+
+  final timer = Timer.periodic(Duration(milliseconds: 500), (timer) {
+    if (token.isCanceled) {
+      timer.cancel();
+    }
+
+    final speed = (meter.speed / (1024 * 1024)).toStringAsFixed(2);
+    final size = (meter.totalAmount / (1024 * 1024)).toStringAsFixed(2);
+    stdout.write('\r\x1B[2KDownloaded: $size MB ($percent%, $speed Mbps)');
   });
 
   final url = Uri.parse(
       'https://storage.googleapis.com/dart-archive/channels/stable/release/3.10.9/sdk/dartsdk-windows-x64-release.zip');
   const filename = 'dart_sdk';
-  final task = _download(url, filename, token,
-      progress: progress, throughput: throughput);
+  meter.resume();
+  final task =
+      _download(url, filename, token, progress: progress, meter: meter);
 
   const sec = 10;
   // User request to cancel
@@ -38,6 +47,7 @@ Future<void> main() async {
     print('$e');
   }
 
+  timer.cancel();
   if (task.isCompleted) {
     final filename = await task;
     print('Done: $filename');
@@ -45,8 +55,7 @@ Future<void> main() async {
 }
 
 Task<String> _download(Uri uri, String filename, CancellationToken token,
-    {Progress<({int byteCount, int percent})>? progress,
-    Throughput<int>? throughput}) {
+    {Progress<({int byteCount, int percent})>? progress, SpeedMeter? meter}) {
   return Task.run(() async {
     _message('Starting download');
     final bytes = <int>[];
@@ -65,7 +74,6 @@ Task<String> _download(Uri uri, String filename, CancellationToken token,
           AbortableRequest('GET', uri, abortTrigger: abortTrigger.future);
       final StreamedResponse response;
       try {
-        throughput?.add(0);
         response = await client.send(request);
       } on RequestAbortedException {
         throw TaskCanceledException();
@@ -75,7 +83,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token,
       try {
         await response.stream.listen((data) {
           final byteCount = bytes.length;
-          throughput?.add(byteCount);
+          meter?.add(data.length);
           bytes.addAll(data);
           final percent = contentLength != null && contentLength != 0
               ? byteCount * 100 ~/ contentLength

@@ -4,7 +4,7 @@ import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/binary_semaphore.dart';
 import 'package:multitasking/synchronization/condition_variable.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final lock = BinarySemaphore();
   final notEmpty = ConditionVariable(lock);
   final notFull = ConditionVariable(lock);

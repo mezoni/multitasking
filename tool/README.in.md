@@ -19,6 +19,10 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
 
 [example_task_download_file.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_download_file.dart)
 
+![Rate limiting requests using `Token Bucket`](https://i.imgur.com/0bx64as.gif)
+
+[Rate limiting requests using `Token Bucket`](https://github.com/mezoni/multitasking/blob/main/example/example_token_bucker.dart)
+
 - [Multitasking](#multitasking)
   - [About this software](#about-this-software)
   - [Practical use](#practical-use)
@@ -30,8 +34,9 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
     - [The task immediately propagates an exception if it is an unhandled exception](#the-task-immediately-propagates-an-exception-if-it-is-an-unhandled-exception)
     - [The task result can be accessed synchronously after the task is completed](#the-task-result-can-be-accessed-synchronously-after-the-task-is-completed)
     - [The name of the task can be specified](#the-name-of-the-task-can-be-specified)
-    - [Tasks can be waited for in different ways](#tasks-can-be-waited-for-in-different-ways)
-    - [Tasks can be waited for as a stream](#tasks-can-be-waited-for-as-a-stream)
+    - [Tasks can be awaited in different ways](#tasks-can-be-awaited-in-different-ways)
+    - [Tasks can be awaited as a stream](#tasks-can-be-awaited-as-a-stream)
+    - [Tasks can be awaited in the order of receipt](#tasks-can-be-awaited-in-the-order-of-receipt)
     - [The task zone provides access to statistics of the operations in the zone](#the-task-zone-provides-access-to-statistics-of-the-operations-in-the-zone)
     - [The task can be canceled using a cancellation token](#the-task-can-be-canceled-using-a-cancellation-token)
     - [The task can be canceled during `Task.delay()`](#the-task-can-be-canceled-during-taskdelay)
@@ -184,20 +189,28 @@ BEGIN_EXAMPLE
 example_task_name
 END_EXAMPLE
 
-### Tasks can be waited for in different ways
+### Tasks can be awaited in different ways
 
-Example of waiting for in different ways:
+Example of awaiting the tasks in different ways:
 
 BEGIN_EXAMPLE
-example_task_wait_in_different_ways
+example_task_await_in_different_ways
 END_EXAMPLE
 
-### Tasks can be waited for as a stream
+### Tasks can be awaited as a stream
 
-Example of waiting for tasks as a stream
+Example of awaiting the tasks as a stream
 
 BEGIN_EXAMPLE
 example_task_stream
+END_EXAMPLE
+
+### Tasks can be awaited in the order of receipt
+
+Example of awaiting the tasks in the order of receipt
+
+BEGIN_EXAMPLE
+example_task_await_in_order_of_receipt
 END_EXAMPLE
 
 ### The task zone provides access to statistics of the operations in the zone

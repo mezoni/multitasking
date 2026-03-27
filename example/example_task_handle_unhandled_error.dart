@@ -6,13 +6,13 @@ Future<void> main() async {
   await runZonedGuarded(() async {
     final task = Task.run(() {
       Task.onExit((task) {
-        throw 'Error on exit';
+        throw Exception('Error on exit');
       });
 
       Timer(const Duration(), () {
-        throw 'Error in timer';
+        throw Exception('Error in timer');
       });
-      throw 'Error in body';
+      throw Exception('Error in body');
     });
 
     try {

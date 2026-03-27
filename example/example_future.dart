@@ -1,7 +1,7 @@
 import 'dart:async';
 
 Future<void> main() async {
-  final task = Future<int>(() => throw 'Error');
+  final task = Future<int>(() => throw Exception('Error'));
 
   print('Do some work');
   await Future<void>.delayed(Duration(seconds: 1));

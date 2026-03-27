@@ -1,7 +1,7 @@
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/counting_semaphore.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final sem = CountingSemaphore(0, 3);
   final tasks = <AnyTask>[];
   _message('Round with asynchronous entry in the task body');

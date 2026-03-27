@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:multitasking/multitasking.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final controller = StreamController<int>.broadcast();
 
   final stream = controller.stream;

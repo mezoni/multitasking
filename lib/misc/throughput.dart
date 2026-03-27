@@ -1,4 +1,6 @@
 /// A [Throughput] allows to measure data transfer speed.\
+@Deprecated(
+    "Will be removed in the next version. The recommended replacement is 'SpeedMater'")
 class Throughput<T extends num> {
   static final int _k = 1e9 ~/ _stopwatch.frequency;
 

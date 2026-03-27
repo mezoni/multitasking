@@ -1,6 +1,6 @@
 import 'dart:io';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   const repo = 'https://github.com/mezoni/multitasking/blob/main';
   const inputPath = 'tool/README.in.md';
   const outputPath = 'README.md';

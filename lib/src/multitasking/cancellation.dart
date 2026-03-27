@@ -142,7 +142,7 @@ class CancellationTokenSource {
   /// [CancellationTokenSource], if it has not been canceled already.
   void cancelAfter(Duration duration) {
     if (duration.isNegative) {
-      throw ArgumentError.value(duration, 'duration', 'Must be not negative');
+      throw ArgumentError.value(duration, 'duration', 'Must not be negative');
     }
 
     if (token._isCanceled) {

@@ -19,6 +19,10 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
 
 [example_task_download_file.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_download_file.dart)
 
+![Rate limiting requests using `Token Bucket`](https://i.imgur.com/0bx64as.gif)
+
+[Rate limiting requests using `Token Bucket`](https://github.com/mezoni/multitasking/blob/main/example/example_token_bucker.dart)
+
 - [Multitasking](#multitasking)
   - [About this software](#about-this-software)
   - [Practical use](#practical-use)
@@ -30,8 +34,9 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
     - [The task immediately propagates an exception if it is an unhandled exception](#the-task-immediately-propagates-an-exception-if-it-is-an-unhandled-exception)
     - [The task result can be accessed synchronously after the task is completed](#the-task-result-can-be-accessed-synchronously-after-the-task-is-completed)
     - [The name of the task can be specified](#the-name-of-the-task-can-be-specified)
-    - [Tasks can be waited for in different ways](#tasks-can-be-waited-for-in-different-ways)
-    - [Tasks can be waited for as a stream](#tasks-can-be-waited-for-as-a-stream)
+    - [Tasks can be awaited in different ways](#tasks-can-be-awaited-in-different-ways)
+    - [Tasks can be awaited as a stream](#tasks-can-be-awaited-as-a-stream)
+    - [Tasks can be awaited in the order of receipt](#tasks-can-be-awaited-in-the-order-of-receipt)
     - [The task zone provides access to statistics of the operations in the zone](#the-task-zone-provides-access-to-statistics-of-the-operations-in-the-zone)
     - [The task can be canceled using a cancellation token](#the-task-can-be-canceled-using-a-cancellation-token)
     - [The task can be canceled during `Task.delay()`](#the-task-can-be-canceled-during-taskdelay)
@@ -136,7 +141,7 @@ Example with `Future`:
 import 'dart:async';
 
 Future<void> main() async {
-  final task = Future<int>(() => throw 'Error');
+  final task = Future<int>(() => throw Exception('Error'));
 
   print('Do some work');
   await Future<void>.delayed(Duration(seconds: 1));
@@ -157,7 +162,7 @@ Output:
 ```txt
 Do some work
 Unhandled exception:
-Error
+Exception: Error
 #0      main.<anonymous closure> (file:///home/andrew/prj/multitasking/example/example_future.dart:4:34)
 #1      new Future.<anonymous closure> (dart:async/future.dart:260:40)
 #2      Timer._createTimer.<anonymous closure> (dart:async-patch/timer_patch.dart:18:15)
@@ -177,7 +182,7 @@ import 'dart:async';
 import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
-  final task = Task.run<int>(() => throw 'Error');
+  final task = Task.run<int>(() => throw Exception('Error'));
 
   print('Do some work');
   await Future<void>.delayed(Duration(seconds: 1));
@@ -198,7 +203,7 @@ Output:
 ```txt
 Do some work
 Work completed
-Error
+Exception: Error
 
 ```
 
@@ -233,7 +238,7 @@ Future<void> main() async {
     });
 
     handle = Object();
-    throw 'Error';
+    throw Exception('Error');
   });
 
   print('Do some work');
@@ -257,7 +262,7 @@ Task(0) exit with status: 'failed'
 Task(0) frees up: 'handle'
 Do some work
 Work completed
-Error
+Exception: Error
 
 ```
 
@@ -280,13 +285,13 @@ Future<void> main() async {
   await runZonedGuarded(() async {
     final task = Task.run(() {
       Task.onExit((task) {
-        throw 'Error on exit';
+        throw Exception('Error on exit');
       });
 
       Timer(const Duration(), () {
-        throw 'Error in timer';
+        throw Exception('Error in timer');
       });
-      throw 'Error in body';
+      throw Exception('Error in body');
     });
 
     try {
@@ -304,9 +309,9 @@ Future<void> main() async {
 Output:
 
 ```txt
-Unhandled error: Error on exit
-Task error: Error in body
-Unhandled error: Error in timer
+Unhandled error: Exception: Error on exit
+Task error: Exception: Error in body
+Unhandled error: Exception: Error in timer
 
 ```
 
@@ -368,11 +373,11 @@ my task
 
 ```
 
-### Tasks can be waited for in different ways
+### Tasks can be awaited in different ways
 
-Example of waiting for in different ways:
+Example of awaiting the tasks in different ways:
 
-[example/example_task_wait_in_different_ways.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_wait_in_different_ways.dart)
+[example/example_task_await_in_different_ways.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_await_in_different_ways.dart)
 
 ```dart
 import 'dart:async';
@@ -464,9 +469,9 @@ Task(2): completed, result: 2
 
 ```
 
-### Tasks can be waited for as a stream
+### Tasks can be awaited as a stream
 
-Example of waiting for tasks as a stream
+Example of awaiting the tasks as a stream
 
 [example/example_task_stream.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_stream.dart)
 
@@ -515,6 +520,103 @@ Task(1) completed
 Task(1) result 1
 Task(2) completed
 Task(2) result 2
+
+```
+
+### Tasks can be awaited in the order of receipt
+
+Example of awaiting the tasks in the order of receipt
+
+[example/example_task_await_in_order_of_receipt.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_await_in_order_of_receipt.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  // Text and time to complete a task
+  final events = [
+    ('A', 200),
+    ('B', 100),
+    ('C', 200),
+    ('D', 100),
+    ('E', 200),
+    ('F', 100),
+    ('G', 200),
+    ('H', 100),
+  ];
+
+  final controller = StreamController<Task<String>>();
+  unawaited(() async {
+    for (var i = 0; i < events.length; i++) {
+      final event = events[i];
+      final text = event.$1;
+      final ms = event.$2;
+      final Task<String> task;
+      if (i == 2) {
+        task = Task.run(() {
+          throw Exception('Some error on $text');
+        });
+      } else {
+        task = Task.run(() async {
+          await Future<void>.delayed(Duration(milliseconds: ms));
+          print('$text Ready');
+          return text;
+        });
+      }
+
+      controller.add(task);
+      // Emulates a small interval between the receipt of tasks.
+      await Future<void>.delayed(Duration(milliseconds: 75));
+    }
+
+    print('No more tasks');
+    await controller.close();
+  }());
+
+  unawaited(() async {
+    final stream = controller.stream;
+    await for (final task in stream) {
+      try {
+        await task;
+        print(task.result);
+        // Do something with the result.
+        await Future<void>.delayed(Duration(milliseconds: 200));
+      } catch (e) {
+        print(e);
+      }
+    }
+
+    print("The end");
+  }());
+
+  print("Let's start");
+}
+
+```
+
+Output:
+
+```txt
+Let's start
+B Ready
+A Ready
+A
+D Ready
+B
+F Ready
+E Ready
+Exception: Some error on C
+D
+No more tasks
+H Ready
+G Ready
+E
+F
+G
+H
+The end
 
 ```
 
@@ -626,7 +728,7 @@ import 'dart:async';
 
 import 'package:multitasking/multitasking.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final cts = CancellationTokenSource();
   final token = cts.token;
 
@@ -660,7 +762,7 @@ Output:
 
 ```txt
 TaskCanceledException
-main(): count: 216772
+main(): count: 235141
 
 ```
 
@@ -715,7 +817,7 @@ Future<void> main() async {
 
           await Future<void>.delayed(Duration(seconds: 2));
           if (n == 1) {
-            throw 'Failure in ${Task.current}';
+            throw Exception('Failure in ${Task.current}');
           }
         }
 
@@ -755,7 +857,7 @@ On exit: Task('Child 2', 3) (canceled)
 Task('Child 3', 4) works: 1 of 4
 On exit: Task('Child 3', 4) (canceled)
 On exit: Task('Parent', 0) (failed)
-AggregateError: One or more errors occurred. (Failure in Task('Child 1', 2)) (TaskCanceledException) (TaskCanceledException)
+AggregateError: One or more errors occurred. (Exception: Failure in Task('Child 1', 2)) (TaskCanceledException) (TaskCanceledException)
 
 ```
 
@@ -770,7 +872,7 @@ import 'dart:async';
 
 import 'package:multitasking/multitasking.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final controller = StreamController<int>.broadcast();
 
   final stream = controller.stream;
@@ -987,19 +1089,19 @@ Task(1): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Task(2): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Task(3): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Task(4): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Task(1): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
+Task(2): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 main(): Canceling
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 ----------------------------------------
 Task(0): canceled
 No data
 ----------------------------------------
-Task(1): completed
+Task(1): canceled
+No data
+----------------------------------------
+Task(2): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
-----------------------------------------
-Task(2): canceled
-No data
 ----------------------------------------
 Task(3): canceled
 No data
@@ -1113,9 +1215,9 @@ Output:
 ```txt
 Canceling...
 Task(0): canceled
-Task(0): Downloaded: 2891775
+Task(0): Downloaded: 2030309
 Task(2): canceled
-Task(2): Downloaded: 2801664
+Task(2): Downloaded: 2097152
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException)
 
 ```
@@ -1294,31 +1396,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 693425803
 main(): Adding task 1
-Isolate started: 905182430
+Isolate started: 475296243
 main(): Adding task 2
 main(): Adding task 3
-Isolate started: 1006870447
+Isolate started: 137615223
 main(): Adding task 4
-Isolate started: 798679432
-Isolate started: 260330579
+Isolate started: 658510480
+Isolate started: 1033090172
+Isolate started: 256035724
+Task(2): Received result: [11]
+Task(3): Received result: [12]
 Task(4): Received result: [13]
 Task(1): Received result: [10]
-Task(3): Received result: [12]
 Task(5): Received result: [14]
-Task(2): Received result: [11]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 802428445
+Isolate started: 908206732
+Isolate started: 299261095
 main(): Adding task 3
-Isolate started: 614209794
 main(): Adding task 4
-Isolate started: 133241999
-Isolate started: 678367537
-Isolate started: 79583466
+Isolate started: 743207618
+Isolate started: 610487665
+Isolate started: 495234330
 main(): Canceling...
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 
@@ -1349,7 +1451,7 @@ Example with a limit of no more than 3 simultaneously executed operations:
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/counting_semaphore.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final sem = CountingSemaphore(0, 3);
   final tasks = <AnyTask>[];
   _message('Round with asynchronous entry in the task body');
@@ -1482,7 +1584,7 @@ An example of using a binary semaphore as a locking mechanism:
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/binary_semaphore.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final sem = BinarySemaphore();
   final tasks = <AnyTask>[];
 
@@ -1554,7 +1656,7 @@ import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/binary_semaphore.dart';
 import 'package:multitasking/synchronization/condition_variable.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final lock = BinarySemaphore();
   final notEmpty = ConditionVariable(lock);
   final notFull = ConditionVariable(lock);
@@ -1699,7 +1801,7 @@ An example of reentering a `ReentrantLock`:
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/reentrant_lock.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final lock = ReentrantLock();
   var count = 0;
 
@@ -1762,7 +1864,7 @@ An example of using a binary semaphore as a locking mechanism:
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/binary_semaphore.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final sem = BinarySemaphore();
   final tasks = <AnyTask>[];
   for (var i = 0; i < 3; i++) {
@@ -1819,7 +1921,7 @@ An example of reading and writing a shared object simultaneously:
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/multiple_write_single_read_object.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final object = MultipleWriteSingleReadObject(0);
   final tasks = <AnyTask>[];
 
@@ -1907,7 +2009,7 @@ An example of using a manual reset event to start tasks simultaneously.
 import 'package:multitasking/multitasking.dart';
 import 'package:multitasking/synchronization/reset_events.dart';
 
-Future<void> main(List<String> args) async {
+Future<void> main() async {
   final mre = ManualResetEvent(false);
   final sw = Stopwatch();
   final tasks = <AnyTask>[];
@@ -1943,8 +2045,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(0): 517
-Task(1): 519
-Task(2): 519
+Task(0): 510
+Task(1): 512
+Task(2): 512
 
 ```
