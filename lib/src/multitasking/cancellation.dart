@@ -109,6 +109,10 @@ class CancellationToken {
   }
 
   void _cancel() {
+    if (_isCanceled) {
+      return;
+    }
+
     _isCanceled = true;
     final entries = _handlers.entries.toList();
     _handlers.clear();
@@ -161,5 +165,30 @@ class CancellationTokenSource {
 
     _timer?.cancel();
     _timer = Timer(delay, token._cancel);
+  }
+
+  /// Creates a [CancellationTokenSource] that will be linked with the specified
+  /// [tokens].\
+  ///This [CancellationTokenSource] can be cancelled individually, or it will be
+  ///cancelled automatically when other sources are cancelled.
+  static CancellationTokenSource createLinkedTokenSource(
+      List<CancellationToken> tokens) {
+    if (tokens.isEmpty) {
+      throw ArgumentError('tokens', 'Must not be empty');
+    }
+
+    final cts = CancellationTokenSource();
+    final handler = cts.cancel;
+    for (var i = 0; i < tokens.length; i++) {
+      final token = tokens[i];
+      if (token.isCanceled) {
+        cts.cancel();
+        break;
+      }
+
+      token.addHandler(handler);
+    }
+
+    return cts;
   }
 }

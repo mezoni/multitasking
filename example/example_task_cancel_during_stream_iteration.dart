@@ -53,14 +53,14 @@ Task<int> _doWork(
   return Task.run(() async {
     token.throwIfCanceled();
     final list = <int>[];
-    final cts = CancellationTokenSource();
+    final cts = CancellationTokenSource.createLinkedTokenSource([token]);
     await stream.listenWithCancellation(
       token: cts.token,
-      throwIfCancelled: false,
+      throwIfCancelled: !testBreak,
       (data) {
         _message('Received event: $data');
         list.add(data);
-        if (list.length == 1 && testBreak) {
+        if (testBreak && list.length == 1) {
           _message('I want to break free...');
           // Breaks silently, without throwing a `TaskCanceledException`
           // exception (throwIfCancelled: false).

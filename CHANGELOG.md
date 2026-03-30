@@ -6,6 +6,7 @@
 - Added method `withCancellation()` to `Task` class.
 - Added example `example_task_cancel_waiting_for_non_cancelable_action.dart`.
 - Added extension `StreamExtension` with `listenWithCancellation()` method.
+- Added method `createLinkedTokenSource()` to `CancellationTokenSource` class.
 
 ## 4.3.0
 
