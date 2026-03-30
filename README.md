@@ -926,14 +926,14 @@ Task<int> _doWork(
   return Task.run(() async {
     token.throwIfCanceled();
     final list = <int>[];
-    final cts = CancellationTokenSource();
+    final cts = CancellationTokenSource.createLinkedTokenSource([token]);
     await stream.listenWithCancellation(
       token: cts.token,
-      throwIfCancelled: false,
+      throwIfCancelled: !testBreak,
       (data) {
         _message('Received event: $data');
         list.add(data);
-        if (list.length == 1 && testBreak) {
+        if (testBreak && list.length == 1) {
           _message('I want to break free...');
           // Breaks silently, without throwing a `TaskCanceledException`
           // exception (throwIfCancelled: false).
@@ -976,22 +976,12 @@ Send event: 2
 Task(1): Received event: 2
 Task(2): Received event: 2
 main(): Cancellation requested
+AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException)
+main(): Result of Task(3): 1
 Send event: 3
-Task(1): Received event: 3
-Task(2): Received event: 3
 Send event: 4
-Task(1): Received event: 4
-Task(2): Received event: 4
 Send event: 5
 Stopping the controller
-Task(1): Received event: 5
-Task(2): Received event: 5
-Task(1): Processing data: [0, 1, 2, 3, 4, 5]
-Task(2): Processing data: [0, 1, 2, 3, 4, 5]
-main(): Result of Task(1): 6
-main(): Result of Task(2): 6
-main(): Result of Task(3): 1
-
 ```
 
 ### The group of tasks can be safely canceled while working with the network
