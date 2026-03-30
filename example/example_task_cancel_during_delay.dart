@@ -1,0 +1,32 @@
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  final cts = CancellationTokenSource();
+  final token = cts.token;
+
+  var count = 0;
+  final task = Task.run(() async {
+    token.throwIfCanceled();
+    while (true) {
+      count++;
+      await Task.delay(0, token);
+    }
+  });
+
+  cts.cancelAfter(Duration(seconds: 1));
+
+  try {
+    await task;
+  } catch (e) {
+    print(e);
+  }
+
+  _message('count: $count');
+}
+
+void _message(String text) {
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
+}
