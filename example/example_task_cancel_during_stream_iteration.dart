@@ -45,25 +45,29 @@ Future<void> main() async {
   }
 }
 
-Task<int> _doWork(Stream<int> stream, CancellationToken token,
-    {bool testBreak = false}) {
+Task<int> _doWork(
+  Stream<int> stream,
+  CancellationToken token, {
+  bool testBreak = false,
+}) {
   return Task.run(() async {
-    await Task.sleep();
-    final list = <int>[];
-
     token.throwIfCanceled();
-    StreamSubscription<int>? subscription;
-    subscription = stream.listen((data) {
-      _message('Received event: $data');
-      list.add(data);
-      if (list.length == 1 && testBreak) {
-        _message('I want to break free...');
-        // break;
-        unawaited(subscription!.cancel());
-      }
-    });
-
-    await token.runCancelable(subscription.cancel, subscription.asFuture<void>);
+    final list = <int>[];
+    final cts = CancellationTokenSource();
+    await stream.listenWithCancellation(
+      token: cts.token,
+      throwIfCancelled: false,
+      (data) {
+        _message('Received event: $data');
+        list.add(data);
+        if (list.length == 1 && testBreak) {
+          _message('I want to break free...');
+          // Breaks silently, without throwing a `TaskCanceledException`
+          // exception (throwIfCancelled: false).
+          cts.cancel();
+        }
+      },
+    ).asFuture<void>();
 
     await Task.sleep();
     _message('Processing data: $list');

@@ -11,9 +11,8 @@ Future<void> main() async {
   final token = cts.token;
   final meter = SpeedMeter();
   var percent = 0;
-  final progress = Progress((({int byteCount, int percent}) data) {
-    percent = data.percent;
-    return null;
+  final progress = Progress((({int count, int total}) data) {
+    percent = data.total == 0 ? 0 : data.count * 100 ~/ data.total;
   });
 
   final timer = Timer.periodic(Duration(milliseconds: 500), (timer) {
@@ -55,50 +54,49 @@ Future<void> main() async {
 }
 
 Task<String> _download(Uri uri, String filename, CancellationToken token,
-    {Progress<({int byteCount, int percent})>? progress, SpeedMeter? meter}) {
+    {Progress<({int count, int total})>? progress, SpeedMeter? meter}) {
   return Task.run(() async {
-    _message('Starting download');
-    final bytes = <int>[];
+    var bytes = 0;
 
     Task.onExit((task) {
       print('${task.toString()}: ${task.state.name}');
-      _message('Downloaded: ${bytes.length} bytes');
+      _message('Downloaded: $bytes bytes');
     });
 
     token.throwIfCanceled();
+    _message('Starting download');
     final client = Client();
-    final abortTrigger = Completer<void>();
-
-    Future<void> get() async {
-      final request =
-          AbortableRequest('GET', uri, abortTrigger: abortTrigger.future);
-      final StreamedResponse response;
+    final response = await token.runCancelable(client.close, () async {
+      final request = Request('GET', uri);
       try {
-        response = await client.send(request);
-      } on RequestAbortedException {
-        throw TaskCanceledException();
-      }
+        final response = await client.send(request);
+        final statusCode = response.statusCode;
+        if (statusCode != 200) {
+          throw Exception('Http error ($statusCode)');
+        }
 
-      final contentLength = response.contentLength;
-      try {
-        await response.stream.listen((data) {
-          final byteCount = bytes.length;
-          meter?.add(data.length);
-          bytes.addAll(data);
-          final percent = contentLength != null && contentLength != 0
-              ? byteCount * 100 ~/ contentLength
-              : 0;
-          progress?.report((
-            byteCount: byteCount,
-            percent: percent,
-          ));
-        }).asFuture<void>();
-      } on RequestAbortedException {
-        throw TaskCanceledException();
-      }
-    }
+        return response;
+      } on ClientException catch (e) {
+        if (e.message.startsWith('Connection attempt cancelled')) {
+          throw TaskCanceledException();
+        }
 
-    await token.runCancelable(abortTrigger.complete, get);
+        rethrow;
+      }
+    });
+
+    final contentLength = response.contentLength;
+    final stream = response.stream;
+    await stream.listenWithCancellation(
+      token: token,
+      throwIfCancelled: true,
+      (data) {
+        final byteCount = bytes;
+        meter?.add(data.length);
+        bytes += data.length;
+        progress?.report((count: byteCount, total: contentLength ?? 0));
+      },
+    ).asFuture<void>();
 
     // Save file to disk
     await Future<void>.delayed(Duration(seconds: 1));

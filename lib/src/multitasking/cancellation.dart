@@ -69,8 +69,8 @@ class CancellationToken {
   /// - Adds a cancellation handler [onCancel]
   /// - Executes the [action] function
   /// - Removes a cancellation handler [onCancel]
-  /// - Throws an [TaskCanceledError] exception if there was a cancellation
-  /// request and no [TaskCanceledError] exception was thrown during the
+  /// - Throws an [TaskCanceledException] exception if there was a cancellation
+  /// request and no [TaskCanceledException] exception was thrown during the
   /// execution of the [action] function
   ///
   /// The [onCancel] handler function should initiate the cancellation procedure
@@ -100,7 +100,7 @@ class CancellationToken {
     }
   }
 
-  /// Throw the exception [TaskCanceledError] if the token is in the `canceled`
+  /// Throw the exception [TaskCanceledException] if the token is in the `canceled`
   /// state.
   void throwIfCanceled() {
     if (_isCanceled) {
@@ -129,20 +129,30 @@ class CancellationTokenSource {
 
   Timer? _timer;
 
-  /// Signal to associated token that the operation executions should be
-  /// canceled.
+  /// Creates an instance of [CancellationTokenSource].
+  ///
+  /// Parameters:
+  ///
+  /// - [delay]: Sets the [token] to the `canceled` state after the specified
+  /// [delay].
+  CancellationTokenSource([Duration? delay]) {
+    if (delay != null) {
+      cancelAfter(delay);
+    }
+  }
+
+  /// Sets the [token] to the `canceled` state.
   void cancel() {
     token._cancel();
   }
 
-  /// Signal to associated token that the operation executions should be
-  /// canceled after the specified [duration].
+  /// Sets the [token] to the `canceled` state after the specified [delay].
   ///
-  /// Subsequent calls to [cancelAfter] will reset the [duration] for this
+  /// Subsequent calls to [cancelAfter] will reset the [delay] for this
   /// [CancellationTokenSource], if it has not been canceled already.
-  void cancelAfter(Duration duration) {
-    if (duration.isNegative) {
-      throw ArgumentError.value(duration, 'duration', 'Must not be negative');
+  void cancelAfter(Duration delay) {
+    if (delay.isNegative) {
+      throw ArgumentError.value(delay, 'duration', 'Must not be negative');
     }
 
     if (token._isCanceled) {
@@ -150,6 +160,6 @@ class CancellationTokenSource {
     }
 
     _timer?.cancel();
-    _timer = Timer(duration, token._cancel);
+    _timer = Timer(delay, token._cancel);
   }
 }

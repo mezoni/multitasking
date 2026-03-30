@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 4.3.0
+Version: 4.4.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -19,9 +19,7 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
 
 [example_task_download_file.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_download_file.dart)
 
-![Rate limiting requests using `Token Bucket`](https://i.imgur.com/0bx64as.gif)
-
-[Rate limiting requests using `Token Bucket`](https://github.com/mezoni/multitasking/blob/main/example/example_token_bucker.dart)
+Table of Contents:
 
 - [Multitasking](#multitasking)
   - [About this software](#about-this-software)
@@ -36,7 +34,7 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
     - [The name of the task can be specified](#the-name-of-the-task-can-be-specified)
     - [Tasks can be awaited in different ways](#tasks-can-be-awaited-in-different-ways)
     - [Tasks can be awaited as a stream](#tasks-can-be-awaited-as-a-stream)
-    - [Tasks can be awaited in the order of receipt](#tasks-can-be-awaited-in-the-order-of-receipt)
+    - [Tasks can be awaited in the order of queue](#tasks-can-be-awaited-in-the-order-of-queue)
     - [The task zone provides access to statistics of the operations in the zone](#the-task-zone-provides-access-to-statistics-of-the-operations-in-the-zone)
     - [The task can be canceled using a cancellation token](#the-task-can-be-canceled-using-a-cancellation-token)
     - [The task can be canceled during `Task.delay()`](#the-task-can-be-canceled-during-taskdelay)
@@ -45,6 +43,7 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
     - [The group of tasks can be safely canceled while working with the network](#the-group-of-tasks-can-be-safely-canceled-while-working-with-the-network)
     - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
     - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
+    - [The waiting for a non-cancellable task can be canceled](#the-waiting-for-a-non-cancellable-task-can-be-canceled)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -116,9 +115,8 @@ For this reason, due to the limited functionality of the finalizer, it is recomm
 Exceptions in task can be observed in one of the following ways:
 
 - `await task`
-- `Task.waitAll()`
-- `Task.whenAll()`
-- `Task.whenAny()`
+- `task.result` (only after the task is terminated)
+- `task.exception` (only after the task is terminated)
 - `task.asStream()` (inherited from [Future])
 - `task.catchError()` (inherited from [Future])
 - `task.then()` (inherited from [Future])
@@ -205,12 +203,12 @@ BEGIN_EXAMPLE
 example_task_stream
 END_EXAMPLE
 
-### Tasks can be awaited in the order of receipt
+### Tasks can be awaited in the order of queue
 
-Example of awaiting the tasks in the order of receipt
+Example of awaiting the tasks in the order of queue
 
 BEGIN_EXAMPLE
-example_task_await_in_order_of_receipt
+example_task_await_in_order_of_queue
 END_EXAMPLE
 
 ### The task zone provides access to statistics of the operations in the zone
@@ -295,6 +293,14 @@ An example of using tasks with isolates and their simultaneous cancellation:
 
 BEGIN_EXAMPLE
 example_task_cancel_isolate
+END_EXAMPLE
+
+### The waiting for a non-cancellable task can be canceled
+
+An example of canceling the wait for a non-cancellable task:
+
+BEGIN_EXAMPLE
+example_task_cancel_waiting_for_non_cancelable_action
 END_EXAMPLE
 
 ## Synchronization primitives

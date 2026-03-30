@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.4.0
+
+- Deprecated class `TokenBucket`.
+- Added method `withCancellation()` to `Task` class.
+- Added example `example_task_cancel_waiting_for_non_cancelable_action.dart`.
+- Added extension `StreamExtension` with `listenWithCancellation()` method.
+
 ## 4.3.0
 
 - Several typos have been corrected.

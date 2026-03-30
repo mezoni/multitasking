@@ -24,6 +24,7 @@ Future<void> bigWork(CancellationTokenSource cts) async {
   final tasks = <AnyTask>[];
   for (var i = 0; i < 5; i++) {
     final task = Task.run(() async {
+      token.throwIfCanceled();
       final controller = StreamController<int>();
       final results = <int>[];
       controller.stream.listen(results.add);

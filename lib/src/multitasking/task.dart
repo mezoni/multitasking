@@ -33,15 +33,17 @@ typedef AnyTask = Task<Object?>;
 /// Exceptions in task can be observed in one of the following ways:
 ///
 /// - `await task`
-/// - `task.future`
-/// - `Task.waitAll()`
+/// - `task.result` (only after the task is terminated)
+/// - `task.exception` (only after the task is terminated)
 /// - `task.asStream()` (inherited from [Future])
 /// - `task.catchError()` (inherited from [Future])
 /// - `task.then()` (inherited from [Future])
 /// - `task.timeout()` (inherited from [Future])
 /// - `task.whenComplete()` (inherited from [Future])
 ///
-/// It all comes down to the fact that when accessing the [_future] field of a task, an instance of the [Future] object is created and at that moment its life cycle begins.
+/// It all comes down to the fact that when accessing the [_future] field of a
+/// task, an instance of the [Future] object is created and at that moment its
+/// life cycle begins.
 final class Task<T> implements Future<T> {
   static final Object _taskKey = Object();
 
@@ -53,9 +55,10 @@ final class Task<T> implements Future<T> {
     });
   });
 
-  static final AnyTask _main = Task._raw(TaskState.running, name: 'main()');
+  static final AnyTask _main = Task._raw(TaskState.running, name: 'main()')
+    .._id = 0;
 
-  static int _taskId = 0;
+  static int _taskId = 1;
 
   /// Returns the currently running task.
   ///
@@ -84,7 +87,7 @@ final class Task<T> implements Future<T> {
   }
 
   /// Returns a unique integer identifier for the task.
-  final int id = _taskId++;
+  int _id = _taskId++;
 
   /// Returns the task name.
   final String? name;
@@ -122,9 +125,28 @@ final class Task<T> implements Future<T> {
 
   Task._raw(this._state, {this.name});
 
+  /// Returns the task exception or `null`.
+  ///
+  /// If the exception is not yet available or no exception occurred, `null` is
+  /// returned.\
+  /// If an exception is available, it is returned and the exception is
+  /// considered to have been observed.
   ErrorResult? get exception {
-    return _exception;
+    switch (_state) {
+      case TaskState.canceled:
+      case TaskState.failed:
+        if (_resultCompleter == null) {
+          _finalizer.detach(this);
+        }
+
+        return _exception;
+      default:
+        return null;
+    }
   }
+
+  /// Returns a unique integer identifier for the task.
+  int get id => _id;
 
   /// Returns `true` if the task is in the [TaskState.canceled] state. ; otherwise, returns
   /// `false`.
@@ -161,13 +183,34 @@ final class Task<T> implements Future<T> {
     return _state != TaskState.running && _state != TaskState.created;
   }
 
+  /// Returns the task result.
+  ///
+  /// If the task result is not yet available, a [TaskStateError] exception will be
+  /// thrown.\
+  /// If the task was canceled, a [TaskCanceledException] exception will be
+  /// thrown.\
+  /// If the task was failed, a task [exception] will be thrown.
+  ///
+  /// If rhe task [exception] is available, it is considered to have been
+  /// observed.
   T get result {
-    if (_state == TaskState.completed) {
-      return _result as T;
-    }
+    switch (_state) {
+      case TaskState.completed:
+        return _result as T;
+      case TaskState.canceled:
+      case TaskState.failed:
+        final exception = _exception!;
+        final error = exception.error;
+        final stackTrace = exception.stackTrace;
+        if (_resultCompleter == null) {
+          _finalizer.detach(this);
+        }
 
-    throw TaskStateError(
-        "Result is not available for the task with the state '${_state.name}'");
+        Error.throwWithStackTrace(error, stackTrace);
+      default:
+        throw TaskStateError(
+            "Result is not available for the task with the state '${_state.name}'");
+    }
   }
 
   /// Returns task state ([TaskState]).
@@ -182,7 +225,6 @@ final class Task<T> implements Future<T> {
     }
 
     completer = Completer();
-    _resultCompleter = completer;
     switch (_state) {
       case TaskState.completed:
         completer.complete(_result);
@@ -198,6 +240,7 @@ final class Task<T> implements Future<T> {
       default:
     }
 
+    _resultCompleter = completer;
     return completer.future;
   }
 
@@ -253,6 +296,7 @@ final class Task<T> implements Future<T> {
       } finally {
         final handler = _onExit;
         if (handler != null) {
+          _onExit = null;
           unawaited(zone.run(() async {
             await handler(this);
           }));
@@ -284,6 +328,36 @@ final class Task<T> implements Future<T> {
   @override
   Future<T> whenComplete(FutureOr<void> Function() action) {
     return _future.whenComplete(action);
+  }
+
+  /// Waits for the task to complete and returns the result (or throws an
+  /// exception) if the task completes before cancellation; otherwise, throws
+  /// a [TaskCanceledException] exception.
+  ///
+  /// Parameters:
+  ///
+  /// - [token]: A token indicating that a cancellation has occurred.
+  Task<T> withCancellation(CancellationToken token) {
+    final tcs = TaskCompletionSource<T>();
+    unawaited(() async {
+      final handler = token.addHandler(tcs.trySetCanceled);
+      try {
+        final task = await whenAny([this, tcs.task]);
+        if (task == this) {
+          tcs.trySetResult(task.result);
+        } else {
+          tcs.trySetCanceled();
+        }
+      } on TaskCanceledException {
+        tcs.trySetCanceled();
+      } catch (e, s) {
+        tcs.trySetError(e, s);
+      } finally {
+        token.removerHandler(handler);
+      }
+    }());
+
+    return tcs.task;
   }
 
   /// Creates a task that will complete after a time delay.
@@ -340,14 +414,14 @@ final class Task<T> implements Future<T> {
           "Failed to add 'onExit()' handler to synthetic task: ${current.toString()}");
     }
 
-    if (current._onExit != null) {
-      throw TaskStateError(
-          "'Task.onExit()' can only be called once: ${current.toString()}");
-    }
-
     if (current.isTerminated) {
       throw TaskStateError(
           "'Task.onExit()' can only be called on an unterminated task: ${current.toString()}");
+    }
+
+    if (current._onExit != null) {
+      throw TaskStateError(
+          "'Task.onExit()' can only be called once: ${current.toString()}");
     }
 
     current._onExit = handler;
@@ -410,7 +484,8 @@ final class Task<T> implements Future<T> {
   ///
   /// If the [progress] parameter is specified, it will call the `report()`
   /// method whenever each task completes.
-  @Deprecated("Will be removed in the next version Use 'whenAll' instead")
+  @Deprecated(
+      "Will be removed in the next version. It is recommended to use 'whenAll()' instead")
   static Future<void> waitAll<T>(
     List<Task<T>> tasks, {
     Progress<({int count, int total})>? progress,

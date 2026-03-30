@@ -20,6 +20,7 @@ Future<void> main() async {
       onExit(task);
     });
 
+    token.throwIfCanceled();
     for (var i = 1; i <= 3; i++) {
       final t = Task<int>(name: 'Child $i', () async {
         Task.onExit((task) {
@@ -27,15 +28,13 @@ Future<void> main() async {
           onExit(task);
         });
 
+        token.throwIfCanceled();
         final n = i;
         var result = 0;
         for (var i = 0; i < 5; i++) {
           print('${Task.current} works: $i of 4');
           result++;
-
-          token.throwIfCanceled();
-
-          await Future<void>.delayed(Duration(seconds: 2));
+          await Task.delay(500, token);
           if (n == 1) {
             throw Exception('Failure in ${Task.current}');
           }

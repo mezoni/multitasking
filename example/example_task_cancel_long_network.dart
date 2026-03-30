@@ -47,35 +47,40 @@ Future<void> main() async {
 
 Task<String> _download(Uri uri, String filename, CancellationToken token) {
   return Task.run(() async {
-    final bytes = <int>[];
+    var bytes = 0;
 
     Task.onExit((task) {
       print('${task.toString()}: ${task.state.name}');
-      _message('Downloaded: ${bytes.length}');
+      _message('Downloaded: $bytes');
     });
 
     token.throwIfCanceled();
     final client = Client();
-    final abortTrigger = Completer<void>();
-
-    Future<void> get() async {
-      final request =
-          AbortableRequest('GET', uri, abortTrigger: abortTrigger.future);
-      final StreamedResponse response;
+    final response = await token.runCancelable(client.close, () async {
+      final request = Request('GET', uri);
       try {
-        response = await client.send(request);
-      } on RequestAbortedException {
-        throw TaskCanceledException();
-      }
+        final response = await client.send(request);
+        final statusCode = response.statusCode;
+        if (statusCode != 200) {
+          throw Exception('Http error ($statusCode)');
+        }
 
-      try {
-        await response.stream.listen(bytes.addAll).asFuture<void>();
-      } on RequestAbortedException {
-        throw TaskCanceledException();
-      }
-    }
+        return response;
+      } on ClientException catch (e) {
+        if (e.message.startsWith('Connection attempt cancelled')) {
+          throw TaskCanceledException();
+        }
 
-    await token.runCancelable(abortTrigger.complete, get);
+        rethrow;
+      }
+    });
+
+    final stream = response.stream;
+    await stream.listenWithCancellation(token: token, throwIfCancelled: true,
+        (event) {
+      // Simulating the addition of bytes
+      bytes += event.length;
+    }).asFuture<void>();
 
     // Save file to disk
     await Future<void>.delayed(Duration(seconds: 1));

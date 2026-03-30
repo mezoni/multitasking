@@ -1,7 +1,9 @@
 import 'dart:math';
 
+@Deprecated('Will be removed in the next version')
 class TokenBucket {
-  /// Bucket capacity (in tokens).
+  /// Bucket capacity (in tokens).\
+  /// Determines the burst rate.
   final double _capacity;
 
   /// Clock for measuring time intervals.
@@ -10,17 +12,21 @@ class TokenBucket {
   /// Elapsed time since last refill (in microseconds).
   int _lastRefill = 0;
 
-  /// Refill rate of the bucket (tokens per second).
+  /// Refill rate of the bucket (tokens per second).\
+  /// Determines the committed information rate.
   final double _rate;
 
   /// Current number of tokens in the bucket.
   double _tokens;
 
   /// Creates an instance of [TokenBucket].\
+  ///
   /// Parameters:
   ///
-  /// - [capacity]: Bucket capacity (in tokens).
-  /// - [rate]: Refill rate of the bucket (tokens per second).
+  /// - [capacity]: Bucket capacity (in tokens). Determines the burst rate.
+  /// - [rate]: Refill rate of the bucket (tokens per second). Determines the
+  /// committed information rate.
+  @Deprecated('Will be removed in the next version')
   TokenBucket({
     required double capacity,
     required double rate,

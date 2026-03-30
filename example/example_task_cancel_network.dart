@@ -31,31 +31,37 @@ Future<void> main() async {
   for (var i = 0; i < rss.length; i++) {
     final uri = Uri.parse(rss[i]);
     final task = Task.run(() async {
+      token.throwIfCanceled();
       final bytes = <int>[];
       _message('Fetching feed: $uri');
-
-      token.throwIfCanceled();
       final client = Client();
-      final abortTrigger = Completer<void>();
-
-      Future<void> get() async {
-        final request =
-            AbortableRequest('GET', uri, abortTrigger: abortTrigger.future);
-        final StreamedResponse response;
+      final response = await token.runCancelable(client.close, () async {
+        final request = Request('GET', uri);
         try {
-          response = await client.send(request);
-        } on RequestAbortedException {
-          throw TaskCanceledException();
-        }
+          final response = await client.send(request);
+          final statusCode = response.statusCode;
+          if (statusCode != 200) {
+            throw Exception('Http error ($statusCode)');
+          }
 
-        try {
-          await response.stream.listen(bytes.addAll).asFuture<void>();
-        } on RequestAbortedException {
-          throw TaskCanceledException();
-        }
-      }
+          return response;
+        } on ClientException catch (e) {
+          if (e.message.startsWith('Connection attempt cancelled')) {
+            throw TaskCanceledException();
+          }
 
-      await token.runCancelable(abortTrigger.complete, get);
+          rethrow;
+        }
+      });
+
+      final stream = response.stream;
+      await stream
+          .listenWithCancellation(
+            token: token,
+            throwIfCancelled: true,
+            bytes.addAll,
+          )
+          .asFuture<void>();
 
       // Simulate external cancellation request.
       // To initiate the cancellation of the remaining tasks

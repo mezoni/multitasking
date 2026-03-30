@@ -4,17 +4,18 @@ import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
   final task = Task.run<int>(() {
+    _message('Started');
     Object? handle;
 
     Task.onExit((task) {
-      print("${task.toString()} exit with status: '${task.state.name}'");
+      _message("Exit with status '${task.state.name}'");
       if (handle != null) {
-        print("${task.toString()} frees up: 'handle'");
+        _message("Frees up 'handle'");
       }
     });
 
     handle = Object();
-    throw Exception('Error');
+    throw Exception('Error in ${Task.current}');
   });
 
   print('Do some work');
@@ -27,4 +28,9 @@ Future<void> main() async {
   } catch (e) {
     print(e);
   }
+}
+
+void _message(String text) {
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
 }

@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 4.3.0
+Version: 4.4.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -19,9 +19,7 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
 
 [example_task_download_file.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_download_file.dart)
 
-![Rate limiting requests using `Token Bucket`](https://i.imgur.com/0bx64as.gif)
-
-[Rate limiting requests using `Token Bucket`](https://github.com/mezoni/multitasking/blob/main/example/example_token_bucker.dart)
+Table of Contents:
 
 - [Multitasking](#multitasking)
   - [About this software](#about-this-software)
@@ -36,7 +34,7 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
     - [The name of the task can be specified](#the-name-of-the-task-can-be-specified)
     - [Tasks can be awaited in different ways](#tasks-can-be-awaited-in-different-ways)
     - [Tasks can be awaited as a stream](#tasks-can-be-awaited-as-a-stream)
-    - [Tasks can be awaited in the order of receipt](#tasks-can-be-awaited-in-the-order-of-receipt)
+    - [Tasks can be awaited in the order of queue](#tasks-can-be-awaited-in-the-order-of-queue)
     - [The task zone provides access to statistics of the operations in the zone](#the-task-zone-provides-access-to-statistics-of-the-operations-in-the-zone)
     - [The task can be canceled using a cancellation token](#the-task-can-be-canceled-using-a-cancellation-token)
     - [The task can be canceled during `Task.delay()`](#the-task-can-be-canceled-during-taskdelay)
@@ -45,6 +43,7 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
     - [The group of tasks can be safely canceled while working with the network](#the-group-of-tasks-can-be-safely-canceled-while-working-with-the-network)
     - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
     - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
+    - [The waiting for a non-cancellable task can be canceled](#the-waiting-for-a-non-cancellable-task-can-be-canceled)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -116,9 +115,8 @@ For this reason, due to the limited functionality of the finalizer, it is recomm
 Exceptions in task can be observed in one of the following ways:
 
 - `await task`
-- `Task.waitAll()`
-- `Task.whenAll()`
-- `Task.whenAny()`
+- `task.result` (only after the task is terminated)
+- `task.exception` (only after the task is terminated)
 - `task.asStream()` (inherited from [Future])
 - `task.catchError()` (inherited from [Future])
 - `task.then()` (inherited from [Future])
@@ -228,17 +226,18 @@ import 'package:multitasking/multitasking.dart';
 
 Future<void> main() async {
   final task = Task.run<int>(() {
+    _message('Started');
     Object? handle;
 
     Task.onExit((task) {
-      print("${task.toString()} exit with status: '${task.state.name}'");
+      _message("Exit with status '${task.state.name}'");
       if (handle != null) {
-        print("${task.toString()} frees up: 'handle'");
+        _message("Frees up 'handle'");
       }
     });
 
     handle = Object();
-    throw Exception('Error');
+    throw Exception('Error in ${Task.current}');
   });
 
   print('Do some work');
@@ -253,16 +252,22 @@ Future<void> main() async {
   }
 }
 
+void _message(String text) {
+  final task = Task.current.name ?? '${Task.current}';
+  print('$task: $text');
+}
+
 ```
 
 Output:
 
 ```txt
-Task(0) exit with status: 'failed'
-Task(0) frees up: 'handle'
+Task(1): Started
+Task(1): Exit with status 'failed'
+Task(1): Frees up 'handle'
 Do some work
 Work completed
-Exception: Error
+Exception: Error in Task(1)
 
 ```
 
@@ -455,17 +460,17 @@ Output:
 ```txt
 whenAny()
 Ready: 33.33%
-First task: Task(0) (failed)
+First task: Task(1) (failed)
 Error: Bad state: Some error
 Tasks:
-Task(0) (failed), Task(1) (running), Task(2) (running)
+Task(1) (failed), Task(2) (running), Task(3) (running)
 whenAll()
 Ready: 66.67%
 Ready: 100.00%
 Error: AggregateError: One or more errors occurred. (Bad state: Some error)
-Task(0): failed, exception: Bad state: Some error
-Task(1): completed, result: 1
-Task(2): completed, result: 2
+Task(1): failed, exception: Bad state: Some error
+Task(2): completed, result: 1
+Task(3): completed, result: 2
 
 ```
 
@@ -515,19 +520,19 @@ Task<int> doSomeWorkWithError(int ms) {
 Output:
 
 ```txt
-Task(0) failed
-Task(1) completed
-Task(1) result 1
+Task(1) failed
 Task(2) completed
-Task(2) result 2
+Task(2) result 1
+Task(3) completed
+Task(3) result 2
 
 ```
 
-### Tasks can be awaited in the order of receipt
+### Tasks can be awaited in the order of queue
 
-Example of awaiting the tasks in the order of receipt
+Example of awaiting the tasks in the order of queue
 
-[example/example_task_await_in_order_of_receipt.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_await_in_order_of_receipt.dart)
+[example/example_task_await_in_order_of_queue.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_await_in_order_of_queue.dart)
 
 ```dart
 import 'dart:async';
@@ -734,6 +739,7 @@ Future<void> main() async {
 
   var count = 0;
   final task = Task.run(() async {
+    token.throwIfCanceled();
     while (true) {
       count++;
       await Task.delay(0, token);
@@ -762,7 +768,7 @@ Output:
 
 ```txt
 TaskCanceledException
-main(): count: 235141
+main(): count: 186778
 
 ```
 
@@ -800,6 +806,7 @@ Future<void> main() async {
       onExit(task);
     });
 
+    token.throwIfCanceled();
     for (var i = 1; i <= 3; i++) {
       final t = Task<int>(name: 'Child $i', () async {
         Task.onExit((task) {
@@ -807,15 +814,13 @@ Future<void> main() async {
           onExit(task);
         });
 
+        token.throwIfCanceled();
         final n = i;
         var result = 0;
         for (var i = 0; i < 5; i++) {
           print('${Task.current} works: $i of 4');
           result++;
-
-          token.throwIfCanceled();
-
-          await Future<void>.delayed(Duration(seconds: 2));
+          await Task.delay(500, token);
           if (n == 1) {
             throw Exception('Failure in ${Task.current}');
           }
@@ -848,16 +853,14 @@ Future<void> main() async {
 Output:
 
 ```txt
-Task('Child 1', 2) works: 0 of 4
-Task('Child 2', 3) works: 0 of 4
-Task('Child 3', 4) works: 0 of 4
-On exit: Task('Child 1', 2) (failed)
-Task('Child 2', 3) works: 1 of 4
-On exit: Task('Child 2', 3) (canceled)
-Task('Child 3', 4) works: 1 of 4
-On exit: Task('Child 3', 4) (canceled)
-On exit: Task('Parent', 0) (failed)
-AggregateError: One or more errors occurred. (Exception: Failure in Task('Child 1', 2)) (TaskCanceledException) (TaskCanceledException)
+Task('Child 1', 3) works: 0 of 4
+Task('Child 2', 4) works: 0 of 4
+Task('Child 3', 5) works: 0 of 4
+On exit: Task('Child 1', 3) (failed)
+On exit: Task('Child 2', 4) (canceled)
+On exit: Task('Child 3', 5) (canceled)
+On exit: Task('Parent', 1) (failed)
+AggregateError: One or more errors occurred. (Exception: Failure in Task('Child 1', 3)) (TaskCanceledException) (TaskCanceledException)
 
 ```
 
@@ -915,25 +918,29 @@ Future<void> main() async {
   }
 }
 
-Task<int> _doWork(Stream<int> stream, CancellationToken token,
-    {bool testBreak = false}) {
+Task<int> _doWork(
+  Stream<int> stream,
+  CancellationToken token, {
+  bool testBreak = false,
+}) {
   return Task.run(() async {
-    await Task.sleep();
-    final list = <int>[];
-
     token.throwIfCanceled();
-    StreamSubscription<int>? subscription;
-    subscription = stream.listen((data) {
-      _message('Received event: $data');
-      list.add(data);
-      if (list.length == 1 && testBreak) {
-        _message('I want to break free...');
-        // break;
-        unawaited(subscription!.cancel());
-      }
-    });
-
-    await token.runCancelable(subscription.cancel, subscription.asFuture<void>);
+    final list = <int>[];
+    final cts = CancellationTokenSource();
+    await stream.listenWithCancellation(
+      token: cts.token,
+      throwIfCancelled: false,
+      (data) {
+        _message('Received event: $data');
+        list.add(data);
+        if (list.length == 1 && testBreak) {
+          _message('I want to break free...');
+          // Breaks silently, without throwing a `TaskCanceledException`
+          // exception (throwIfCancelled: false).
+          cts.cancel();
+        }
+      },
+    ).asFuture<void>();
 
     await Task.sleep();
     _message('Processing data: $list');
@@ -957,21 +964,33 @@ Output:
 
 ```txt
 Send event: 0
-Task(0): Received event: 0
 Task(1): Received event: 0
 Task(2): Received event: 0
-Task(2): I want to break free...
+Task(3): Received event: 0
+Task(3): I want to break free...
+Task(3): Processing data: [0]
 Send event: 1
-Task(0): Received event: 1
 Task(1): Received event: 1
+Task(2): Received event: 1
 Send event: 2
-Task(0): Received event: 2
 Task(1): Received event: 2
+Task(2): Received event: 2
 main(): Cancellation requested
 Send event: 3
+Task(1): Received event: 3
+Task(2): Received event: 3
 Send event: 4
+Task(1): Received event: 4
+Task(2): Received event: 4
 Send event: 5
 Stopping the controller
+Task(1): Received event: 5
+Task(2): Received event: 5
+Task(1): Processing data: [0, 1, 2, 3, 4, 5]
+Task(2): Processing data: [0, 1, 2, 3, 4, 5]
+main(): Result of Task(1): 6
+main(): Result of Task(2): 6
+main(): Result of Task(3): 1
 
 ```
 
@@ -1015,31 +1034,37 @@ Future<void> main() async {
   for (var i = 0; i < rss.length; i++) {
     final uri = Uri.parse(rss[i]);
     final task = Task.run(() async {
+      token.throwIfCanceled();
       final bytes = <int>[];
       _message('Fetching feed: $uri');
-
-      token.throwIfCanceled();
       final client = Client();
-      final abortTrigger = Completer<void>();
-
-      Future<void> get() async {
-        final request =
-            AbortableRequest('GET', uri, abortTrigger: abortTrigger.future);
-        final StreamedResponse response;
+      final response = await token.runCancelable(client.close, () async {
+        final request = Request('GET', uri);
         try {
-          response = await client.send(request);
-        } on RequestAbortedException {
-          throw TaskCanceledException();
-        }
+          final response = await client.send(request);
+          final statusCode = response.statusCode;
+          if (statusCode != 200) {
+            throw Exception('Http error ($statusCode)');
+          }
 
-        try {
-          await response.stream.listen(bytes.addAll).asFuture<void>();
-        } on RequestAbortedException {
-          throw TaskCanceledException();
-        }
-      }
+          return response;
+        } on ClientException catch (e) {
+          if (e.message.startsWith('Connection attempt cancelled')) {
+            throw TaskCanceledException();
+          }
 
-      await token.runCancelable(abortTrigger.complete, get);
+          rethrow;
+        }
+      });
+
+      final stream = response.stream;
+      await stream
+          .listenWithCancellation(
+            token: token,
+            throwIfCancelled: true,
+            bytes.addAll,
+          )
+          .asFuture<void>();
 
       // Simulate external cancellation request.
       // To initiate the cancellation of the remaining tasks
@@ -1084,29 +1109,29 @@ void _message(String text) {
 Output:
 
 ```txt
-Task(0): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
-Task(1): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
-Task(2): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
-Task(3): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
-Task(4): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Task(2): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Task(1): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Task(2): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
+Task(3): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Task(4): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
+Task(5): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
+Task(1): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 main(): Canceling
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 ----------------------------------------
-Task(0): canceled
-No data
-----------------------------------------
-Task(1): canceled
-No data
-----------------------------------------
-Task(2): completed
+Task(1): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
+----------------------------------------
+Task(2): canceled
+No data
 ----------------------------------------
 Task(3): canceled
 No data
 ----------------------------------------
 Task(4): canceled
+No data
+----------------------------------------
+Task(5): canceled
 No data
 
 ```
@@ -1167,35 +1192,40 @@ Future<void> main() async {
 
 Task<String> _download(Uri uri, String filename, CancellationToken token) {
   return Task.run(() async {
-    final bytes = <int>[];
+    var bytes = 0;
 
     Task.onExit((task) {
       print('${task.toString()}: ${task.state.name}');
-      _message('Downloaded: ${bytes.length}');
+      _message('Downloaded: $bytes');
     });
 
     token.throwIfCanceled();
     final client = Client();
-    final abortTrigger = Completer<void>();
-
-    Future<void> get() async {
-      final request =
-          AbortableRequest('GET', uri, abortTrigger: abortTrigger.future);
-      final StreamedResponse response;
+    final response = await token.runCancelable(client.close, () async {
+      final request = Request('GET', uri);
       try {
-        response = await client.send(request);
-      } on RequestAbortedException {
-        throw TaskCanceledException();
-      }
+        final response = await client.send(request);
+        final statusCode = response.statusCode;
+        if (statusCode != 200) {
+          throw Exception('Http error ($statusCode)');
+        }
 
-      try {
-        await response.stream.listen(bytes.addAll).asFuture<void>();
-      } on RequestAbortedException {
-        throw TaskCanceledException();
-      }
-    }
+        return response;
+      } on ClientException catch (e) {
+        if (e.message.startsWith('Connection attempt cancelled')) {
+          throw TaskCanceledException();
+        }
 
-    await token.runCancelable(abortTrigger.complete, get);
+        rethrow;
+      }
+    });
+
+    final stream = response.stream;
+    await stream.listenWithCancellation(token: token, throwIfCancelled: true,
+        (event) {
+      // Simulating the addition of bytes
+      bytes += event.length;
+    }).asFuture<void>();
 
     // Save file to disk
     await Future<void>.delayed(Duration(seconds: 1));
@@ -1214,10 +1244,10 @@ Output:
 
 ```txt
 Canceling...
-Task(0): canceled
-Task(0): Downloaded: 2030309
-Task(2): canceled
-Task(2): Downloaded: 2097152
+Task(1): canceled
+Task(1): Downloaded: 2867198
+Task(3): canceled
+Task(3): Downloaded: 2793471
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException)
 
 ```
@@ -1257,6 +1287,7 @@ Future<void> bigWork(CancellationTokenSource cts) async {
   final tasks = <AnyTask>[];
   for (var i = 0; i < 5; i++) {
     final task = Task.run(() async {
+      token.throwIfCanceled();
       final controller = StreamController<int>();
       final results = <int>[];
       controller.stream.listen(results.add);
@@ -1396,33 +1427,78 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
+Isolate started: 905671574
 main(): Adding task 1
-Isolate started: 475296243
 main(): Adding task 2
+Isolate started: 774165987
 main(): Adding task 3
-Isolate started: 137615223
+Isolate started: 677698374
 main(): Adding task 4
-Isolate started: 658510480
-Isolate started: 1033090172
-Isolate started: 256035724
-Task(2): Received result: [11]
-Task(3): Received result: [12]
-Task(4): Received result: [13]
-Task(1): Received result: [10]
-Task(5): Received result: [14]
+Isolate started: 984557389
+Isolate started: 273371938
+Task(2): Received result: [10]
+Task(5): Received result: [13]
+Task(4): Received result: [12]
+Task(3): Received result: [11]
+Task(6): Received result: [14]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 908206732
-Isolate started: 299261095
 main(): Adding task 3
+Isolate started: 371529864
+Isolate started: 831759322
+Isolate started: 536481323
 main(): Adding task 4
-Isolate started: 743207618
-Isolate started: 610487665
-Isolate started: 495234330
+Isolate started: 956358245
+Isolate started: 184410419
 main(): Canceling...
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
+
+```
+
+### The waiting for a non-cancellable task can be canceled
+
+An example of canceling the wait for a non-cancellable task:
+
+[example/example_task_cancel_waiting_for_non_cancelable_action.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_waiting_for_non_cancelable_action.dart)
+
+```dart
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  final cts = CancellationTokenSource(Duration(seconds: 1));
+  final task = _longTask();
+  try {
+    final result = await task.withCancellation(cts.token);
+    print('Result: $result');
+  } on TaskCanceledException {
+    print('TaskCanceledException');
+    if (!task.isTerminated) {
+      print('Task still running');
+    }
+  }
+
+  print('Begin next work');
+}
+
+Task<int> _longTask() {
+  return Task.run(() async {
+    await Future<void>.delayed(Duration(seconds: 2));
+    print('Task terminated');
+    return 10;
+  });
+}
+
+```
+
+Output:
+
+```txt
+TaskCanceledException
+Task still running
+Begin next work
+Task terminated
 
 ```
 
@@ -1838,15 +1914,15 @@ void _message(String text) {
 Output:
 
 ```txt
-Task(0): Increment counter: 1
-Task(0): Increment counter: 2
-Task(0): Increment counter: 3
-Task(1): Increment counter: 4
-Task(1): Increment counter: 5
-Task(1): Increment counter: 6
-Task(2): Increment counter: 7
-Task(2): Increment counter: 8
-Task(2): Increment counter: 9
+Task(1): Increment counter: 1
+Task(1): Increment counter: 2
+Task(1): Increment counter: 3
+Task(2): Increment counter: 4
+Task(2): Increment counter: 5
+Task(2): Increment counter: 6
+Task(3): Increment counter: 7
+Task(3): Increment counter: 8
+Task(3): Increment counter: 9
 
 ```
 
@@ -1892,12 +1968,12 @@ void _message(String text) {
 Output:
 
 ```txt
-Task(0): Enter
-Task(0): Leave
 Task(1): Enter
 Task(1): Leave
 Task(2): Enter
 Task(2): Leave
+Task(3): Enter
+Task(3): Leave
 
 ```
 
@@ -1980,16 +2056,16 @@ void _message(String text) {
 Output:
 
 ```txt
-Task(0): read 0
-Task(1): wait write
+Task(1): read 0
 Task(2): wait write
-Task(3): wait read
-Task(1): write 1
+Task(3): wait write
 Task(4): wait read
-Task(2): write 2
-Task(3): read (after wait) 2
+Task(2): write 1
+Task(5): wait read
+Task(3): write 2
 Task(4): read (after wait) 2
-Task(5): read 2
+Task(5): read (after wait) 2
+Task(6): read 2
 
 ```
 
@@ -2045,8 +2121,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(0): 510
-Task(1): 512
-Task(2): 512
+Task(1): 513
+Task(2): 514
+Task(3): 514
 
 ```

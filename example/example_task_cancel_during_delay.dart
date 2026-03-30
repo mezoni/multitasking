@@ -8,6 +8,7 @@ Future<void> main() async {
 
   var count = 0;
   final task = Task.run(() async {
+    token.throwIfCanceled();
     while (true) {
       count++;
       await Task.delay(0, token);
