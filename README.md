@@ -43,7 +43,7 @@ Table of Contents:
     - [The group of tasks can be safely canceled while working with the network](#the-group-of-tasks-can-be-safely-canceled-while-working-with-the-network)
     - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
     - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
-    - [The waiting for a non-cancellable task can be canceled](#the-waiting-for-a-non-cancellable-task-can-be-canceled)
+    - [The waiting for a non-cancelable task can be canceled](#the-waiting-for-a-non-cancelable-task-can-be-canceled)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -768,7 +768,7 @@ Output:
 
 ```txt
 TaskCanceledException
-main(): count: 186778
+main(): count: 221827
 
 ```
 
@@ -900,7 +900,7 @@ Future<void> main() async {
 
   final tasks = <Task<int>>[];
   for (var i = 0; i < 3; i++) {
-    final task = _doWork(stream, token, testBreak: i == 2);
+    final task = _doWork(stream, token, isFirst: i == 0);
     tasks.add(task);
   }
 
@@ -921,30 +921,24 @@ Future<void> main() async {
 Task<int> _doWork(
   Stream<int> stream,
   CancellationToken token, {
-  bool testBreak = false,
+  bool isFirst = false,
 }) {
   return Task.run(() async {
     token.throwIfCanceled();
     final list = <int>[];
-    final cts = CancellationTokenSource.createLinkedTokenSource([token]);
-    await stream.listenWithCancellation(
-      token: cts.token,
-      throwIfCancelled: !testBreak,
-      (data) {
-        _message('Received event: $data');
-        list.add(data);
-        if (testBreak && list.length == 1) {
-          _message('I want to break free...');
-          // Breaks silently, without throwing a `TaskCanceledException`
-          // exception (throwIfCancelled: false).
-          cts.cancel();
-        }
-      },
-    ).asFuture<void>();
+    await for (final event
+        in stream.asCancelable(token, throwIfCanceled: true)) {
+      _message('Received event: $event');
+      list.add(event);
+      if (isFirst && list.length == 1) {
+        _message('I want to break free...');
+        break;
+      }
+    }
 
     await Task.sleep();
     _message('Processing data: $list');
-    if (testBreak) {
+    if (isFirst) {
       return list.length;
     }
 
@@ -965,23 +959,24 @@ Output:
 ```txt
 Send event: 0
 Task(1): Received event: 0
+Task(1): I want to break free...
 Task(2): Received event: 0
 Task(3): Received event: 0
-Task(3): I want to break free...
-Task(3): Processing data: [0]
+Task(1): Processing data: [0]
 Send event: 1
-Task(1): Received event: 1
 Task(2): Received event: 1
+Task(3): Received event: 1
 Send event: 2
-Task(1): Received event: 2
 Task(2): Received event: 2
+Task(3): Received event: 2
 main(): Cancellation requested
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException)
-main(): Result of Task(3): 1
+main(): Result of Task(1): 1
 Send event: 3
 Send event: 4
 Send event: 5
 Stopping the controller
+
 ```
 
 ### The group of tasks can be safely canceled while working with the network
@@ -1048,13 +1043,10 @@ Future<void> main() async {
       });
 
       final stream = response.stream;
-      await stream
-          .listenWithCancellation(
-            token: token,
-            throwIfCancelled: true,
-            bytes.addAll,
-          )
-          .asFuture<void>();
+      await for (final event
+          in stream.asCancelable(token, throwIfCanceled: true)) {
+        bytes.addAll(event);
+      }
 
       // Simulate external cancellation request.
       // To initiate the cancellation of the remaining tasks
@@ -1211,11 +1203,11 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     });
 
     final stream = response.stream;
-    await stream.listenWithCancellation(token: token, throwIfCancelled: true,
-        (event) {
+    await for (final event
+        in stream.asCancelable(token, throwIfCanceled: true)) {
       // Simulating the addition of bytes
       bytes += event.length;
-    }).asFuture<void>();
+    }
 
     // Save file to disk
     await Future<void>.delayed(Duration(seconds: 1));
@@ -1234,10 +1226,10 @@ Output:
 
 ```txt
 Canceling...
-Task(1): canceled
-Task(1): Downloaded: 2867198
 Task(3): canceled
-Task(3): Downloaded: 2793471
+Task(3): Downloaded: 3440640
+Task(1): canceled
+Task(1): Downloaded: 3391486
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException)
 
 ```
@@ -1417,39 +1409,39 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 905671574
+Isolate started: 280175062
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 774165987
 main(): Adding task 3
-Isolate started: 677698374
+Isolate started: 194881877
+Isolate started: 394137202
 main(): Adding task 4
-Isolate started: 984557389
-Isolate started: 273371938
-Task(2): Received result: [10]
+Isolate started: 847365300
+Isolate started: 527734216
 Task(5): Received result: [13]
+Task(2): Received result: [10]
 Task(4): Received result: [12]
 Task(3): Received result: [11]
 Task(6): Received result: [14]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
+Isolate started: 275058971
+Isolate started: 857525383
 main(): Adding task 2
 main(): Adding task 3
-Isolate started: 371529864
-Isolate started: 831759322
-Isolate started: 536481323
 main(): Adding task 4
-Isolate started: 956358245
-Isolate started: 184410419
+Isolate started: 722781765
+Isolate started: 507941283
+Isolate started: 204165816
 main(): Canceling...
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 
 ```
 
-### The waiting for a non-cancellable task can be canceled
+### The waiting for a non-cancelable task can be canceled
 
-An example of canceling the wait for a non-cancellable task:
+An example of canceling the wait for a non-cancelable task:
 
 [example/example_task_cancel_waiting_for_non_cancelable_action.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_waiting_for_non_cancelable_action.dart)
 
@@ -2112,7 +2104,7 @@ main(): 0
 main(): Waiting 500 ms
 main(): Start
 Task(1): 513
-Task(2): 514
-Task(3): 514
+Task(2): 515
+Task(3): 516
 
 ```

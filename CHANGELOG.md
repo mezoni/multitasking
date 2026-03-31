@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.5.0
+
+- Fixed a bug in `StreamExtension.listenWithCancellation()`: The `throwIfCancelled` parameter has been renamed to `throwIfCanceled`.
+- Added method `asCancelable()` to `StreamExtension` extension.
+
 ## 4.4.0
 
 - Deprecated class `TokenBucket`.

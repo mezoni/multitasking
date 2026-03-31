@@ -55,13 +55,10 @@ Future<void> main() async {
       });
 
       final stream = response.stream;
-      await stream
-          .listenWithCancellation(
-            token: token,
-            throwIfCancelled: true,
-            bytes.addAll,
-          )
-          .asFuture<void>();
+      await for (final event
+          in stream.asCancelable(token, throwIfCanceled: true)) {
+        bytes.addAll(event);
+      }
 
       // Simulate external cancellation request.
       // To initiate the cancellation of the remaining tasks

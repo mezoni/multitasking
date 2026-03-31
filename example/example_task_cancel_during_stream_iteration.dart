@@ -27,7 +27,7 @@ Future<void> main() async {
 
   final tasks = <Task<int>>[];
   for (var i = 0; i < 3; i++) {
-    final task = _doWork(stream, token, testBreak: i == 2);
+    final task = _doWork(stream, token, isFirst: i == 0);
     tasks.add(task);
   }
 
@@ -48,30 +48,24 @@ Future<void> main() async {
 Task<int> _doWork(
   Stream<int> stream,
   CancellationToken token, {
-  bool testBreak = false,
+  bool isFirst = false,
 }) {
   return Task.run(() async {
     token.throwIfCanceled();
     final list = <int>[];
-    final cts = CancellationTokenSource.createLinkedTokenSource([token]);
-    await stream.listenWithCancellation(
-      token: cts.token,
-      throwIfCancelled: !testBreak,
-      (data) {
-        _message('Received event: $data');
-        list.add(data);
-        if (testBreak && list.length == 1) {
-          _message('I want to break free...');
-          // Breaks silently, without throwing a `TaskCanceledException`
-          // exception (throwIfCancelled: false).
-          cts.cancel();
-        }
-      },
-    ).asFuture<void>();
+    await for (final event
+        in stream.asCancelable(token, throwIfCanceled: true)) {
+      _message('Received event: $event');
+      list.add(event);
+      if (isFirst && list.length == 1) {
+        _message('I want to break free...');
+        break;
+      }
+    }
 
     await Task.sleep();
     _message('Processing data: $list');
-    if (testBreak) {
+    if (isFirst) {
       return list.length;
     }
 

@@ -43,7 +43,7 @@ Table of Contents:
     - [The group of tasks can be safely canceled while working with the network](#the-group-of-tasks-can-be-safely-canceled-while-working-with-the-network)
     - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
     - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
-    - [The waiting for a non-cancellable task can be canceled](#the-waiting-for-a-non-cancellable-task-can-be-canceled)
+    - [The waiting for a non-cancelable task can be canceled](#the-waiting-for-a-non-cancelable-task-can-be-canceled)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -295,9 +295,9 @@ BEGIN_EXAMPLE
 example_task_cancel_isolate
 END_EXAMPLE
 
-### The waiting for a non-cancellable task can be canceled
+### The waiting for a non-cancelable task can be canceled
 
-An example of canceling the wait for a non-cancellable task:
+An example of canceling the wait for a non-cancelable task:
 
 BEGIN_EXAMPLE
 example_task_cancel_waiting_for_non_cancelable_action

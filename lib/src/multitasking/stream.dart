@@ -3,13 +3,53 @@ import 'dart:async';
 import 'cancellation.dart';
 import 'errors.dart';
 
+class _CancelableStream<T> extends StreamView<T> {
+  final Stream<T> _stream;
+
+  final bool _throwIfCanceled;
+
+  final CancellationToken _token;
+
+  _CancelableStream(
+    super.stream,
+    CancellationToken token, {
+    required bool throwIfCanceled,
+  })  : _stream = stream,
+        _token = token,
+        _throwIfCanceled = throwIfCanceled;
+
+  @override
+  StreamSubscription<T> listen(
+    void Function(T value)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    return _stream.listenWithCancellation(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+      token: _token,
+      throwIfCanceled: _throwIfCanceled,
+    );
+  }
+}
+
 extension StreamExtension<T> on Stream<T> {
+  Stream<T> asCancelable(
+    CancellationToken token, {
+    required bool throwIfCanceled,
+  }) {
+    return _CancelableStream(this, token, throwIfCanceled: throwIfCanceled);
+  }
+
   /// Adds a subscription to this stream.\
   /// Immediately cancels the subscription when the token state changes to
   /// `canceled`.
   ///
   /// Additionally, a [TaskCanceledException] error event will be sent to the
-  /// subscriber if the [throwIfCancelled] parameter has the value `true`.\
+  /// subscriber if the [throwIfCanceled] parameter has the value `true`.\
   /// This can be useful if the code waiting for a subscription via a call to
   /// the `asFuture()` method.
   ///
@@ -17,7 +57,7 @@ extension StreamExtension<T> on Stream<T> {
   ///
   /// ```dart
   /// final stream = response.stream;
-  /// await stream.listenWithCancellation(token: token, throwIfCancelled: true,
+  /// await stream.listenWithCancellation(token: token, throwIfCanceled: true,
   ///     (event) {
   ///   // Handles event
   /// }).asFuture<void>();
@@ -27,14 +67,14 @@ extension StreamExtension<T> on Stream<T> {
     Function? onError,
     void Function()? onDone,
     bool? cancelOnError,
-    required bool throwIfCancelled,
     required CancellationToken token,
+    required bool throwIfCanceled,
   }) {
     final controller = StreamController<T>();
     final iterator = StreamIterator(this);
     var wasErrorSent = false;
     final handler = token.addHandler(() async {
-      if (throwIfCancelled && !wasErrorSent && !controller.isClosed) {
+      if (throwIfCanceled && !wasErrorSent && !controller.isClosed) {
         controller.addError(TaskCanceledException(), StackTrace.current);
       }
 

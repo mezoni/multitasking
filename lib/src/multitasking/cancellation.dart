@@ -150,11 +150,17 @@ class CancellationTokenSource {
     token._cancel();
   }
 
-  /// Sets the [token] to the `canceled` state after the specified [delay].
+  /// Sets the [token] to the `canceled` state after the specified [delay];
+  /// otherwise, if [delay] is `null`, then resets the scheduled cancellation.
   ///
   /// Subsequent calls to [cancelAfter] will reset the [delay] for this
   /// [CancellationTokenSource], if it has not been canceled already.
-  void cancelAfter(Duration delay) {
+  void cancelAfter(Duration? delay) {
+    if (delay == null) {
+      _timer?.cancel();
+      return;
+    }
+
     if (delay.isNegative) {
       throw ArgumentError.value(delay, 'duration', 'Must not be negative');
     }
@@ -169,8 +175,8 @@ class CancellationTokenSource {
 
   /// Creates a [CancellationTokenSource] that will be linked with the specified
   /// [tokens].\
-  ///This [CancellationTokenSource] can be cancelled individually, or it will be
-  ///cancelled automatically when other sources are cancelled.
+  ///This [CancellationTokenSource] can be canceled individually, or it will be
+  ///canceled automatically when other sources are canceled.
   static CancellationTokenSource createLinkedTokenSource(
       List<CancellationToken> tokens) {
     if (tokens.isEmpty) {

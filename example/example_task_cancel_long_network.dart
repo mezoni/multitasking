@@ -76,11 +76,11 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     });
 
     final stream = response.stream;
-    await stream.listenWithCancellation(token: token, throwIfCancelled: true,
-        (event) {
+    await for (final event
+        in stream.asCancelable(token, throwIfCanceled: true)) {
       // Simulating the addition of bytes
       bytes += event.length;
-    }).asFuture<void>();
+    }
 
     // Save file to disk
     await Future<void>.delayed(Duration(seconds: 1));
