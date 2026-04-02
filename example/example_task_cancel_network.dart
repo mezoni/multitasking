@@ -34,30 +34,31 @@ Future<void> main() async {
       token.throwIfCanceled();
       final bytes = <int>[];
       _message('Fetching feed: $uri');
-      final client = Client();
-      final response = await token.runCancelable(client.close, () async {
-        final request = Request('GET', uri);
-        try {
-          final response = await client.send(request);
-          final statusCode = response.statusCode;
-          if (statusCode != 200) {
-            throw Exception('Http error ($statusCode)');
-          }
+      final request = Request('GET', uri);
+      final task = Task.run(() => Client().send(request));
+      StreamedResponse response;
+      try {
+        response = await task.withCancellation(token);
+      } on TaskCanceledException {
+        // Ignore the cancelled connection establishment.
+        unawaited(() async {
+          try {
+            await (await task).stream.listen((_) {}).cancel();
+          } catch (e) {/**/}
+        }());
 
-          return response;
-        } on ClientException catch (e) {
-          if (e.message.startsWith('Connection attempt cancelled')) {
-            throw TaskCanceledException();
-          }
-
-          rethrow;
-        }
-      });
+        rethrow;
+      }
 
       final stream = response.stream;
       await for (final event
           in stream.asCancelable(token, throwIfCanceled: true)) {
         bytes.addAll(event);
+      }
+
+      final statusCode = response.statusCode;
+      if (statusCode != 200) {
+        throw Exception('Http error ($statusCode)');
       }
 
       // Simulate external cancellation request.

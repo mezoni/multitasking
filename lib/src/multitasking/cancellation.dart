@@ -67,36 +67,25 @@ class CancellationToken {
   /// Performs the following actions:
   ///
   /// - Adds a cancellation handler [onCancel]
-  /// - Executes the [action] function
+  /// - Executes the [action] callback
   /// - Removes a cancellation handler [onCancel]
-  /// - Throws an [TaskCanceledException] exception if there was a cancellation
-  /// request and no [TaskCanceledException] exception was thrown during the
-  /// execution of the [action] function
   ///
-  /// The [onCancel] handler function should initiate the cancellation procedure
-  /// which interrupts (or cancel) the execution of the [action] function.
+  /// The [onCancel] handler should initiate the cancellation which interrupts
+  /// (or cancel) the execution of the [action] callback.
+  ///
+  /// This method itself does not throw any exceptions. It simply calls the
+  /// [onCancel] handler when a cancellation request is made.
   Future<T> runCancelable<T>(
     void Function() onCancel,
     FutureOr<T> Function() action,
   ) async {
-    var isExceptionThrown = false;
     final handler = addHandler(() {
       onCancel();
     });
-
     try {
       return await action();
-    } catch (e) {
-      if (e is TaskCanceledException) {
-        isExceptionThrown = true;
-      }
-
-      rethrow;
     } finally {
       removerHandler(handler);
-      if (isCanceled && !isExceptionThrown) {
-        throwIfCanceled();
-      }
     }
   }
 

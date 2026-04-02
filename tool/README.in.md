@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 4.5.0
+Version: 4.6.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -88,13 +88,13 @@ A cancellation request is made using a special token. A task cancellation token 
 
 Tasks are very lightweight objects. The actions performed by tasks are not much slower than those performed by futures.
 
-A [Task] is an object representing some operation that will complete in the future.\
+A `Task` is an object representing some operation that will complete in the future.\
 Tasks are executed asynchronously and cooperatively.\
 Cooperative multitasking is a concurrency model where tasks voluntarily yield control (using `await`).
 
 The result of a task execution is the result of computing the value of the task action. It can be either a value or an exception.\
-The task itself is an object of [Future] that wraps the result of the computation.\
-The main difference between the task and the [Future] is as follows:
+The task itself is an object of `Future` that wraps the result of the computation.\
+The main difference between the task and the `Future` is as follows:
 
 - Task can be created in unstarted state and can be started by demand
 - If the task execution fails, the exception will not be propagated immediately
@@ -108,7 +108,7 @@ After the computation is completed, the task captures the result of the computat
 ### In case of completion with an exception, the task does not propagate this exception to the unhandled exception handler immediately
 
 This unobserved exception is stored in the relevant task object instance until the task is aware that an exception has been observed.\
-If the task isn not aware that an exception was observed, this exception will be propagated in the task finalizer ([Finalizer]).\
+If the task isn not aware that an exception was observed, this exception will be propagated in the task finalizer (`Finalizer`).\
 If the finalizer is not executed by runtime (due to Dart SDK limitations), the exception will remain unobserved.\
 For this reason, due to the limited functionality of the finalizer, it is recommended to always observe task exceptions (detecting, catching, handling).
 
@@ -117,11 +117,11 @@ Exceptions in task can be observed in one of the following ways:
 - `await task`
 - `task.result` (only after the task is terminated)
 - `task.exception` (only after the task is terminated)
-- `task.asStream()` (inherited from [Future])
-- `task.catchError()` (inherited from [Future])
-- `task.then()` (inherited from [Future])
-- `task.timeout()` (inherited from [Future])
-- `task.whenComplete()` (inherited from [Future])
+- `task.asStream()` (inherited from `Future`)
+- `task.catchError()` (inherited from `Future`)
+- `task.then()` (inherited from `Future`)
+- `task.timeout()` (inherited from `Future`)
+- `task.whenComplete()` (inherited from `Future`)
 
 ## Examples of the main features of the `Task`
 
@@ -382,10 +382,10 @@ END_EXAMPLE
 
 A `MultipleWriteSingleReadObject`is a synchronized object.
 
-If an object is not held by one or more `writers`, then `readers` can access the value of and object (using the [read] method) without any delay, having previously checked the state of the object by reading the value [isLocked].
+If an object is not held by one or more `writers`, then `readers` can access the value of and object (using the `read` method) without any delay, having previously checked the state of the object by reading the value `isLocked`.
 
-If a object is held by one or more `writers`, then `readers` must waiting for the `write` operations to complete using the [wait] method.\
-After that, a value can be accessed immediately using the [read] method.
+If a object is held by one or more `writers`, then `readers` must waiting for the `write` operations to complete using the `wait` method.\
+After that, a value can be accessed immediately using the `read` method.
 
 If an object is held by one or more `readers` and a `write` operation is requested, the `writer` will wait  for all previous `read` and `write`
 operations.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.6.0
+
+- Breaking change: The `runCancelable()` method of the `CancellationToken` class no longer throws a `TaskCanceledException` exception, in case the cancellation request occurred after the successful completion of the operation. Now the main purpose is to add and automatically remove a cancel handler in the token to cancel the operation. After successful completion of the operation, it is recommended to use `token.throwIfCanceled()` if necessary.
+- Changed example `example_task_cancel_long_network.dart`.
+- Changed example `example_task_cancel_network.dart`.
+- Changed example `example_task_download_file.dart`.
+- Changed example `example.dart`.
+
 ## 4.5.0
 
 - Fixed a bug in `StreamExtension.listenWithCancellation()`: The `throwIfCancelled` parameter has been renamed to `throwIfCanceled`.

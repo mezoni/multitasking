@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 4.5.0
+Version: 4.6.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -88,13 +88,13 @@ A cancellation request is made using a special token. A task cancellation token 
 
 Tasks are very lightweight objects. The actions performed by tasks are not much slower than those performed by futures.
 
-A [Task] is an object representing some operation that will complete in the future.\
+A `Task` is an object representing some operation that will complete in the future.\
 Tasks are executed asynchronously and cooperatively.\
 Cooperative multitasking is a concurrency model where tasks voluntarily yield control (using `await`).
 
 The result of a task execution is the result of computing the value of the task action. It can be either a value or an exception.\
-The task itself is an object of [Future] that wraps the result of the computation.\
-The main difference between the task and the [Future] is as follows:
+The task itself is an object of `Future` that wraps the result of the computation.\
+The main difference between the task and the `Future` is as follows:
 
 - Task can be created in unstarted state and can be started by demand
 - If the task execution fails, the exception will not be propagated immediately
@@ -108,7 +108,7 @@ After the computation is completed, the task captures the result of the computat
 ### In case of completion with an exception, the task does not propagate this exception to the unhandled exception handler immediately
 
 This unobserved exception is stored in the relevant task object instance until the task is aware that an exception has been observed.\
-If the task isn not aware that an exception was observed, this exception will be propagated in the task finalizer ([Finalizer]).\
+If the task isn not aware that an exception was observed, this exception will be propagated in the task finalizer (`Finalizer`).\
 If the finalizer is not executed by runtime (due to Dart SDK limitations), the exception will remain unobserved.\
 For this reason, due to the limited functionality of the finalizer, it is recommended to always observe task exceptions (detecting, catching, handling).
 
@@ -117,11 +117,11 @@ Exceptions in task can be observed in one of the following ways:
 - `await task`
 - `task.result` (only after the task is terminated)
 - `task.exception` (only after the task is terminated)
-- `task.asStream()` (inherited from [Future])
-- `task.catchError()` (inherited from [Future])
-- `task.then()` (inherited from [Future])
-- `task.timeout()` (inherited from [Future])
-- `task.whenComplete()` (inherited from [Future])
+- `task.asStream()` (inherited from `Future`)
+- `task.catchError()` (inherited from `Future`)
+- `task.then()` (inherited from `Future`)
+- `task.timeout()` (inherited from `Future`)
+- `task.whenComplete()` (inherited from `Future`)
 
 ## Examples of the main features of the `Task`
 
@@ -768,7 +768,7 @@ Output:
 
 ```txt
 TaskCanceledException
-main(): count: 221827
+main(): count: 163079
 
 ```
 
@@ -1022,30 +1022,31 @@ Future<void> main() async {
       token.throwIfCanceled();
       final bytes = <int>[];
       _message('Fetching feed: $uri');
-      final client = Client();
-      final response = await token.runCancelable(client.close, () async {
-        final request = Request('GET', uri);
-        try {
-          final response = await client.send(request);
-          final statusCode = response.statusCode;
-          if (statusCode != 200) {
-            throw Exception('Http error ($statusCode)');
-          }
+      final request = Request('GET', uri);
+      final task = Task.run(() => Client().send(request));
+      StreamedResponse response;
+      try {
+        response = await task.withCancellation(token);
+      } on TaskCanceledException {
+        // Ignore the cancelled connection establishment.
+        unawaited(() async {
+          try {
+            await (await task).stream.listen((_) {}).cancel();
+          } catch (e) {/**/}
+        }());
 
-          return response;
-        } on ClientException catch (e) {
-          if (e.message.startsWith('Connection attempt cancelled')) {
-            throw TaskCanceledException();
-          }
-
-          rethrow;
-        }
-      });
+        rethrow;
+      }
 
       final stream = response.stream;
       await for (final event
           in stream.asCancelable(token, throwIfCanceled: true)) {
         bytes.addAll(event);
+      }
+
+      final statusCode = response.statusCode;
+      if (statusCode != 200) {
+        throw Exception('Http error ($statusCode)');
       }
 
       // Simulate external cancellation request.
@@ -1092,10 +1093,10 @@ Output:
 
 ```txt
 Task(1): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
-Task(2): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
-Task(3): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
-Task(4): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
-Task(5): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
+Task(5): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
+Task(9): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Task(13): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
+Task(17): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 Task(1): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 main(): Canceling
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
@@ -1104,16 +1105,16 @@ Task(1): completed
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
-Task(2): canceled
-No data
-----------------------------------------
-Task(3): canceled
-No data
-----------------------------------------
-Task(4): canceled
-No data
-----------------------------------------
 Task(5): canceled
+No data
+----------------------------------------
+Task(9): canceled
+No data
+----------------------------------------
+Task(13): canceled
+No data
+----------------------------------------
+Task(17): canceled
 No data
 
 ```
@@ -1182,31 +1183,32 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     });
 
     token.throwIfCanceled();
-    final client = Client();
-    final response = await token.runCancelable(client.close, () async {
-      final request = Request('GET', uri);
-      try {
-        final response = await client.send(request);
-        final statusCode = response.statusCode;
-        if (statusCode != 200) {
-          throw Exception('Http error ($statusCode)');
-        }
+    final request = Request('GET', uri);
+    final task = Task.run(() => Client().send(request));
+    StreamedResponse response;
+    try {
+      response = await task.withCancellation(token);
+    } on TaskCanceledException {
+      // Ignore the cancelled connection establishment.
+      unawaited(() async {
+        try {
+          await (await task).stream.listen((_) {}).cancel();
+        } catch (e) {/**/}
+      }());
 
-        return response;
-      } on ClientException catch (e) {
-        if (e.message.startsWith('Connection attempt cancelled')) {
-          throw TaskCanceledException();
-        }
-
-        rethrow;
-      }
-    });
+      rethrow;
+    }
 
     final stream = response.stream;
     await for (final event
         in stream.asCancelable(token, throwIfCanceled: true)) {
       // Simulating the addition of bytes
       bytes += event.length;
+    }
+
+    final statusCode = response.statusCode;
+    if (statusCode != 200) {
+      throw Exception('Http error ($statusCode)');
     }
 
     // Save file to disk
@@ -1226,10 +1228,10 @@ Output:
 
 ```txt
 Canceling...
-Task(3): canceled
-Task(3): Downloaded: 3440640
+Task(6): canceled
+Task(6): Downloaded: 3850238
 Task(1): canceled
-Task(1): Downloaded: 3391486
+Task(1): Downloaded: 3735552
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException)
 
 ```
@@ -1409,15 +1411,15 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 280175062
+Isolate started: 320887907
 main(): Adding task 1
 main(): Adding task 2
+Isolate started: 409069263
 main(): Adding task 3
-Isolate started: 194881877
-Isolate started: 394137202
 main(): Adding task 4
-Isolate started: 847365300
-Isolate started: 527734216
+Isolate started: 636100213
+Isolate started: 172793738
+Isolate started: 1065834026
 Task(5): Received result: [13]
 Task(2): Received result: [10]
 Task(4): Received result: [12]
@@ -1426,14 +1428,14 @@ Task(6): Received result: [14]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
-Isolate started: 275058971
-Isolate started: 857525383
 main(): Adding task 2
+Isolate started: 525370800
+Isolate started: 630492082
+Isolate started: 676914564
 main(): Adding task 3
 main(): Adding task 4
-Isolate started: 722781765
-Isolate started: 507941283
-Isolate started: 204165816
+Isolate started: 223147660
+Isolate started: 167408350
 main(): Canceling...
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 
@@ -1963,10 +1965,10 @@ Task(3): Leave
 
 A `MultipleWriteSingleReadObject`is a synchronized object.
 
-If an object is not held by one or more `writers`, then `readers` can access the value of and object (using the [read] method) without any delay, having previously checked the state of the object by reading the value [isLocked].
+If an object is not held by one or more `writers`, then `readers` can access the value of and object (using the `read` method) without any delay, having previously checked the state of the object by reading the value `isLocked`.
 
-If a object is held by one or more `writers`, then `readers` must waiting for the `write` operations to complete using the [wait] method.\
-After that, a value can be accessed immediately using the [read] method.
+If a object is held by one or more `writers`, then `readers` must waiting for the `write` operations to complete using the `wait` method.\
+After that, a value can be accessed immediately using the `read` method.
 
 If an object is held by one or more `readers` and a `write` operation is requested, the `writer` will wait  for all previous `read` and `write`
 operations.
@@ -2104,7 +2106,7 @@ main(): 0
 main(): Waiting 500 ms
 main(): Start
 Task(1): 513
-Task(2): 515
-Task(3): 516
+Task(2): 514
+Task(3): 514
 
 ```
