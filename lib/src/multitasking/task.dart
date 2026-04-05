@@ -108,11 +108,16 @@ final class Task<T> implements Future<T> {
 
   ZoneStats? _zoneStats;
 
-  /// Creates a task with the specified [action] callback and [name].
-  Task(
-    FutureOr<T> Function() action, {
-    this.name,
-  })  : _action = action,
+  /// Creates a task with the specified callback function and [name].
+  ///
+  /// Parameters:
+  ///
+  /// - [action]: Callback function that will be executed.
+  /// - [name]: The name that will be assigned to the task.
+  ///
+  /// To run the created task, the [start] method must be used.
+  Task(FutureOr<T> Function() action, {this.name})
+      : _action = action,
         _status = TaskStatus.created {
     final zoneStats = ZoneStats();
     var specification = zoneStats.specification;
@@ -149,20 +154,20 @@ final class Task<T> implements Future<T> {
   /// Returns a unique integer identifier for the task.
   int get id => _id;
 
-  /// Returns `true` if the task status is [TaskStatus.canceled]; otherwise, returns
-  /// `false`.
+  /// Returns `true` if the task status is [TaskStatus.canceled]; otherwise,
+  /// returns `false`.
   bool get isCanceled {
     return _status == TaskStatus.canceled;
   }
 
-  /// Returns `true` if the task status is [TaskStatus.created]; otherwise, returns
-  /// `false`.
+  /// Returns `true` if the task status is [TaskStatus.created]; otherwise,
+  /// returns `false`.
   bool get isCreated {
     return _status == TaskStatus.created;
   }
 
-  /// Returns `true` if the task status is [TaskStatus.failed]; otherwise, returns
-  /// `false`.
+  /// Returns `true` if the task status is [TaskStatus.failed]; otherwise,
+  /// returns `false`.
   bool get isFailed {
     return _status == TaskStatus.failed;
   }
@@ -179,8 +184,8 @@ final class Task<T> implements Future<T> {
     return _status == TaskStatus.running;
   }
 
-  /// Returns `true` if the task status is [TaskStatus.successful]; otherwise, returns
-  /// `false`.
+  /// Returns `true` if the task status is [TaskStatus.successful]; otherwise,
+  /// returns `false`.
   bool get isSuccessful {
     return _status == TaskStatus.successful;
   }
@@ -344,13 +349,13 @@ final class Task<T> implements Future<T> {
     return _future.whenComplete(action);
   }
 
-  /// Waits for the task to complete and returns the result (or throws an
-  /// exception) if the task completes before cancellation; otherwise, throws
-  /// a [TaskCanceledException] exception.
+  /// Waits for the task to complete and returns the result (or error) if the
+  /// task completes (successfully or with error) before cancellation request;
+  /// otherwise, throws a [TaskCanceledException] exception.
   ///
   /// Parameters:
   ///
-  /// - [token]: A token indicating that a cancellation has occurred.
+  /// - [token]: A token indicating that a cancellation request has occurred.
   Task<T> withCancellation(CancellationToken token) {
     final tcs = TaskCompletionSource<T>();
     unawaited(() async {
@@ -374,7 +379,14 @@ final class Task<T> implements Future<T> {
     return tcs.task;
   }
 
-  /// Creates a task that will complete after a time delay.
+  /// Creates a task that will complete successfully after a time delay or will
+  /// be completed with status [TaskStatus.canceled] if a cancellation request
+  /// was initiated before or during the execution of this method.
+  ///
+  /// Parameters:
+  ///
+  /// - [milliseconds]:Delay time in milliseconds.
+  /// - [token]: A token indicating that a cancellation request has occurred.
   static Task<void> delay([int milliseconds = 0, CancellationToken? token]) {
     if (milliseconds < 0) {
       throw ArgumentError.value(
@@ -411,7 +423,12 @@ final class Task<T> implements Future<T> {
   }
 
   /// Assigns a `handler` for the [current] task that will be executed after the
-  /// task is terminated
+  /// task is terminated.
+  ///
+  /// Parameters:
+  ///
+  /// - [handler]: A callback function that will be executed immediately after
+  /// the task terminates execution.
   ///
   /// The handler cannot be added to synthetic tasks.
   static void onExit(FutureOr<void> Function(AnyTask task) handler) {
@@ -441,16 +458,26 @@ final class Task<T> implements Future<T> {
     current._onExit = handler;
   }
 
-  /// Creates and starts a task with the specified [action] callback and
-  /// [name].
+  /// Creates and starts a task with the specified callback and [name].
+  ///
+  /// Parameters:
+  ///
+  /// - [action]: Callback function that will be executed.
+  /// - [name]: The name that will be assigned to the task.
   static Task<T> run<T>(FutureOr<T> Function() action, {String? name}) {
     final task = Task<T>(action, name: name);
     unawaited(task.start());
     return task;
   }
 
-  /// Allows to switch the event loop context to execute other scheduled code
-  /// in the microtask and timer queue.
+  /// Sleeps at specified time in milliseconds, thereby giving up control to
+  /// the event loop. A [TaskCanceledException] exception may be thrown if a
+  /// cancellation request was initiated before or after calling this method.
+  ///
+  /// Parameters:
+  ///
+  /// - [milliseconds]:Delay time in milliseconds.
+  /// - [token]: A token indicating that a cancellation request has occurred.
   ///
   /// The continuation of execution will be scheduled (delayed in time) for a
   /// time interval not less than the specified duration.
@@ -489,7 +516,13 @@ final class Task<T> implements Future<T> {
     return completer.future;
   }
 
-  /// Performs a wait operation for tasks to complete.\
+  /// Performs a wait operation for tasks to complete.
+  ///
+  /// Parameters:
+  ///
+  /// -[tasks]: A list of tasks to wait for.
+  /// -[progress]: A monitor that will be called when each task is completed.
+  ///
   /// When all tasks have completed successfully, returns a new task with the
   /// results of the awaited tasks.
   ///
@@ -558,9 +591,14 @@ final class Task<T> implements Future<T> {
     return tcs.task;
   }
 
-  /// Performs a wait operation for tasks to complete.\
-  /// As soon as one of the tasks is completed, it will be immediately returned
-  /// as the result of this method.
+  /// Performs a wait operation for tasks to complete. As soon as one of the
+  /// tasks is completed, it will be immediately returned as the result of this
+  /// method.
+  ///
+  /// Parameters:
+  ///
+  /// -[tasks]: A list of tasks to wait for.
+  /// -[progress]: A monitor that will be called when each task is completed.
   ///
   /// If the [progress] parameter is specified, it will call the `report()`
   /// method whenever each task completes.
@@ -597,6 +635,11 @@ final class Task<T> implements Future<T> {
 
   /// Returns a [Stream] to which each [Task] in the [tasks] list will be added,
   /// in the order in which they were completed.
+  ///
+  /// Parameters:
+  ///
+  /// -[tasks]: A list of tasks to wait for.
+  /// -[progress]: A monitor that will be called when each task is completed.
   ///
   /// If the [progress] parameter is specified, it will call the `report()`
   /// method whenever each task completes.
@@ -635,15 +678,23 @@ final class Task<T> implements Future<T> {
   }
 }
 
+/// A [TaskCompletionSource] is a  producer of the tasks that can complete with
+/// a value, with an error, or in a canceled state.
 class TaskCompletionSource<T> {
   final Completer<T> _completer = Completer();
 
+  /// The task produced by this source.
   final Task<T> task = Task._raw(TaskStatus.incomplete);
 
+  /// Creates an instance of [TaskCompletionSource].
   TaskCompletionSource() {
     task._resultCompleter = _completer;
   }
 
+  /// Completes the [task] with the status [TaskStatus.canceled].
+  ///
+  /// If the task has already been completed, this method throws a
+  /// [TaskStateError] exception.
   void setCanceled() {
     if (!_completer.isCompleted) {
       task._status = TaskStatus.canceled;
@@ -654,6 +705,15 @@ class TaskCompletionSource<T> {
     _errorSetTaskStatus();
   }
 
+  /// Completes the [task] with the status [TaskStatus.failed].
+  ///
+  /// Parameters:
+  ///
+  /// - [error]: A value that represents an exception.
+  /// - [stackTrace]: A value that represents a stack trace.
+  ///
+  /// If the task has already been completed, this method throws a
+  /// [TaskStateError] exception.
   void setError(Object error, StackTrace stackTrace) {
     if (!_completer.isCompleted) {
       task._status = TaskStatus.failed;
@@ -664,6 +724,14 @@ class TaskCompletionSource<T> {
     _errorSetTaskStatus();
   }
 
+  /// Completes the [task] with the status [TaskStatus.successful].
+  ///
+  /// Parameters:
+  ///
+  /// - [result]: A value that represents a result.
+  ///
+  /// If the task has already been completed, this method throws a
+  /// [TaskStateError] exception.
   void setResult(T result) {
     if (!_completer.isCompleted) {
       task._status = TaskStatus.successful;
@@ -672,6 +740,9 @@ class TaskCompletionSource<T> {
     }
   }
 
+  /// Tries to complete the [task] with the status [TaskStatus.canceled].
+  ///
+  /// If the task has already been completed, this method does nothing.
   void trySetCanceled() {
     if (!_completer.isCompleted) {
       task._status = TaskStatus.canceled;
@@ -680,6 +751,14 @@ class TaskCompletionSource<T> {
     }
   }
 
+  /// Tries to complete the [task] with the status [TaskStatus.failed].
+  ///
+  /// Parameters:
+  ///
+  /// - [error]: A value that represents an exception.
+  /// - [stackTrace]: A value that represents a stack trace.
+  ///
+  /// If the task has already been completed, this method does nothing.
   void trySetError(Object error, StackTrace stackTrace) {
     if (!_completer.isCompleted) {
       task._status = TaskStatus.failed;
@@ -688,10 +767,15 @@ class TaskCompletionSource<T> {
     }
   }
 
-  void trySetResult(T value) {
+  /// Tries to complete the [task] with the status [TaskStatus.successful].
+  ///
+  /// - [result]: A value that represents a result.
+  ///
+  /// If the task has already been completed, this method does nothing.
+  void trySetResult(T result) {
     if (!_completer.isCompleted) {
       task._status = TaskStatus.successful;
-      _completer.complete(value);
+      _completer.complete(result);
       return;
     }
   }

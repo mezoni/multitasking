@@ -1,20 +1,19 @@
-/// The [SpeedMeter] class is intended to measure the date processing or
-/// transferring speed.
+/// The [SpeedMeter] class is intended for measure the data processing speed.
 class SpeedMeter {
-  final Stopwatch _clock = Stopwatch();
-
   int _currentAmount = 0;
 
   int _previousTime = 0;
 
   int _totalAmount = 0;
 
+  final Stopwatch _watch = Stopwatch();
+
   /// Creates an instance of [SpeedMeter] in the `paused` state.
   SpeedMeter();
 
   /// Creates an instance of [SpeedMeter] and starts the measurement.
   SpeedMeter.run() {
-    _clock.start();
+    _watch.start();
   }
 
   /// Returns the cumulative time of measurements.\
@@ -22,14 +21,14 @@ class SpeedMeter {
   /// The [pause] method pauses the measurement.\
   /// The [resume] method resumes the measurement.\
   /// The [reset] method resets the measurement values.\
-  int get elapsedMicroseconds => _clock.elapsedMicroseconds;
+  int get elapsedMicroseconds => _watch.elapsedMicroseconds;
 
   double get speed {
-    if (!_clock.isRunning) {
+    if (!_watch.isRunning) {
       return 0;
     }
 
-    final now = _clock.elapsedMicroseconds;
+    final now = _watch.elapsedMicroseconds;
     final elapsed = now - _previousTime;
     final speed = elapsed == 0 ? 0.0 : _currentAmount / elapsed * 1e6;
     _currentAmount = 0;
@@ -41,8 +40,12 @@ class SpeedMeter {
   int get totalAmount => _totalAmount;
 
   /// Adds the specified [amount] of data for the measuring.
+  ///
+  /// Parameters:
+  ///
+  /// - [amount]: Amount of data processed.
   void add(int amount) {
-    if (!_clock.isRunning) {
+    if (!_watch.isRunning) {
       return;
     }
 
@@ -52,11 +55,11 @@ class SpeedMeter {
 
   /// Pauses the measurement.
   void pause() {
-    if (!_clock.isRunning) {
+    if (!_watch.isRunning) {
       return;
     }
 
-    _clock.stop();
+    _watch.stop();
   }
 
   /// Resets the measurement values.
@@ -66,15 +69,15 @@ class SpeedMeter {
     _currentAmount = 0;
     _totalAmount = 0;
     _previousTime = 0;
-    _clock.reset();
+    _watch.reset();
   }
 
   /// Resumes the measurement.
   void resume() {
-    if (_clock.isRunning) {
+    if (_watch.isRunning) {
       return;
     }
 
-    _clock.start();
+    _watch.start();
   }
 }

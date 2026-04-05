@@ -45,13 +45,15 @@ extension StreamExtension<T> on Stream<T> {
   }
 
   /// Adds a subscription to this stream.\
-  /// Immediately cancels the subscription when the token state changes to
+  /// Immediately cancels the subscription when the token status changes to
   /// `canceled`.
   ///
   /// Additionally, a [TaskCanceledException] error event will be sent to the
   /// subscriber if the [throwIfCanceled] parameter has the value `true`.\
   /// This can be useful if the code waiting for a subscription via a call to
-  /// the `asFuture()` method.
+  /// the `asFuture()` method or via the `await for` statement, because this
+  /// clearly signals that the subscription was cancelled abnormally (that is,
+  /// upon request for cancellation).
   ///
   /// Example:
   ///

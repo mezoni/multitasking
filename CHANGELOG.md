@@ -9,6 +9,7 @@
 - Breaking change: Code normalization, the `completed` value of the `TaskStatus` enum has been renamed to `successful`.
 - Breaking change: The `isCompleted` getter of the `Task` class has been renamed to `isSuccessful`.
 - Breaking change: The `isStarted` getter of the `Task` class has been removed.
+- Documentation has been added or changed.
 
 ## 4.6.0
 

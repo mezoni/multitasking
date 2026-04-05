@@ -4,7 +4,7 @@ import '../multitasking.dart';
 import '../src/multitasking/cancellation.dart';
 import '../synchronization/reset_events.dart';
 
-/// A [PauseToken] is a mechanism for `cooperative` pause/resume of asynchronous
+/// The [PauseToken] class is intended for pausing and resuming asynchronous
 /// operations.
 class PauseToken {
   final ManualResetEvent _event = ManualResetEvent(true);
@@ -17,9 +17,17 @@ class PauseToken {
 
   PauseToken._();
 
-  /// Returns the state of the token.
+  /// Returns `true` if the token is in a `paused` state.
   bool get isPaused => _isPaused;
 
+  /// Execute an [action] that can be paused/resumed while it is being executed.
+  ///
+  /// Parameters:
+  ///
+  /// - [onPause]: A callback that will `pause` the execution of the [action].
+  /// - [onResume]: A callback that will `resume` the execution of the [action].
+  /// - [action]: An [action] that supports `pausing`/`resume` on request.
+  ///
   /// Performs the following actions:
   ///
   /// - Adds a pause handler [onPause]
@@ -48,13 +56,15 @@ class PauseToken {
     }
   }
 
-  /// If the token is in the `paused` state, then it pauses execution of the
-  /// calling code until it receives the `resume` signal.\
-  /// If the token is not in the `paused` state, then execution of the calling
-  /// code continues immediately.
+  /// Paused execution of the calling code while the token is in the `paused`
+  /// state. If the token is not in the `paused` state, then execution of the
+  /// calling code continues immediately.
   ///
-  /// If a cancellation [token] is specified, the method may throw an
-  /// `TaskCanceledError` exception.
+  /// Parameters:
+  ///
+  /// - [token]: A cancellation token. If a [token] value is specified, the
+  /// method will throw a `TaskCanceledError` exception if cancellation was
+  /// requested.
   Future<void> wait({CancellationToken? token}) async {
     if (token != null) {
       token.throwIfCanceled();

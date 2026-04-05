@@ -11,16 +11,19 @@ class CancellationToken {
 
   CancellationToken._();
 
-  /// Returns the state of the token.
+  /// Returns `true` if the token is in a `canceled` state.
   bool get isCanceled {
     return _isCanceled;
   }
 
-  /// Adds and returns a handler if the token is not in the `canceled` state.
-  ///
+  /// Adds and returns a handler if the token is not in the `canceled` state.\
   /// If the token is in the `canceled` state, the handler will be called
   /// immediately. In this case, the handler will not be added and `null` will
   /// be returned.
+  ///
+  /// Parameters:
+  ///
+  /// - [callback]: A callback that will `cancel` the execution of the [action].
   ///
   /// Handlers should be added temporarily. For example, while waiting for the
   /// completion of I/O operation. To cancel this operation (for example,
@@ -55,7 +58,13 @@ class CancellationToken {
     return callback;
   }
 
-  /// Removes the handler.\
+  /// Removes the handler.
+  ///
+  /// Parameters:
+  ///
+  /// - [callback]: A previously added [callback] function that should be
+  /// removed from the handlers.
+  ///
   /// The subscriber must call this method itself after the handler is no longer
   /// needed to free up memory.
   void removerHandler(FutureOr<void> Function()? callback) {
@@ -64,14 +73,21 @@ class CancellationToken {
     }
   }
 
+  /// Execute an [action] that can be canceled while it is being executed.
+  ///
+  /// Parameters:
+  ///
+  /// - [onCancel]: A callback that will `cancel` the execution of the [action].
+  /// - [action]: An [action] that supports `cancellation` on request.
+  ///
   /// Performs the following actions:
   ///
   /// - Adds a cancellation handler [onCancel]
   /// - Executes the [action] callback
   /// - Removes a cancellation handler [onCancel]
   ///
-  /// The [onCancel] handler should initiate the cancellation which interrupts
-  /// (or cancel) the execution of the [action] callback.
+  /// The [onCancel] handler should initiate the cancellation which cancel the
+  /// execution of the [action] callback.
   ///
   /// This method itself does not throw any exceptions. It simply calls the
   /// [onCancel] handler when a cancellation request is made.
@@ -89,8 +105,8 @@ class CancellationToken {
     }
   }
 
-  /// Throw the exception [TaskCanceledException] if the token is in the `canceled`
-  /// state.
+  /// Throw the exception [TaskCanceledException] if the token is in the
+  /// `canceled` state.
   void throwIfCanceled() {
     if (_isCanceled) {
       throw TaskCanceledException();
@@ -126,8 +142,8 @@ class CancellationTokenSource {
   ///
   /// Parameters:
   ///
-  /// - [delay]: Sets the [token] to the `canceled` state after the specified
-  /// [delay].
+  /// - [delay]: The duration after which a cancellation request is initiated,
+  /// if the [delay] value is specified.
   CancellationTokenSource([Duration? delay]) {
     if (delay != null) {
       cancelAfter(delay);
@@ -139,8 +155,12 @@ class CancellationTokenSource {
     token._cancel();
   }
 
-  /// Sets the [token] to the `canceled` state after the specified [delay];
-  /// otherwise, if [delay] is `null`, then resets the scheduled cancellation.
+  /// Sets the [delay] time after which a cancellation request will be
+  /// initiated or the time will be reset if the [delay] value is `null`.
+  ///
+  /// Parameters:
+  ///
+  /// - [delay]:The [delay] time before initiating a cancellation request.
   ///
   /// Subsequent calls to [cancelAfter] will reset the [delay] for this
   /// [CancellationTokenSource], if it has not been canceled already.
@@ -162,10 +182,18 @@ class CancellationTokenSource {
     _timer = Timer(delay, token._cancel);
   }
 
-  /// Creates a [CancellationTokenSource] that will be linked with the specified
-  /// [tokens].\
-  ///This [CancellationTokenSource] can be canceled individually, or it will be
-  ///canceled automatically when other sources are canceled.
+  /// Creates a [CancellationTokenSource] that will be linked with other
+  /// cancellation sources via specified [tokens].
+  ///
+  /// Parameters:
+  ///
+  /// - [token]: List of tokens of other cancellation sources to link.
+  ///
+  /// This [CancellationTokenSource] can be canceled individually, or it will be
+  /// canceled cooperatively when one of the other sources will initiate a
+  /// cancellation request.\
+  /// If any of the sources has already initiated a cancellation request, then
+  /// that source immediately initiate the cancellation request.
   static CancellationTokenSource createLinkedTokenSource(
       List<CancellationToken> tokens) {
     if (tokens.isEmpty) {
