@@ -1,5 +1,15 @@
 # Changelog
 
+## 5.0.0
+
+- Breaking change: Removed deprecated class `Throughput`.
+- Breaking change: Removed deprecated class `TokenBucket`.
+- Breaking change: Code normalization, the `state` field of the `Task` class has been renamed to `status`.
+- Breaking change: Code normalization, the `TaskState` enum has been renamed to `TaskStatus`.
+- Breaking change: Code normalization, the `completed` value of the `TaskStatus` enum has been renamed to `successful`.
+- Breaking change: The `isCompleted` getter of the `Task` class has been renamed to `isSuccessful`.
+- Breaking change: The `isStarted` getter of the `Task` class has been removed.
+
 ## 4.6.0
 
 - Breaking change: The `runCancelable()` method of the `CancellationToken` class no longer throws a `TaskCanceledException` exception, in case the cancellation request occurred after the successful completion of the operation. Now the main purpose is to add and automatically remove a cancel handler in the token to cancel the operation. After successful completion of the operation, it is recommended to use `token.throwIfCanceled()` if necessary.

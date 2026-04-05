@@ -15,7 +15,7 @@ Future<void> main() async {
   if (zoneStats != null) {
     Timer.periodic(Duration(milliseconds: 100), (timer) {
       print('-' * 40);
-      if (zoneStats.isZoneActive || !task.isStarted) {
+      if (zoneStats.isZoneActive || task.isCreated) {
         print('Active microtasks: ${zoneStats.activeMicrotasks}');
         print('Active periodic timers: ${zoneStats.activePeriodicTimers}');
         print('Active timers: ${zoneStats.activeTimers}');

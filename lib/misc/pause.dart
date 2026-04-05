@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../multitasking.dart';
 import '../src/multitasking/cancellation.dart';
 import '../synchronization/reset_events.dart';
 
@@ -54,18 +55,25 @@ class PauseToken {
   ///
   /// If a cancellation [token] is specified, the method may throw an
   /// `TaskCanceledError` exception.
-  Future<void> wait({CancellationToken? token}) {
+  Future<void> wait({CancellationToken? token}) async {
+    if (token != null) {
+      token.throwIfCanceled();
+    }
+
+    if (!_isPaused) {
+      return;
+    }
+
     if (token == null) {
       return _event.wait();
     }
 
-    token.throwIfCanceled();
     final completer = Completer<void>();
-    unawaited(() async {
-      await _event.wait();
-      completer.tryComplete();
-    }());
-    return token.runCancelable(completer.tryComplete, () => completer.future);
+    final handler = token.addHandler(completer.tryComplete);
+    await Future.any([_event.wait(), completer.future]);
+    completer.tryComplete();
+    token.removerHandler(handler);
+    token.throwIfCanceled();
   }
 
   void _executeHandlers(Map<FutureOr<void> Function(), Zone> handlers) {
@@ -121,7 +129,7 @@ class PauseTokenSource {
 extension<T> on Completer<T> {
   void tryComplete([T? value]) {
     if (!isCompleted) {
-      complete();
+      complete(value);
     }
   }
 }

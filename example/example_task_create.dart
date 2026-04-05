@@ -8,7 +8,7 @@ Future<void> main() async {
     print('Creating task');
     tasks.add(Task.run(name: '', () async {
       Task.onExit((task) {
-        _message('On exit: ${task.state.name}');
+        _message('On exit: ${task.status.name}');
       });
 
       final result = i;

@@ -10,8 +10,8 @@ Future<void> main() async {
   ];
 
   await for (final task in Task.whenEach(tasks)) {
-    print('${task.toString()} ${task.state.name}');
-    if (task.isCompleted) {
+    print('${task.toString()} ${task.status.name}');
+    if (task.isSuccessful) {
       final result = await task;
       print('${task.toString()} result $result');
     }

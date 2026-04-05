@@ -90,8 +90,8 @@ void _testWaitAll() {
       results.add(await task);
     }
 
-    expect(tasks.map((e) => e.state),
-        List.filled(tasks.length, TaskState.completed),
+    expect(tasks.map((e) => e.status),
+        List.filled(tasks.length, TaskStatus.successful),
         reason: 'Not all task state succeeded');
     expect(results, [0, 1, 2, 3], reason: 'Not all results valid');
   });

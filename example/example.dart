@@ -38,7 +38,7 @@ Future<void> main() async {
   }
 
   for (final task in tasks) {
-    if (task.isCompleted) {
+    if (task.isSuccessful) {
       final filename = await task;
       print('Done: $filename');
     }
@@ -50,7 +50,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     var bytes = 0;
 
     Task.onExit((task) {
-      print('${task.toString()}: ${task.state.name}');
+      print('${task.toString()}: ${task.status.name}');
       _message('Downloaded: $bytes');
     });
 

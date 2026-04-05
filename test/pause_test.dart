@@ -31,7 +31,7 @@ void main() {
     await sub.cancel();
   });
 
-  test('PauseToken: wait()', () async {
+  test('PauseToken: waitWhilePaused()', () async {
     final pts = PauseTokenSource();
     final token = pts.token;
     var cancel = false;
@@ -53,5 +53,22 @@ void main() {
     await Task.sleep(500);
     expect(count != count2, true, reason: 'resume does not works');
     cancel = true;
+  });
+
+  test('PauseToken: waitWhilePaused(token)', () async {
+    final cts = CancellationTokenSource();
+    final token = cts.token;
+    final pts = PauseTokenSource();
+    final pause = pts.token;
+    await pts.pause();
+    Timer(Duration(milliseconds: 500), cts.cancel);
+    Object? error;
+    try {
+      await pause.wait(token: token);
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<TaskCanceledException>(), reason: 'error');
   });
 }

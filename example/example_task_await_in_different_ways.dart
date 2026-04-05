@@ -18,7 +18,7 @@ Future<void> main() async {
 
   print('whenAny()');
   final firstTask = await Task.whenAny(tasks, progress: progress);
-  print('First task: ${firstTask.toString()} (${firstTask.state.name})');
+  print('First task: ${firstTask.toString()} (${firstTask.status.name})');
   try {
     final result = await firstTask;
     print('First result: $result');
@@ -28,7 +28,7 @@ Future<void> main() async {
 
   print('Tasks:');
   print(tasks.map((e) {
-    return '${e.toString()} (${e.state.name})';
+    return '${e.toString()} (${e.status.name})';
   }).join(', '));
 
   print('whenAll()');
@@ -41,8 +41,8 @@ Future<void> main() async {
 
   for (var i = 0; i < tasks.length; i++) {
     final task = tasks[i];
-    var s = '${task.toString()}: ${task.state.name}';
-    if (task.isCompleted) {
+    var s = '${task.toString()}: ${task.status.name}';
+    if (task.isSuccessful) {
       s += ', result: ${task.result}';
     } else {
       s += ', exception: ${task.exception!.error}';

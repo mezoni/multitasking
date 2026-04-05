@@ -38,7 +38,7 @@ Future<void> main() async {
   }
 
   for (final task in tasks) {
-    if (task.isCompleted) {
+    if (task.isSuccessful) {
       final result = await task;
       _message('Result of ${task.toString()}: $result');
     }

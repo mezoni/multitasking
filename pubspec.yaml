@@ -3,11 +3,11 @@ version: 4.6.0
 description: Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 homepage: https://github.com/mezoni/multitasking
 topics:
- - parallelism
  - concurrency
  - cancellation
  - synchronization
  - mutex
+ - streams
 environment:
   sdk: '>=3.0.0 <4.0.0'
 dependencies:

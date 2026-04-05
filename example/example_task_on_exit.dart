@@ -8,7 +8,7 @@ Future<void> main() async {
     Object? handle;
 
     Task.onExit((task) {
-      _message("Exit with status '${task.state.name}'");
+      _message("Exit with status '${task.status.name}'");
       if (handle != null) {
         _message("Frees up 'handle'");
       }

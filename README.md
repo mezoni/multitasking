@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 4.6.0
+Version: 5.0.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -17,7 +17,7 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
 
 ![example_task_download_file.dart](https://i.imgur.com/IBny2xe.gif)
 
-[example_task_download_file.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_download_file.dart)
+[Example of a file download task.](https://github.com/mezoni/multitasking/blob/main/example/example_task_download_file.dart)
 
 Table of Contents:
 
@@ -230,7 +230,7 @@ Future<void> main() async {
     Object? handle;
 
     Task.onExit((task) {
-      _message("Exit with status '${task.state.name}'");
+      _message("Exit with status '${task.status.name}'");
       if (handle != null) {
         _message("Frees up 'handle'");
       }
@@ -405,7 +405,7 @@ Future<void> main() async {
 
   print('whenAny()');
   final firstTask = await Task.whenAny(tasks, progress: progress);
-  print('First task: ${firstTask.toString()} (${firstTask.state.name})');
+  print('First task: ${firstTask.toString()} (${firstTask.status.name})');
   try {
     final result = await firstTask;
     print('First result: $result');
@@ -415,7 +415,7 @@ Future<void> main() async {
 
   print('Tasks:');
   print(tasks.map((e) {
-    return '${e.toString()} (${e.state.name})';
+    return '${e.toString()} (${e.status.name})';
   }).join(', '));
 
   print('whenAll()');
@@ -428,8 +428,8 @@ Future<void> main() async {
 
   for (var i = 0; i < tasks.length; i++) {
     final task = tasks[i];
-    var s = '${task.toString()}: ${task.state.name}';
-    if (task.isCompleted) {
+    var s = '${task.toString()}: ${task.status.name}';
+    if (task.isSuccessful) {
       s += ', result: ${task.result}';
     } else {
       s += ', exception: ${task.exception!.error}';
@@ -469,8 +469,8 @@ Ready: 66.67%
 Ready: 100.00%
 Error: AggregateError: One or more errors occurred. (Bad state: Some error)
 Task(1): failed, exception: Bad state: Some error
-Task(2): completed, result: 1
-Task(3): completed, result: 2
+Task(2): successful, result: 1
+Task(3): successful, result: 2
 
 ```
 
@@ -493,8 +493,8 @@ Future<void> main() async {
   ];
 
   await for (final task in Task.whenEach(tasks)) {
-    print('${task.toString()} ${task.state.name}');
-    if (task.isCompleted) {
+    print('${task.toString()} ${task.status.name}');
+    if (task.isSuccessful) {
       final result = await task;
       print('${task.toString()} result $result');
     }
@@ -521,9 +521,9 @@ Output:
 
 ```txt
 Task(1) failed
-Task(2) completed
+Task(2) successful
 Task(2) result 1
-Task(3) completed
+Task(3) successful
 Task(3) result 2
 
 ```
@@ -649,7 +649,7 @@ Future<void> main() async {
   if (zoneStats != null) {
     Timer.periodic(Duration(milliseconds: 100), (timer) {
       print('-' * 40);
-      if (zoneStats.isZoneActive || !task.isStarted) {
+      if (zoneStats.isZoneActive || task.isCreated) {
         print('Active microtasks: ${zoneStats.activeMicrotasks}');
         print('Active periodic timers: ${zoneStats.activePeriodicTimers}');
         print('Active timers: ${zoneStats.activeTimers}');
@@ -768,7 +768,7 @@ Output:
 
 ```txt
 TaskCanceledException
-main(): count: 163079
+main(): count: 234507
 
 ```
 
@@ -795,14 +795,14 @@ Future<void> main() async {
   final group = <Task<int>>[];
 
   void onExit(AnyTask task) {
-    if (!task.isCompleted) {
+    if (!task.isSuccessful) {
       cts.cancel();
     }
   }
 
   parent = Task.run<void>(name: 'Parent', () async {
     Task.onExit((task) {
-      print('On exit: ${task.toString()} (${task.state.name})');
+      print('On exit: ${task.toString()} (${task.status.name})');
       onExit(task);
     });
 
@@ -810,7 +810,7 @@ Future<void> main() async {
     for (var i = 1; i <= 3; i++) {
       final t = Task<int>(name: 'Child $i', () async {
         Task.onExit((task) {
-          print('On exit: ${task.toString()} (${task.state.name})');
+          print('On exit: ${task.toString()} (${task.status.name})');
           onExit(task);
         });
 
@@ -911,7 +911,7 @@ Future<void> main() async {
   }
 
   for (final task in tasks) {
-    if (task.isCompleted) {
+    if (task.isSuccessful) {
       final result = await task;
       _message('Result of ${task.toString()}: $result');
     }
@@ -1070,8 +1070,8 @@ Future<void> main() async {
 
   for (final task in tasks) {
     print('-' * 40);
-    print('${task.toString()}: ${task.state.name}');
-    if (task.isCompleted) {
+    print('${task.toString()}: ${task.status.name}');
+    if (task.isSuccessful) {
       final value = await task;
       final text = value;
       final length = text.length < 80 ? text.length : 80;
@@ -1097,13 +1097,12 @@ Task(5): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Task(9): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Task(13): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Task(17): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Task(1): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
+Task(13): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 main(): Canceling
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 ----------------------------------------
-Task(1): completed
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(1): canceled
+No data
 ----------------------------------------
 Task(5): canceled
 No data
@@ -1111,8 +1110,9 @@ No data
 Task(9): canceled
 No data
 ----------------------------------------
-Task(13): canceled
-No data
+Task(13): successful
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(17): canceled
 No data
@@ -1166,7 +1166,7 @@ Future<void> main() async {
   }
 
   for (final task in tasks) {
-    if (task.isCompleted) {
+    if (task.isSuccessful) {
       final filename = await task;
       print('Done: $filename');
     }
@@ -1178,7 +1178,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     var bytes = 0;
 
     Task.onExit((task) {
-      print('${task.toString()}: ${task.state.name}');
+      print('${task.toString()}: ${task.status.name}');
       _message('Downloaded: $bytes');
     });
 
@@ -1228,10 +1228,10 @@ Output:
 
 ```txt
 Canceling...
-Task(6): canceled
-Task(6): Downloaded: 3850238
 Task(1): canceled
-Task(1): Downloaded: 3735552
+Task(1): Downloaded: 2342912
+Task(6): canceled
+Task(6): Downloaded: 2211838
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException)
 
 ```
@@ -1411,31 +1411,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 320887907
+Isolate started: 983783444
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 409069263
+Isolate started: 1010355286
 main(): Adding task 3
+Isolate started: 837831192
+Isolate started: 573433489
 main(): Adding task 4
-Isolate started: 636100213
-Isolate started: 172793738
-Isolate started: 1065834026
+Isolate started: 442622345
+Task(6): Received result: [14]
 Task(5): Received result: [13]
 Task(2): Received result: [10]
 Task(4): Received result: [12]
 Task(3): Received result: [11]
-Task(6): Received result: [14]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 525370800
-Isolate started: 630492082
-Isolate started: 676914564
+Isolate started: 527131116
 main(): Adding task 3
 main(): Adding task 4
-Isolate started: 223147660
-Isolate started: 167408350
+Isolate started: 192256671
+Isolate started: 775363076
+Isolate started: 521579398
+Isolate started: 293963492
 main(): Canceling...
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 

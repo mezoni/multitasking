@@ -47,7 +47,7 @@ Future<void> main() async {
   }
 
   timer.cancel();
-  if (task.isCompleted) {
+  if (task.isSuccessful) {
     final filename = await task;
     print('Done: $filename');
   }
@@ -59,7 +59,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token,
     var bytes = 0;
 
     Task.onExit((task) {
-      print('${task.toString()}: ${task.state.name}');
+      print('${task.toString()}: ${task.status.name}');
       _message('Downloaded: $bytes bytes');
     });
 
@@ -82,11 +82,6 @@ Task<String> _download(Uri uri, String filename, CancellationToken token,
       rethrow;
     }
 
-    final statusCode = response.statusCode;
-    if (statusCode != 200) {
-      throw Exception('Http error ($statusCode)');
-    }
-
     final contentLength = response.contentLength;
     final stream = response.stream;
     await for (final event
@@ -95,6 +90,11 @@ Task<String> _download(Uri uri, String filename, CancellationToken token,
       meter?.add(event.length);
       bytes += event.length;
       progress?.report((count: byteCount, total: contentLength ?? 0));
+    }
+
+    final statusCode = response.statusCode;
+    if (statusCode != 200) {
+      throw Exception('Http error ($statusCode)');
     }
 
     // Save file to disk

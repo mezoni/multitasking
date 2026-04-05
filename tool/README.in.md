@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 4.6.0
+Version: 5.0.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -17,7 +17,7 @@ Producer/consumer problem: Monitor and 2 condition variables operation.
 
 ![example_task_download_file.dart](https://i.imgur.com/IBny2xe.gif)
 
-[example_task_download_file.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_download_file.dart)
+[Example of a file download task.](https://github.com/mezoni/multitasking/blob/main/example/example_task_download_file.dart)
 
 Table of Contents:
 
