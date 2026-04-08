@@ -6,7 +6,6 @@ import 'package:test/test.dart';
 void main() {
   _testFailed();
   _testWaitAll();
-  _testZoneActivity();
 }
 
 Future<void> _delay(int milliseconds) {
@@ -132,72 +131,5 @@ void _testWaitAll() {
         }
       }
     }
-  });
-}
-
-void _testZoneActivity() {
-  test('Task zone activity: timer', () async {
-    final t1 = Task.run(() {
-      Timer(Duration(seconds: 1), () {
-        //
-      });
-    });
-
-    await t1;
-    final tracker = t1.zoneStats!;
-    expect(tracker.isZoneActive, true, reason: 'isZoneActive != true');
-    await _delay(1300);
-    expect(tracker.isZoneActive, false, reason: 'isZoneActive != false');
-  });
-
-  test('Task zone activity: timer.cancel()', () async {
-    Timer? timer;
-    final t1 = Task.run(() {
-      timer = Timer(Duration(seconds: 1), () {
-        //
-      });
-    });
-
-    await t1;
-    final tracker = t1.zoneStats!;
-    timer?.cancel();
-    expect(tracker.isZoneActive, false, reason: 'isZoneActive != false');
-  });
-
-  test('Task zone activity: timer long running)', () async {
-    final t1 = Task.run(() {
-      Timer(Duration(seconds: 1), () async {
-        await _delay(1000);
-      });
-    });
-
-    final tracker = t1.zoneStats!;
-    Timer(Duration(milliseconds: 1200), () {
-      expect(tracker.isZoneActive, true, reason: 'isZoneActive != true');
-    });
-
-    Timer(Duration(milliseconds: 2200), () {
-      expect(tracker.isZoneActive, false, reason: 'isZoneActive != false');
-    });
-
-    await t1;
-  });
-
-  test('Task zone activity: microtask long running)', () async {
-    final t1 = Task.run(() {
-      scheduleMicrotask(() async {
-        await _delay(2000);
-      });
-    });
-
-    await t1;
-    final zoneStats = t1.zoneStats!;
-    Timer(Duration(milliseconds: 1200), () {
-      expect(zoneStats.isZoneActive, true, reason: 'isZoneActive != true');
-    });
-
-    Timer(Duration(milliseconds: 2200), () {
-      expect(zoneStats.isZoneActive, false, reason: 'isZoneActive != false');
-    });
   });
 }

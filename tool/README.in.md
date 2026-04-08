@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 5.0.0
+Version: 5.1.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -35,7 +35,6 @@ Table of Contents:
     - [Tasks can be awaited in different ways](#tasks-can-be-awaited-in-different-ways)
     - [Tasks can be awaited as a stream](#tasks-can-be-awaited-as-a-stream)
     - [Tasks can be awaited in the order of queue](#tasks-can-be-awaited-in-the-order-of-queue)
-    - [The task zone provides access to statistics of the operations in the zone](#the-task-zone-provides-access-to-statistics-of-the-operations-in-the-zone)
     - [The task can be canceled using a cancellation token](#the-task-can-be-canceled-using-a-cancellation-token)
     - [The task can be canceled during `Task.delay()`](#the-task-can-be-canceled-during-taskdelay)
     - [The task can be canceled as a group of tasks](#the-task-can-be-canceled-as-a-group-of-tasks)
@@ -44,6 +43,7 @@ Table of Contents:
     - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
     - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
     - [The waiting for a non-cancelable task can be canceled](#the-waiting-for-a-non-cancelable-task-can-be-canceled)
+    - [The stream can handle explicit cancellation of the subscription](#the-stream-can-handle-explicit-cancellation-of-the-subscription)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -211,14 +211,6 @@ BEGIN_EXAMPLE
 example_task_await_in_order_of_queue
 END_EXAMPLE
 
-### The task zone provides access to statistics of the operations in the zone
-
-Example of accessing task zone statistics:
-
-BEGIN_EXAMPLE
-example_task_zone_stats
-END_EXAMPLE
-
 ### The task can be canceled using a cancellation token
 
 Canceling a task is a normal action that is supported by the implementation of the mechanism of task functioning.  
@@ -301,6 +293,14 @@ An example of canceling the wait for a non-cancelable task:
 
 BEGIN_EXAMPLE
 example_task_cancel_waiting_for_non_cancelable_action
+END_EXAMPLE
+
+### The stream can handle explicit cancellation of the subscription
+
+An example of handling explicit cancellation of the subscription:
+
+BEGIN_EXAMPLE
+example_stream_handle_cancellation_of_subscription
 END_EXAMPLE
 
 ## Synchronization primitives

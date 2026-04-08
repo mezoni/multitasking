@@ -7,7 +7,6 @@ import 'package:meta/meta.dart';
 import '../../misc/progress.dart';
 import 'cancellation.dart';
 import 'errors.dart';
-import 'zone_stats.dart';
 
 /// Type alias for a task of any type.
 typedef AnyTask = Task<Object?>;
@@ -106,8 +105,6 @@ final class Task<T> implements Future<T> {
 
   Zone? _zone;
 
-  ZoneStats? _zoneStats;
-
   /// Creates a task with the specified callback function and [name].
   ///
   /// Parameters:
@@ -119,12 +116,7 @@ final class Task<T> implements Future<T> {
   Task(FutureOr<T> Function() action, {this.name})
       : _action = action,
         _status = TaskStatus.created {
-    final zoneStats = ZoneStats();
-    var specification = zoneStats.specification;
-    specification = ZoneSpecification.from(specification);
-    _zoneStats = zoneStats;
     _zone = Zone.current.fork(
-      specification: specification,
       zoneValues: {_taskKey: this},
     );
   }
@@ -234,8 +226,6 @@ final class Task<T> implements Future<T> {
 
   /// Returns task status ([TaskStatus]).
   TaskStatus get status => _status;
-
-  ZoneStats? get zoneStats => _zoneStats;
 
   Future<T> get _future {
     var completer = _resultCompleter;
@@ -796,7 +786,7 @@ enum TaskStatus {
   /// The task was completed with an error.
   failed,
 
-  /// The task is waiting for completion by the completer.
+  /// The task is waiting for completion from the task completion source.
   incomplete,
 
   /// The task is running.

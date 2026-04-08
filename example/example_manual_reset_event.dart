@@ -3,20 +3,20 @@ import 'package:multitasking/synchronization/reset_events.dart';
 
 Future<void> main() async {
   final mre = ManualResetEvent(false);
-  final sw = Stopwatch();
+  final watch = Stopwatch();
   final tasks = <AnyTask>[];
   for (var i = 0; i < 3; i++) {
     final task = Task.run(() async {
       await mre.wait();
-      _message('${sw.elapsedMilliseconds}');
+      _message('${watch.elapsedMilliseconds}');
     });
 
     tasks.add(task);
   }
 
   const ms = 500;
-  sw.start();
-  _message('${sw.elapsedMilliseconds}');
+  watch.start();
+  _message('${watch.elapsedMilliseconds}');
   _message('Waiting $ms ms');
   await Future<void>.delayed(Duration(milliseconds: ms));
   _message('Start');

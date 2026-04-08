@@ -51,9 +51,9 @@ void _testBinarySemaphore() {
     }
 
     await Future.wait(futures);
-    expect(count, 0, reason: 'count != 0');
-    expect(max, 1, reason: 'max != 1');
-    expect(total, futures.length, reason: 'total != ${futures.length}');
+    expect(count, equals(0), reason: 'count');
+    expect(max, equals(1), reason: 'max');
+    expect(total, equals(futures.length), reason: 'total');
   });
 
   test('BinarySemaphore.tryAcquire(): With duration', () async {
@@ -103,10 +103,9 @@ void _testBinarySemaphore() {
     }
 
     await Future.wait(futures);
-    expect(count, 0, reason: 'count != 0');
-    expect(max, 1, reason: 'max != 1');
-    expect(total, futures.length ~/ 2,
-        reason: 'total != ${futures.length ~/ 2}');
+    expect(count, equals(0), reason: 'count');
+    expect(max, equals(1), reason: 'max');
+    expect(total, equals(futures.length ~/ 2), reason: 'total');
   });
 
   test('BinarySemaphore.tryAcquire(): With zero duration', () async {
@@ -140,10 +139,9 @@ void _testBinarySemaphore() {
     }
 
     await Future.wait(futures);
-    expect(count, 0, reason: 'count != 0');
-    expect(max, 1, reason: 'max != 1');
-    expect(total, futures.length ~/ 2,
-        reason: 'total != ${futures.length ~/ 2}');
+    expect(count, equals(0), reason: 'count');
+    expect(max, equals(1), reason: 'max');
+    expect(total, equals(futures.length ~/ 2), reason: 'total');
   });
 }
 
@@ -204,9 +202,9 @@ void _testConditionVariable() {
     }
 
     await Future.wait(futures);
-    expect(products.isEmpty, true, reason: 'products.isNotEmpty');
-    expect(produced, 5, reason: 'produced != 5');
-    expect(consumed, 5, reason: 'consumed != 5');
+    expect(products.isEmpty, isTrue, reason: 'products.isNotEmpty');
+    expect(produced, equals(5), reason: 'produced');
+    expect(consumed, equals(5), reason: 'consumed');
   });
 }
 
@@ -238,9 +236,9 @@ void _testCountingSemaphore() {
     }
 
     await Future.wait(futures);
-    expect(count, 0, reason: 'count != 0');
-    expect(max, 2, reason: 'max != 2');
-    expect(total, 5, reason: 'total != 5');
+    expect(count, equals(0), reason: 'count');
+    expect(max, equals(2), reason: 'max');
+    expect(total, equals(5), reason: 'total');
   });
 
   test('CountingSemaphore.tryAcquire(): With duration', () async {
@@ -290,9 +288,9 @@ void _testCountingSemaphore() {
     }
 
     await Future.wait(futures);
-    expect(count, 0, reason: 'count != 0');
-    expect(max, 2, reason: 'max != 2');
-    expect(total, 3, reason: 'total != 3');
+    expect(count, equals(0), reason: 'count');
+    expect(max, equals(2), reason: 'max');
+    expect(total, equals(3), reason: 'total');
   });
 
   test('CountingSemaphore.tryAcquire(): With zero duration', () async {
@@ -326,9 +324,9 @@ void _testCountingSemaphore() {
     }
 
     await Future.wait(futures);
-    expect(count, 0, reason: 'count != 0');
-    expect(max, 2, reason: 'max != 2');
-    expect(total, 3, reason: 'total != 3');
+    expect(count, equals(0), reason: 'count');
+    expect(max, equals(2), reason: 'max');
+    expect(total, equals(3), reason: 'total');
   });
 }
 
@@ -350,10 +348,10 @@ void _testManualResetEvent() {
     });
 
     await f();
-    expect(result, 0, reason: 'result != 0');
+    expect(result, equals(0), reason: 'result');
     isOpen = true;
     await f();
-    expect(result, 1, reason: 'result != 1');
+    expect(result, equals(1), reason: 'result');
   });
 }
 
@@ -405,9 +403,9 @@ void _testMultipleWriteSingleReadObject() {
     scheduleRead(400);
 
     await Task.whenAll(tasks);
-    expect(modes, ['read', 'wait/read', 'wait/read', 'read'],
-        reason: 'wring read modes');
-    expect(values, [0, 2, 2, 2], reason: 'wring values');
+    expect(modes, equals(['read', 'wait/read', 'wait/read', 'read']),
+        reason: 'modes');
+    expect(values, equals([0, 2, 2, 2]), reason: 'values');
   });
 }
 
@@ -439,8 +437,8 @@ void _testReentrantLock() {
 
     await Task.whenAll(tasks);
 
-    expect(list, ['01', '02', '03', '14', '15', '16', '27', '28', '29'],
-        reason: 'mutex does not works');
+    expect(list, equals(['01', '02', '03', '14', '15', '16', '27', '28', '29']),
+        reason: 'list');
   });
 
   test('ReentrantLock: tryAcquire()', () async {
@@ -491,7 +489,6 @@ void _testReentrantLock() {
 
     await Task.whenAll(tasks);
 
-    expect(list, ['01', '02', '03', '24', '25', '26'],
-        reason: 'mutex does not works');
+    expect(list, equals(['01', '02', '03', '24', '25', '26']), reason: 'list');
   });
 }

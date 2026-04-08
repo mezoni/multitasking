@@ -20,7 +20,7 @@ class CountdownTimer implements Timer {
 
   Duration _duration;
 
-  final Stopwatch _stopwatch = Stopwatch();
+  final Stopwatch _watch = Stopwatch();
 
   Timer _timer = _initialTimer;
 
@@ -49,7 +49,7 @@ class CountdownTimer implements Timer {
       return;
     }
 
-    final elapsedMicroseconds = _stopwatch.elapsedMicroseconds;
+    final elapsedMicroseconds = _watch.elapsedMicroseconds;
     final remaining = duration.inMicroseconds - elapsedMicroseconds;
     if (remaining <= 0) {
       _duration = Duration(microseconds: elapsedMicroseconds);
@@ -65,7 +65,7 @@ class CountdownTimer implements Timer {
 
   /// Returns the elapsed time in microseconds.
   int get elapsedMicroseconds {
-    final elapsedMicroseconds = _stopwatch.elapsedMicroseconds;
+    final elapsedMicroseconds = _watch.elapsedMicroseconds;
     final inMicroseconds = _duration.inMicroseconds;
     if (elapsedMicroseconds <= inMicroseconds) {
       return elapsedMicroseconds;
@@ -79,7 +79,7 @@ class CountdownTimer implements Timer {
 
   /// Returns the remaining time in microseconds.
   int get remainingMicroseconds {
-    final elapsedMicroseconds = _stopwatch.elapsedMicroseconds;
+    final elapsedMicroseconds = _watch.elapsedMicroseconds;
     final remainingMicroseconds =
         _duration.inMicroseconds - elapsedMicroseconds;
     if (remainingMicroseconds >= 0) {
@@ -94,7 +94,7 @@ class CountdownTimer implements Timer {
 
   @override
   void cancel() {
-    _stopwatch.stop();
+    _watch.stop();
     _timer.cancel();
     _callback = null;
   }
@@ -107,8 +107,8 @@ class CountdownTimer implements Timer {
       return;
     }
 
-    _stopwatch.reset();
-    if (_stopwatch.isRunning) {
+    _watch.reset();
+    if (_watch.isRunning) {
       _timer.cancel();
       _timer = Timer(_duration, _handle);
     }
@@ -119,12 +119,12 @@ class CountdownTimer implements Timer {
   /// If the [CountdownTimer] currently running, then calling [start] does
   /// nothing.
   void start() {
-    if (_stopwatch.isRunning || _callback == null) {
+    if (_watch.isRunning || _callback == null) {
       return;
     }
 
-    _stopwatch.start();
-    final remaining = _duration.inMicroseconds - _stopwatch.elapsedMicroseconds;
+    _watch.start();
+    final remaining = _duration.inMicroseconds - _watch.elapsedMicroseconds;
     if (remaining <= 0) {
       _handle();
       return;
@@ -139,12 +139,12 @@ class CountdownTimer implements Timer {
   /// If the [CountdownTimer] currently stopped, then calling [stop] does
   /// nothing.
   void stop() {
-    if (!_stopwatch.isRunning || _callback == null) {
+    if (!_watch.isRunning || _callback == null) {
       return;
     }
 
-    _stopwatch.stop();
-    final remaining = _duration.inMicroseconds - _stopwatch.elapsedMicroseconds;
+    _watch.stop();
+    final remaining = _duration.inMicroseconds - _watch.elapsedMicroseconds;
     if (remaining <= 0) {
       _handle();
       return;

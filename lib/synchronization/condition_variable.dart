@@ -10,7 +10,7 @@ import 'lock.dart';
 /// It is always used in conjunction with a locking to safely manage access to
 /// the shared data and prevent race conditions.
 class ConditionVariable {
-  static final Stopwatch _stopwatch = Stopwatch()..start();
+  static final Stopwatch _watch = Stopwatch()..start();
 
   static final Future<void> _void = Future.value();
 
@@ -51,7 +51,7 @@ class ConditionVariable {
   /// Returns `true` if the timeout has not expired; otherwise, returns `false`.
   @useResult
   Future<bool> tryWait(Duration timeout) async {
-    final started = _stopwatch.elapsedMicroseconds;
+    final started = _watch.elapsedMicroseconds;
     if (timeout.isNegative) {
       throw ArgumentError.value(timeout, 'timeout', 'Must not be negative');
     }
@@ -59,7 +59,7 @@ class ConditionVariable {
     await lock.release();
     await _queue.enqueue();
     await lock.reacquire();
-    return _stopwatch.elapsedMicroseconds - started <= timeout.inMicroseconds;
+    return _watch.elapsedMicroseconds - started <= timeout.inMicroseconds;
   }
 
   /// Releases the lock and waits for a notification.\

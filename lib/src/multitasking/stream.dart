@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:async/async.dart';
+
 import 'cancellation.dart';
 import 'errors.dart';
 
@@ -33,6 +35,54 @@ class _CancelableStream<T> extends StreamView<T> {
       token: _token,
       throwIfCanceled: _throwIfCanceled,
     );
+  }
+}
+
+class _SteamWithCancellationHandler<T> extends StreamView<T> {
+  final FutureOr<void> Function() _onCancel;
+
+  final Stream<T> _stream;
+
+  _SteamWithCancellationHandler(super.stream, void Function() onCancel)
+      : _onCancel = onCancel,
+        _stream = stream {
+    if (isBroadcast) {
+      throw StateError('Stream must not be a broadcast stream');
+    }
+  }
+
+  @override
+  StreamSubscription<T> listen(
+    void Function(T value)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    return _stream.listenWithCancellationHandler(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+      onCancel: _onCancel,
+    );
+  }
+}
+
+class _StreamSubscriptionWithCancellationHandler<T>
+    extends DelegatingStreamSubscription<T> {
+  final FutureOr<void> Function() _onCancel;
+
+  _StreamSubscriptionWithCancellationHandler(
+      super.source, FutureOr<void> Function() onCancel)
+      : _onCancel = onCancel;
+
+  @override
+  Future<dynamic> cancel() async {
+    try {
+      await super.cancel();
+    } finally {
+      await _onCancel();
+    }
   }
 }
 
@@ -106,5 +156,35 @@ extension StreamExtension<T> on Stream<T> {
       onError: onError,
       cancelOnError: cancelOnError,
     );
+  }
+
+  /// Returns a subscription to a stream that additionally allows cancellation
+  /// handling.
+  StreamSubscription<T> listenWithCancellationHandler(
+    void Function(T event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+    required FutureOr<void> Function() onCancel,
+  }) {
+    return _StreamSubscriptionWithCancellationHandler(
+        listen(
+          onData,
+          onDone: onDone,
+          onError: onError,
+          cancelOnError: cancelOnError,
+        ),
+        onCancel);
+  }
+
+  /// Returns a stream that can handle explicit canceling a streaming
+  /// subscription.
+  ///
+  /// Parameters:
+  ///
+  /// - [onCancel]: Callback function that will be called when the `cancel()`
+  /// method of this stream subscription is called.
+  Stream<T> withCancellationHandler(FutureOr<void> Function() onCancel) {
+    return _SteamWithCancellationHandler(this, onCancel);
   }
 }

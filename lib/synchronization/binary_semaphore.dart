@@ -48,7 +48,13 @@ class BinarySemaphore extends Lock {
   }
 
   /// Tries to acquire a permit from this semaphore and waits until the
-  /// specified timeout expires.\
+  /// specified timeout expires.
+  ///
+  /// Parameters:
+  ///
+  /// - [timeout]: The period of time during which an attempt to acquire a
+  /// permit will be performed.
+  ///
   /// If the semaphore is locked and timeout is zero (or not specified), `false`
   /// is returned.\
   /// If the timeout expires before the semaphore is unlocked, then returns

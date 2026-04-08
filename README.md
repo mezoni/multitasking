@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 5.0.0
+Version: 5.1.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -35,7 +35,6 @@ Table of Contents:
     - [Tasks can be awaited in different ways](#tasks-can-be-awaited-in-different-ways)
     - [Tasks can be awaited as a stream](#tasks-can-be-awaited-as-a-stream)
     - [Tasks can be awaited in the order of queue](#tasks-can-be-awaited-in-the-order-of-queue)
-    - [The task zone provides access to statistics of the operations in the zone](#the-task-zone-provides-access-to-statistics-of-the-operations-in-the-zone)
     - [The task can be canceled using a cancellation token](#the-task-can-be-canceled-using-a-cancellation-token)
     - [The task can be canceled during `Task.delay()`](#the-task-can-be-canceled-during-taskdelay)
     - [The task can be canceled as a group of tasks](#the-task-can-be-canceled-as-a-group-of-tasks)
@@ -44,6 +43,7 @@ Table of Contents:
     - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
     - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
     - [The waiting for a non-cancelable task can be canceled](#the-waiting-for-a-non-cancelable-task-can-be-canceled)
+    - [The stream can handle explicit cancellation of the subscription](#the-stream-can-handle-explicit-cancellation-of-the-subscription)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -625,82 +625,6 @@ The end
 
 ```
 
-### The task zone provides access to statistics of the operations in the zone
-
-Example of accessing task zone statistics:
-
-[example/example_task_zone_stats.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_zone_stats.dart)
-
-```dart
-import 'dart:async';
-
-import 'package:multitasking/multitasking.dart';
-
-Future<void> main() async {
-  final task = Task(name: 'my task', () async {
-    print('-' * 40);
-    print('Task started');
-    Timer(Duration(milliseconds: 400), () {});
-    await Future<void>.delayed(const Duration());
-    return 42;
-  });
-
-  final zoneStats = task.zoneStats;
-  if (zoneStats != null) {
-    Timer.periodic(Duration(milliseconds: 100), (timer) {
-      print('-' * 40);
-      if (zoneStats.isZoneActive || task.isCreated) {
-        print('Active microtasks: ${zoneStats.activeMicrotasks}');
-        print('Active periodic timers: ${zoneStats.activePeriodicTimers}');
-        print('Active timers: ${zoneStats.activeTimers}');
-      } else {
-        timer.cancel();
-        print('Scheduled microtasks: ${zoneStats.scheduledMicrotasks}');
-        print('Created periodic timers: ${zoneStats.createdPeriodicTimers}');
-        print('Created timers: ${zoneStats.createdTimers}');
-      }
-    });
-  }
-
-  await Future<void>.delayed(Duration(milliseconds: 100));
-  await task.start();
-  await task;
-}
-
-```
-
-Output:
-
-```txt
-----------------------------------------
-Active microtasks: 0
-Active periodic timers: 0
-Active timers: 0
-----------------------------------------
-Task started
-----------------------------------------
-Active microtasks: 0
-Active periodic timers: 0
-Active timers: 1
-----------------------------------------
-Active microtasks: 0
-Active periodic timers: 0
-Active timers: 1
-----------------------------------------
-Active microtasks: 0
-Active periodic timers: 0
-Active timers: 1
-----------------------------------------
-Active microtasks: 0
-Active periodic timers: 0
-Active timers: 1
-----------------------------------------
-Scheduled microtasks: 0
-Created periodic timers: 0
-Created timers: 2
-
-```
-
 ### The task can be canceled using a cancellation token
 
 Canceling a task is a normal action that is supported by the implementation of the mechanism of task functioning.  
@@ -768,7 +692,7 @@ Output:
 
 ```txt
 TaskCanceledException
-main(): count: 234507
+main(): count: 243824
 
 ```
 
@@ -1019,8 +943,8 @@ Future<void> main() async {
   for (var i = 0; i < rss.length; i++) {
     final uri = Uri.parse(rss[i]);
     final task = Task.run(() async {
-      token.throwIfCanceled();
       final bytes = <int>[];
+      token.throwIfCanceled();
       _message('Fetching feed: $uri');
       final request = Request('GET', uri);
       final task = Task.run(() => Client().send(request));
@@ -1028,7 +952,6 @@ Future<void> main() async {
       try {
         response = await task.withCancellation(token);
       } on TaskCanceledException {
-        // Ignore the cancelled connection establishment.
         unawaited(() async {
           try {
             await (await task).stream.listen((_) {}).cancel();
@@ -1097,7 +1020,7 @@ Task(5): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Task(9): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Task(13): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Task(17): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Task(13): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
+Task(9): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 main(): Canceling
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 ----------------------------------------
@@ -1107,12 +1030,12 @@ No data
 Task(5): canceled
 No data
 ----------------------------------------
-Task(9): canceled
-No data
-----------------------------------------
-Task(13): successful
+Task(9): successful
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
+----------------------------------------
+Task(13): canceled
+No data
 ----------------------------------------
 Task(17): canceled
 No data
@@ -1189,7 +1112,6 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     try {
       response = await task.withCancellation(token);
     } on TaskCanceledException {
-      // Ignore the cancelled connection establishment.
       unawaited(() async {
         try {
           await (await task).stream.listen((_) {}).cancel();
@@ -1228,10 +1150,10 @@ Output:
 
 ```txt
 Canceling...
-Task(1): canceled
-Task(1): Downloaded: 2342912
 Task(6): canceled
-Task(6): Downloaded: 2211838
+Task(6): Downloaded: 2457598
+Task(1): canceled
+Task(1): Downloaded: 1719028
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException)
 
 ```
@@ -1411,31 +1333,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 983783444
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 1010355286
 main(): Adding task 3
-Isolate started: 837831192
-Isolate started: 573433489
+Isolate started: 974642121
+Isolate started: 491145297
+Isolate started: 579793427
 main(): Adding task 4
-Isolate started: 442622345
-Task(6): Received result: [14]
-Task(5): Received result: [13]
+Isolate started: 408761275
+Isolate started: 528925510
+Task(3): Received result: [11]
 Task(2): Received result: [10]
 Task(4): Received result: [12]
-Task(3): Received result: [11]
+Task(6): Received result: [14]
+Task(5): Received result: [13]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 527131116
 main(): Adding task 3
 main(): Adding task 4
-Isolate started: 192256671
-Isolate started: 775363076
-Isolate started: 521579398
-Isolate started: 293963492
+Isolate started: 1005636913
+Isolate started: 949531810
+Isolate started: 673209804
+Isolate started: 285888051
+Isolate started: 130664208
 main(): Canceling...
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 
@@ -1483,6 +1405,82 @@ TaskCanceledException
 Task still running
 Begin next work
 Task terminated
+
+```
+
+### The stream can handle explicit cancellation of the subscription
+
+An example of handling explicit cancellation of the subscription:
+
+[example/example_stream_handle_cancellation_of_subscription.dart](https://github.com/mezoni/multitasking/blob/main/example/example_stream_handle_cancellation_of_subscription.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+
+void main(List<String> args) async {
+  var state1 = 'running';
+  var state2 = 'running';
+  var state3 = 'running';
+  final stream1 = Stream.periodic(Duration(seconds: 1), (count) {
+    return count;
+  }).withCancellationHandler(() {
+    state1 = 'canceled';
+  });
+
+  final sub1 = stream1.listen(print);
+
+  final stream2 = Stream.periodic(Duration(seconds: 1), (count) {
+    return count;
+  }).withCancellationHandler(() {
+    state2 = 'canceled';
+  });
+
+  unawaited(() async {
+    await for (final event in stream2) {
+      print(event);
+      if (event > 2) {
+        break;
+      }
+    }
+  }());
+
+  final stream3 = Stream.periodic(Duration(seconds: 1), (count) {
+    return count;
+  });
+
+  final sub3 = stream3.listenWithCancellationHandler(print, onCancel: () {
+    state3 = 'canceled';
+  });
+
+  await Future<void>.delayed(Duration(seconds: 4));
+  await sub1.cancel();
+  await sub3.cancel();
+  print(state1);
+  print(state2);
+  print(state3);
+}
+
+```
+
+Output:
+
+```txt
+0
+0
+0
+1
+1
+1
+2
+2
+2
+3
+3
+canceled
+canceled
+canceled
 
 ```
 
@@ -2071,20 +2069,20 @@ import 'package:multitasking/synchronization/reset_events.dart';
 
 Future<void> main() async {
   final mre = ManualResetEvent(false);
-  final sw = Stopwatch();
+  final watch = Stopwatch();
   final tasks = <AnyTask>[];
   for (var i = 0; i < 3; i++) {
     final task = Task.run(() async {
       await mre.wait();
-      _message('${sw.elapsedMilliseconds}');
+      _message('${watch.elapsedMilliseconds}');
     });
 
     tasks.add(task);
   }
 
   const ms = 500;
-  sw.start();
-  _message('${sw.elapsedMilliseconds}');
+  watch.start();
+  _message('${watch.elapsedMilliseconds}');
   _message('Waiting $ms ms');
   await Future<void>.delayed(Duration(milliseconds: ms));
   _message('Start');
@@ -2105,8 +2103,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(1): 513
-Task(2): 514
-Task(3): 514
+Task(1): 519
+Task(2): 521
+Task(3): 521
 
 ```

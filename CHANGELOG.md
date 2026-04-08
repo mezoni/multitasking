@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.1.0
+
+- Breaking change: Removed class `ZoneStats`. This functionality only slows down the execution of tasks.
+- Added method `withCancellationHandler()` to `StreamExtension` extension.
+- Added method `listenWithCancellationHandler()` to `StreamExtension` extension.
+
 ## 5.0.0
 
 - Breaking change: Removed deprecated class `Throughput`.

@@ -24,14 +24,14 @@ void main() {
     await pts.pause();
     final count2 = count;
     await Task.sleep(500);
-    expect(count == count2, true, reason: 'pause does not works');
+    expect(count, equals(count2), reason: 'pause does not works');
     await pts.resume();
     await Task.sleep(500);
-    expect(count != count2, true, reason: 'resume does not works');
+    expect(count, isNot(count2), reason: 'resume does not works');
     await sub.cancel();
   });
 
-  test('PauseToken: waitWhilePaused()', () async {
+  test('PauseToken: wait()', () async {
     final pts = PauseTokenSource();
     final token = pts.token;
     var cancel = false;
@@ -48,14 +48,14 @@ void main() {
     await pts.pause();
     final count2 = count;
     await Task.sleep(500);
-    expect(count == count2, true, reason: 'pause does not works');
+    expect(count, equals(count2), reason: 'pause does not works');
     await pts.resume();
     await Task.sleep(500);
-    expect(count != count2, true, reason: 'resume does not works');
+    expect(count, isNot(count2), reason: 'resume does not works');
     cancel = true;
   });
 
-  test('PauseToken: waitWhilePaused(token)', () async {
+  test('PauseToken: wait(token)', () async {
     final cts = CancellationTokenSource();
     final token = cts.token;
     final pts = PauseTokenSource();

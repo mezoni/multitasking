@@ -31,8 +31,8 @@ Future<void> main() async {
   for (var i = 0; i < rss.length; i++) {
     final uri = Uri.parse(rss[i]);
     final task = Task.run(() async {
-      token.throwIfCanceled();
       final bytes = <int>[];
+      token.throwIfCanceled();
       _message('Fetching feed: $uri');
       final request = Request('GET', uri);
       final task = Task.run(() => Client().send(request));
@@ -40,7 +40,6 @@ Future<void> main() async {
       try {
         response = await task.withCancellation(token);
       } on TaskCanceledException {
-        // Ignore the cancelled connection establishment.
         unawaited(() async {
           try {
             await (await task).stream.listen((_) {}).cancel();

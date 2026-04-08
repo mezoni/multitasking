@@ -61,7 +61,6 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     try {
       response = await task.withCancellation(token);
     } on TaskCanceledException {
-      // Ignore the cancelled connection establishment.
       unawaited(() async {
         try {
           await (await task).stream.listen((_) {}).cancel();

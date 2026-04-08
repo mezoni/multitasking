@@ -19,15 +19,15 @@ void _testCountdownTimer() {
     t.stop();
     final elapsedMicroseconds = t.elapsedMicroseconds;
     final remainingMicroseconds = t.remainingMicroseconds;
-    expect(elapsedMicroseconds == t.elapsedMicroseconds, true,
-        reason: 'elapsedMicroseconds != t.elapsedMicroseconds');
-    expect(remainingMicroseconds == t.remainingMicroseconds, true,
-        reason: 'remainingMicroseconds != t.remainingMicroseconds');
+    expect(elapsedMicroseconds, equals(t.elapsedMicroseconds),
+        reason: 'elapsedMicroseconds');
+    expect(remainingMicroseconds, equals(t.remainingMicroseconds),
+        reason: 'remainingMicroseconds');
     t.start();
-    expect(elapsedMicroseconds != t.elapsedMicroseconds, true,
-        reason: 'elapsedMicroseconds == t.elapsedMicroseconds');
-    expect(remainingMicroseconds != t.remainingMicroseconds, true,
-        reason: 'remainingMicroseconds == t.remainingMicroseconds');
+    expect(elapsedMicroseconds, isNot(t.elapsedMicroseconds),
+        reason: 'elapsedMicroseconds');
+    expect(remainingMicroseconds, isNot(t.remainingMicroseconds),
+        reason: 'remainingMicroseconds');
     t.cancel();
   });
 
@@ -41,18 +41,16 @@ void _testCountdownTimer() {
     t.cancel();
     final elapsedMicroseconds = t.elapsedMicroseconds;
     final remainingMicroseconds = t.remainingMicroseconds;
-    expect(elapsedMicroseconds == t.elapsedMicroseconds, true,
-        reason: 'elapsedMicroseconds != t.elapsedMicroseconds');
-    expect(remainingMicroseconds == t.remainingMicroseconds, true,
-        reason: 'remainingMicroseconds != t.remainingMicroseconds');
+    expect(elapsedMicroseconds, equals(t.elapsedMicroseconds),
+        reason: 'elapsedMicroseconds');
+    expect(remainingMicroseconds, equals(t.remainingMicroseconds),
+        reason: 'remainingMicroseconds');
     await _delay(750);
-    expect(elapsedMicroseconds == t.elapsedMicroseconds, true,
-        reason: 'elapsedMicroseconds != t.elapsedMicroseconds');
-    expect(remainingMicroseconds == t.remainingMicroseconds, true,
-        reason: 'remainingMicroseconds != t.remainingMicroseconds');
-    expect(elapsedMicroseconds == t.elapsedMicroseconds, true,
-        reason: 'elapsedMicroseconds != t.elapsedMicroseconds');
-    expect(isCalled, false, reason: 'isCalled != false');
+    expect(elapsedMicroseconds, equals(t.elapsedMicroseconds),
+        reason: 'elapsedMicroseconds');
+    expect(remainingMicroseconds, equals(t.remainingMicroseconds),
+        reason: 'remainingMicroseconds');
+    expect(isCalled, isFalse, reason: 'isCalled');
   });
 
   test('CountdownTimer: reset()', () async {
@@ -62,10 +60,10 @@ void _testCountdownTimer() {
     final elapsedMicroseconds = t.elapsedMicroseconds;
     final remainingMicroseconds = t.remainingMicroseconds;
     t.reset();
-    expect(elapsedMicroseconds > t.elapsedMicroseconds, true,
-        reason: 'elapsedMicroseconds <=t.elapsedMicroseconds');
-    expect(remainingMicroseconds < t.remainingMicroseconds, true,
-        reason: 'remainingMicroseconds >= t.remainingMicroseconds');
+    expect(elapsedMicroseconds, greaterThan(t.elapsedMicroseconds),
+        reason: 'elapsedMicroseconds');
+    expect(remainingMicroseconds, lessThan(t.remainingMicroseconds),
+        reason: 'remainingMicroseconds');
     t.cancel();
     var isCalled = false;
     t = CountdownTimer(Duration(milliseconds: 500), () {
@@ -75,9 +73,9 @@ void _testCountdownTimer() {
     await _delay(400);
     t.reset();
     await _delay(400);
-    expect(isCalled, false, reason: 'isCalled != false');
+    expect(isCalled, isFalse, reason: 'isCalled');
     await _delay(400);
-    expect(isCalled, true, reason: 'isCalled != true');
+    expect(isCalled, isTrue, reason: 'isCalled');
   });
 
   test('CountdownTimer: elapsedMicroseconds and remainingMicroseconds',
@@ -96,18 +94,19 @@ void _testCountdownTimer() {
     t.duration = Duration(milliseconds: 350);
     await _delay(450);
     var elapsedMicroseconds = t.elapsedMicroseconds;
-    expect(elapsedMicroseconds, 350 * 1000,
-        reason: 'elapsedMicroseconds != 350 * 1000');
-    expect(t.remainingMicroseconds, 0, reason: 't.remainingMicroseconds != 0');
+    expect(elapsedMicroseconds, equals(350 * 1000),
+        reason: 'elapsedMicroseconds');
+    expect(t.remainingMicroseconds, equals(0), reason: 'remainingMicroseconds');
 
     t = CountdownTimer(Duration(milliseconds: 250), () {});
     t.start();
     t.duration = Duration(milliseconds: 150);
     await _delay(250);
     elapsedMicroseconds = t.elapsedMicroseconds;
-    expect(elapsedMicroseconds, 150 * 1000,
-        reason: 'elapsedMicroseconds != 150 * 1000');
-    expect(t.remainingMicroseconds, 0, reason: 't.remainingMicroseconds != 0');
+    expect(elapsedMicroseconds, equals(150 * 1000),
+        reason: 'elapsedMicroseconds');
+    expect(t.remainingMicroseconds, equals(0),
+        reason: 't.remainingMicroseconds');
 
     t = CountdownTimer(Duration(milliseconds: 150), () {});
     t.start();
@@ -115,11 +114,10 @@ void _testCountdownTimer() {
     t.duration = Duration(milliseconds: 1);
     await _delay(75);
     elapsedMicroseconds = t.elapsedMicroseconds;
-    expect(elapsedMicroseconds > 1 * 1000 && elapsedMicroseconds < 150 * 1000,
-        true,
-        reason:
-            'elapsedMicroseconds <= 1 * 1000 || elapsedMicroseconds >= 150 * 1000');
-    expect(t.remainingMicroseconds == 0, true,
-        reason: 't.remainingMicroseconds != 0');
+    expect(elapsedMicroseconds, greaterThanOrEqualTo(1 * 1000),
+        reason: 'elapsedMicroseconds');
+    expect(elapsedMicroseconds, lessThanOrEqualTo(150 * 1000),
+        reason: 'elapsedMicroseconds');
+    expect(t.remainingMicroseconds, equals(0), reason: 'remainingMicroseconds');
   });
 }
