@@ -43,13 +43,10 @@ class _SteamWithCancellationHandler<T> extends StreamView<T> {
 
   final Stream<T> _stream;
 
-  _SteamWithCancellationHandler(super.stream, void Function() onCancel)
+  _SteamWithCancellationHandler(
+      super.stream, FutureOr<void> Function() onCancel)
       : _onCancel = onCancel,
-        _stream = stream {
-    if (isBroadcast) {
-      throw StateError('Stream must not be a broadcast stream');
-    }
-  }
+        _stream = stream;
 
   @override
   StreamSubscription<T> listen(
@@ -77,7 +74,7 @@ class _StreamSubscriptionWithCancellationHandler<T>
       : _onCancel = onCancel;
 
   @override
-  Future<dynamic> cancel() async {
+  Future<void> cancel() async {
     try {
       await super.cancel();
     } finally {
