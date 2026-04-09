@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 5.1.0
+Version: 5.2.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -43,7 +43,7 @@ Table of Contents:
     - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
     - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
     - [The waiting for a non-cancelable task can be canceled](#the-waiting-for-a-non-cancelable-task-can-be-canceled)
-    - [The stream can handle explicit cancellation of the subscription](#the-stream-can-handle-explicit-cancellation-of-the-subscription)
+    - [The stream can track subscription changes](#the-stream-can-track-subscription-changes)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -295,12 +295,12 @@ BEGIN_EXAMPLE
 example_task_cancel_waiting_for_non_cancelable_action
 END_EXAMPLE
 
-### The stream can handle explicit cancellation of the subscription
+### The stream can track subscription changes
 
-An example of handling explicit cancellation of the subscription:
+An example of tracking changes in a stream subscription:
 
 BEGIN_EXAMPLE
-example_stream_handle_cancellation_of_subscription
+example_stream_with_subscription_tracking
 END_EXAMPLE
 
 ## Synchronization primitives

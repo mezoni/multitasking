@@ -4,7 +4,7 @@ import 'dart:isolate';
 import 'package:defer/defer.dart';
 import 'package:multitasking/multitasking.dart';
 
-void main(List<String> args) async {
+void main() async {
   var cts = CancellationTokenSource();
   await bigWork(cts);
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 5.2.0
+
+- Breaking change: Removed `withCancellationHandler()` and `listenWithCancellationHandler()` methods from `StreamExtension` extension.
+- Added `withSubscriptionTracking()` method to `StreamExtension` extensions. As a replacement for the removed `withCancellationHandler()` and `listenWithCancellationHandler()` methods.
+
 ## 5.1.0
 
 - Breaking change: Removed class `ZoneStats`. This functionality only slows down the execution of tasks.

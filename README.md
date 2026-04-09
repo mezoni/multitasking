@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 5.1.0
+Version: 5.2.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -43,7 +43,7 @@ Table of Contents:
     - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
     - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
     - [The waiting for a non-cancelable task can be canceled](#the-waiting-for-a-non-cancelable-task-can-be-canceled)
-    - [The stream can handle explicit cancellation of the subscription](#the-stream-can-handle-explicit-cancellation-of-the-subscription)
+    - [The stream can track subscription changes](#the-stream-can-track-subscription-changes)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -692,7 +692,7 @@ Output:
 
 ```txt
 TaskCanceledException
-main(): count: 243824
+main(): count: 240247
 
 ```
 
@@ -1020,19 +1020,19 @@ Task(5): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Task(9): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Task(13): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Task(17): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Task(9): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Task(1): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 main(): Canceling
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 ----------------------------------------
-Task(1): canceled
-No data
+Task(1): successful
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(5): canceled
 No data
 ----------------------------------------
-Task(9): successful
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(9): canceled
+No data
 ----------------------------------------
 Task(13): canceled
 No data
@@ -1150,10 +1150,10 @@ Output:
 
 ```txt
 Canceling...
-Task(6): canceled
-Task(6): Downloaded: 2457598
 Task(1): canceled
-Task(1): Downloaded: 1719028
+Task(1): Downloaded: 3137535
+Task(6): canceled
+Task(6): Downloaded: 3014656
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException)
 
 ```
@@ -1173,7 +1173,7 @@ import 'dart:isolate';
 import 'package:defer/defer.dart';
 import 'package:multitasking/multitasking.dart';
 
-void main(List<String> args) async {
+void main() async {
   var cts = CancellationTokenSource();
   await bigWork(cts);
 
@@ -1333,18 +1333,18 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
+Isolate started: 932804295
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
-Isolate started: 974642121
-Isolate started: 491145297
-Isolate started: 579793427
+Isolate started: 410616458
 main(): Adding task 4
-Isolate started: 408761275
-Isolate started: 528925510
-Task(3): Received result: [11]
-Task(2): Received result: [10]
+Isolate started: 512274690
+Isolate started: 117534564
+Isolate started: 466527383
 Task(4): Received result: [12]
+Task(2): Received result: [10]
+Task(3): Received result: [11]
 Task(6): Received result: [14]
 Task(5): Received result: [13]
 main(): ----------------------------------------
@@ -1353,11 +1353,11 @@ main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
 main(): Adding task 4
-Isolate started: 1005636913
-Isolate started: 949531810
-Isolate started: 673209804
-Isolate started: 285888051
-Isolate started: 130664208
+Isolate started: 261727631
+Isolate started: 166786229
+Isolate started: 142273084
+Isolate started: 884365980
+Isolate started: 786798731
 main(): Canceling...
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 
@@ -1408,58 +1408,86 @@ Task terminated
 
 ```
 
-### The stream can handle explicit cancellation of the subscription
+### The stream can track subscription changes
 
-An example of handling explicit cancellation of the subscription:
+An example of tracking changes in a stream subscription:
 
-[example/example_stream_handle_cancellation_of_subscription.dart](https://github.com/mezoni/multitasking/blob/main/example/example_stream_handle_cancellation_of_subscription.dart)
+[example/example_stream_with_subscription_tracking.dart](https://github.com/mezoni/multitasking/blob/main/example/example_stream_with_subscription_tracking.dart)
 
 ```dart
 import 'dart:async';
 
 import 'package:multitasking/multitasking.dart';
 
-void main(List<String> args) async {
-  var state1 = 'running';
-  var state2 = 'running';
-  var state3 = 'running';
-  final stream1 = Stream.periodic(Duration(seconds: 1), (count) {
-    return count;
-  }).withCancellationHandler(() {
-    state1 = 'canceled';
-  });
+Future<void> main() async {
+  {
+    _header('Listen/cancel');
+    final stream = Stream.periodic(Duration(seconds: 1), (count) {
+      return count;
+    }).withSubscriptionTracking((event) {
+      print(event.name);
+    });
 
-  final sub1 = stream1.listen(print);
+    final sub = stream.listen(print);
+    await Future<void>.delayed(Duration(seconds: 3));
+    await sub.cancel();
+  }
 
-  final stream2 = Stream.periodic(Duration(seconds: 1), (count) {
-    return count;
-  }).withCancellationHandler(() {
-    state2 = 'canceled';
-  });
+  {
+    _header('Listen/pause/resume/cancel');
+    final stream = Stream.periodic(Duration(seconds: 1), (count) {
+      return count;
+    }).withSubscriptionTracking((event) {
+      print(event.name);
+    });
 
-  unawaited(() async {
-    await for (final event in stream2) {
+    final sub = stream.listen(print);
+    await Future<void>.delayed(Duration(seconds: 1));
+    sub.pause();
+    await Future<void>.delayed(Duration(seconds: 1));
+    sub.resume();
+    await Future<void>.delayed(Duration(seconds: 1));
+    await sub.cancel();
+  }
+
+  {
+    _header('Await for/break');
+    final stream = Stream.periodic(Duration(seconds: 1), (count) {
+      return count;
+    }).withSubscriptionTracking((event) {
+      print(event.name);
+    });
+
+    await for (final event in stream) {
       print(event);
-      if (event > 2) {
+      if (event == 3) {
+        print('break;');
         break;
       }
     }
-  }());
+  }
 
-  final stream3 = Stream.periodic(Duration(seconds: 1), (count) {
-    return count;
-  });
+  {
+    _header('Async*');
+    Stream<int> gen() async* {
+      for (var i = 0; i < 3; i++) {
+        yield i;
+        await Future<void>.delayed(Duration(seconds: 1));
+      }
+    }
 
-  final sub3 = stream3.listenWithCancellationHandler(print, onCancel: () {
-    state3 = 'canceled';
-  });
+    final stream = gen().withSubscriptionTracking((event) {
+      print(event.name);
+    });
 
-  await Future<void>.delayed(Duration(seconds: 4));
-  await sub1.cancel();
-  await sub3.cancel();
-  print(state1);
-  print(state2);
-  print(state3);
+    stream.listen(print);
+  }
+}
+
+void _header(String text) {
+  print('-' * 40);
+  print(text);
+  print('-' * 40);
 }
 
 ```
@@ -1467,20 +1495,44 @@ void main(List<String> args) async {
 Output:
 
 ```txt
-0
-0
+----------------------------------------
+Listen/cancel
+----------------------------------------
+start
 0
 1
+2
+cancel
+----------------------------------------
+Listen/pause/resume/cancel
+----------------------------------------
+start
+0
+pause
+resume
 1
+cancel
+----------------------------------------
+Await for/break
+----------------------------------------
+start
+0
+resume
 1
+resume
 2
-2
-2
+resume
 3
-3
-canceled
-canceled
-canceled
+break;
+cancel
+----------------------------------------
+Async*
+----------------------------------------
+start
+0
+1
+2
+done
 
 ```
 
@@ -2103,8 +2155,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(1): 519
-Task(2): 521
-Task(3): 521
+Task(1): 510
+Task(2): 511
+Task(3): 511
 
 ```
