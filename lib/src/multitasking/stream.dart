@@ -5,8 +5,6 @@ import 'package:async/async.dart';
 import 'cancellation.dart';
 import 'errors.dart';
 
-enum StreamSubscriptionState { cancel, done, error, listen, pause, resume }
-
 /// Represents the lifecycle events of a stream subscription.
 enum SubscriptionEvent {
   /// Triggered when the listener subscribes to the stream.
@@ -63,12 +61,20 @@ class _CancelableStream<T> extends StreamView<T> {
 
 class _StreamSubscriptionWithTracking<T>
     extends DelegatingStreamSubscription<T> {
+  void Function()? _handleDone;
+
+  Function? _handleError;
+
   final void Function(SubscriptionEvent event) _onEvent;
 
   _StreamSubscriptionWithTracking(
     super.source,
-    void Function(SubscriptionEvent event) onEvent,
-  ) : _onEvent = onEvent;
+    void Function(SubscriptionEvent event) onEvent, {
+    required void Function()? handleDone,
+    required Function? handleError,
+  })  : _handleDone = handleDone,
+        _handleError = handleError,
+        _onEvent = onEvent;
 
   @override
   Future<void> cancel() async {
@@ -77,6 +83,16 @@ class _StreamSubscriptionWithTracking<T>
     } finally {
       _onEvent(SubscriptionEvent.cancel);
     }
+  }
+
+  @override
+  void onDone(void Function()? handleDone) {
+    _handleDone = handleDone;
+  }
+
+  @override
+  void onError(Function? handleError) {
+    _handleError = handleError;
   }
 
   @override
@@ -116,28 +132,13 @@ class _StreamWithSubscriptionTracking<T> extends StreamView<T> {
     void Function()? onDone,
     bool? cancelOnError,
   }) {
-    void Function(Object error, StackTrace)? errorCallback;
-    if (onError != null) {
-      if (onError is void Function(Object, StackTrace)) {
-        errorCallback = onError;
-      } else if (onError is void Function(Object)) {
-        errorCallback = (error, _) {
-          onError(error);
-        };
-      } else {
-        throw ArgumentError.value(
-          onError,
-          "onError",
-          "Error handler must accept one Object or one Object and a StackTrace"
-              " as arguments.",
-        );
-      }
-    }
+    _StreamSubscriptionWithTracking<T>? sub;
 
     void handleDone() {
+      final handleDone = sub!._handleDone;
       try {
-        if (onDone != null) {
-          onDone();
+        if (handleDone != null) {
+          handleDone();
         }
       } finally {
         _onEvent(SubscriptionEvent.done);
@@ -145,9 +146,27 @@ class _StreamWithSubscriptionTracking<T> extends StreamView<T> {
     }
 
     void handleError(Object error, StackTrace stackTrace) {
+      final handleError = sub!._handleError;
       try {
-        if (errorCallback != null) {
-          errorCallback(error, stackTrace);
+        if (handleError != null) {
+          void Function(Object error, StackTrace)? errorCallback;
+          if (onError != null) {
+            if (onError is void Function(Object, StackTrace)) {
+              errorCallback = onError;
+            } else if (onError is void Function(Object)) {
+              errorCallback = (error, _) {
+                onError(error);
+              };
+            } else {
+              throw StateError(
+                'Error handler must accept one Object or one Object and a StackTrace as arguments',
+              );
+            }
+          }
+
+          if (errorCallback != null) {
+            errorCallback(error, stackTrace);
+          }
         }
       } finally {
         _onEvent(SubscriptionEvent.error);
@@ -155,7 +174,7 @@ class _StreamWithSubscriptionTracking<T> extends StreamView<T> {
     }
 
     _onEvent(SubscriptionEvent.start);
-    return _StreamSubscriptionWithTracking(
+    sub = _StreamSubscriptionWithTracking(
       _stream.listen(
         onData,
         onError: handleError,
@@ -163,7 +182,10 @@ class _StreamWithSubscriptionTracking<T> extends StreamView<T> {
         cancelOnError: cancelOnError,
       ),
       _onEvent,
+      handleDone: onDone,
+      handleError: onError,
     );
+    return sub;
   }
 }
 

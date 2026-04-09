@@ -1,5 +1,9 @@
 # Changelog
 
+## 5.3.0
+
+- Fixed a bug in the `withSubscriptionTracking()` method of the `StreamExtension` extensions. The possibility of replacing the `onDone` and `onError` callbacks in a stream subscription was not taken into account. Setting those callbacks ​​to `null` resulted in the corresponding events (`done`, `error`) not being triggered.
+
 ## 5.2.0
 
 - Breaking change: Removed `withCancellationHandler()` and `listenWithCancellationHandler()` methods from `StreamExtension` extension.

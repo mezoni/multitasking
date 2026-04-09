@@ -68,6 +68,27 @@ void _testWithSubscriptionTracking() {
         reason: 'events');
   });
 
+  test('StreamExtension: withSubscriptionTracking(), onDone', () async {
+    final events = <SubscriptionEvent>[];
+    Stream<int> gen() async* {
+      for (var i = 0; i < 3; i++) {
+        yield i;
+        await Future<void>.delayed(Duration(milliseconds: 100));
+      }
+    }
+
+    final stream = gen().withSubscriptionTracking(events.add);
+
+    expect(events, <SubscriptionEvent>[], reason: 'events');
+    stream.listen((_) {}, onDone: () {
+      //
+    }).onDone(null);
+    expect(events, [SubscriptionEvent.start], reason: 'state');
+    await _delay(400);
+    expect(events, [SubscriptionEvent.start, SubscriptionEvent.done],
+        reason: 'events');
+  });
+
   test('StreamExtension: withSubscriptionTracking(), error (e, s)', () async {
     final events = <SubscriptionEvent>[];
     Stream<int> gen() async* {
@@ -120,6 +141,38 @@ void _testWithSubscriptionTracking() {
     stream.listen((_) {}, onError: (Object e) {
       expect(e, error, reason: 'error');
     });
+    expect(events, [SubscriptionEvent.start], reason: 'events');
+    await _delay(400);
+    expect(
+        events,
+        [
+          SubscriptionEvent.start,
+          SubscriptionEvent.error,
+          SubscriptionEvent.done
+        ],
+        reason: 'events');
+  });
+
+  test('StreamExtension: withSubscriptionTracking(), onError', () async {
+    final events = <SubscriptionEvent>[];
+    Stream<int> gen() async* {
+      for (var i = 0; i < 3; i++) {
+        if (i == 2) {
+          throw error;
+        } else {
+          yield i;
+        }
+
+        await Future<void>.delayed(Duration(milliseconds: 100));
+      }
+    }
+
+    final stream = gen().withSubscriptionTracking(events.add);
+
+    expect(events, <SubscriptionEvent>[], reason: 'events');
+    stream.listen((_) {}, onError: (Object e) {
+      expect(e, error, reason: 'error');
+    }).onError(null);
     expect(events, [SubscriptionEvent.start], reason: 'events');
     await _delay(400);
     expect(
