@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 5.3.0
+Version: 5.4.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -59,7 +59,6 @@ Cooperative multitasking using asynchronous tasks and synchronization primitives
 The tasks is implemented using the following standard core classes:  
 
 - [Zone](https://api.dart.dev/dart-async/Zone-class.html)
-- [Zone specification](https://api.dart.dev/dart-async/ZoneSpecification-class.html)
 - [Completer](https://api.dart.dev/dart-async/Completer-class.html)
 - [Future](https://api.dart.dev/dart-async/Future-class.html)
 - [Finalizer](https://api.dart.dev/dart-core/Finalizer-class.html)
@@ -68,17 +67,17 @@ Are the tasks safe and reliable?
 Yes, because the tasks have a very simple construction and operating mechanism.  
 In a few words, the task life cycle can be described as follows:
 
-- A task is created with an action in the form of a function that must be executed
+- A task is created with an action in the form of a function callback that must be executed
 - The initial state of a task is the state in which the action has not yet started to execute
-- After receiving a command to start executing an action, the task waits for the action  (`function`) to complete its execution
-- After completing this `function`, the task (using `Completer<T>`) puts itself into one of the states indicating the completion of the task
-- After this, the task result (or error) becomes available through a variable `future` with the value type `Future`
+- After receiving a command to start executing an action, the task waits for the function callback  (`action`) to complete its execution
+- After completing this `action`, the task (using `Completer<T>`) puts itself into one of the states indicating the completion of the task
+- After this, the task result (or error) becomes available through several public and private members (`result`, `exception`, `_future`)
 
 To simplify working with the task, it itself is an instance of an object that implements the `Future` interface.  
 In this case, the task does not replace `Future<T>` (doesn't reinvent the wheel), it uses the standard `Completer<T>` and its field `future`.  
 
 Thus, a `Task<T>` is an object that implements the `Future<T>`  interface by using `Completer<T>`.  
-This task only adds the ability (to `Future<T>`) to start its execution on command and track the completion state of the action.
+This task only adds the ability (to `Future<T>`) to start its execution on demand (`run`, `start`) and track the completion state of the `action`.
 
 The main purpose of tasks is to conveniently manage a large number of asynchronous tasks with nested subtasks running simultaneously and cooperatively, with the ability to perform their soft, controlled, and broadly functional stop (cancellation), and the ability to write a task destructor in the body of the task itself.  
 In this way, a request to cancel tasks (and all nested subtasks and all internal critically important operations) can be handled in such a way that everything happens harmoniously and completely safely.  
@@ -98,7 +97,7 @@ The main difference between the task and the `Future` is as follows:
 
 - Task can be created in unstarted state and can be started by demand
 - If the task execution fails, the exception will not be propagated immediately
-- For a task, it is possible to track the current state through the `state` property or through the `is{State}` property (for example, `isRunning`)
+- For a task, it is possible to track the current state through the `status` property or through the `is{Status}` property (for example, `isRunning`)
 
 ### The task does not begin executing the computation immediately after it is created
 
@@ -605,9 +604,9 @@ Output:
 
 ```txt
 Let's start
-B Ready
 A Ready
 A
+B Ready
 D Ready
 B
 F Ready
@@ -692,7 +691,7 @@ Output:
 
 ```txt
 TaskCanceledException
-main(): count: 240247
+main(): count: 251921
 
 ```
 
@@ -1150,10 +1149,10 @@ Output:
 
 ```txt
 Canceling...
-Task(1): canceled
-Task(1): Downloaded: 3137535
 Task(6): canceled
-Task(6): Downloaded: 3014656
+Task(6): Downloaded: 2719744
+Task(1): canceled
+Task(1): Downloaded: 2605054
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException)
 
 ```
@@ -1333,31 +1332,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 932804295
+Isolate started: 31595350
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
-Isolate started: 410616458
+Isolate started: 370901066
 main(): Adding task 4
-Isolate started: 512274690
-Isolate started: 117534564
-Isolate started: 466527383
-Task(4): Received result: [12]
-Task(2): Received result: [10]
-Task(3): Received result: [11]
+Isolate started: 965406984
+Isolate started: 1040262020
+Isolate started: 418010453
 Task(6): Received result: [14]
+Task(2): Received result: [10]
+Task(4): Received result: [12]
 Task(5): Received result: [13]
+Task(3): Received result: [11]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
 main(): Adding task 2
+Isolate started: 878485946
 main(): Adding task 3
+Isolate started: 777475603
+Isolate started: 513602522
+Isolate started: 950369290
 main(): Adding task 4
-Isolate started: 261727631
-Isolate started: 166786229
-Isolate started: 142273084
-Isolate started: 884365980
-Isolate started: 786798731
+Isolate started: 149510769
 main(): Canceling...
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 
@@ -2155,8 +2154,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(1): 510
-Task(2): 511
-Task(3): 511
+Task(1): 512
+Task(2): 513
+Task(3): 513
 
 ```

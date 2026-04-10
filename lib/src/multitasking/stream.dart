@@ -26,7 +26,7 @@ enum SubscriptionEvent {
   done,
 }
 
-class _CancelableStream<T> extends StreamView<T> {
+class _CancelableStream<T> extends Stream<T> {
   final Stream<T> _stream;
 
   final bool _throwIfCanceled;
@@ -34,7 +34,7 @@ class _CancelableStream<T> extends StreamView<T> {
   final CancellationToken _token;
 
   _CancelableStream(
-    super.stream,
+    Stream<T> stream,
     CancellationToken token, {
     required bool throwIfCanceled,
   })  : _stream = stream,
@@ -132,60 +132,69 @@ class _StreamWithSubscriptionTracking<T> extends StreamView<T> {
     void Function()? onDone,
     bool? cancelOnError,
   }) {
-    _StreamSubscriptionWithTracking<T>? sub;
+    return _createSubscription(
+      _stream,
+      _onEvent,
+      onData,
+      onDone: onDone,
+      onError: onError,
+      cancelOnError: cancelOnError,
+    );
+  }
+
+  static _StreamSubscriptionWithTracking<T> _createSubscription<T>(
+    Stream<T> stream,
+    void Function(SubscriptionEvent event) onEvent,
+    void Function(T value)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    _StreamSubscriptionWithTracking<T>? subscription;
 
     void handleDone() {
-      final handleDone = sub!._handleDone;
+      final handleDone = subscription!._handleDone;
       try {
         if (handleDone != null) {
           handleDone();
         }
       } finally {
-        _onEvent(SubscriptionEvent.done);
+        onEvent(SubscriptionEvent.done);
       }
     }
 
     void handleError(Object error, StackTrace stackTrace) {
-      final handleError = sub!._handleError;
+      final handleError = subscription!._handleError;
       try {
         if (handleError != null) {
-          void Function(Object error, StackTrace)? errorCallback;
-          if (onError != null) {
-            if (onError is void Function(Object, StackTrace)) {
-              errorCallback = onError;
-            } else if (onError is void Function(Object)) {
-              errorCallback = (error, _) {
-                onError(error);
-              };
-            } else {
-              throw StateError(
-                'Error handler must accept one Object or one Object and a StackTrace as arguments',
-              );
-            }
-          }
-
-          if (errorCallback != null) {
-            errorCallback(error, stackTrace);
+          if (handleError is void Function(Object, StackTrace)) {
+            handleError(error, stackTrace);
+          } else if (handleError is void Function(Object)) {
+            handleError(error);
+          } else {
+            throw StateError(
+              'Error handler must accept one Object or one Object and a StackTrace as arguments',
+            );
           }
         }
       } finally {
-        _onEvent(SubscriptionEvent.error);
+        onEvent(SubscriptionEvent.error);
       }
     }
 
-    _onEvent(SubscriptionEvent.start);
-    sub = _StreamSubscriptionWithTracking(
-      _stream.listen(
+    onEvent(SubscriptionEvent.start);
+    subscription = _StreamSubscriptionWithTracking(
+      stream.listen(
         onData,
         onError: handleError,
         onDone: handleDone,
         cancelOnError: cancelOnError,
       ),
-      _onEvent,
+      onEvent,
       handleDone: onDone,
       handleError: onError,
     );
-    return sub;
+    return subscription;
   }
 }
 

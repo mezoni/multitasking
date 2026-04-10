@@ -70,11 +70,14 @@ void _testWithSubscriptionTracking() {
 
   test('StreamExtension: withSubscriptionTracking(), onDone', () async {
     final events = <SubscriptionEvent>[];
+    final completer = Completer<void>();
     Stream<int> gen() async* {
       for (var i = 0; i < 3; i++) {
         yield i;
         await Future<void>.delayed(Duration(milliseconds: 100));
       }
+
+      completer.complete();
     }
 
     final stream = gen().withSubscriptionTracking(events.add);
@@ -84,22 +87,28 @@ void _testWithSubscriptionTracking() {
       //
     }).onDone(null);
     expect(events, [SubscriptionEvent.start], reason: 'state');
-    await _delay(400);
+    await completer.future;
+    await _delay(200);
     expect(events, [SubscriptionEvent.start, SubscriptionEvent.done],
         reason: 'events');
   });
 
   test('StreamExtension: withSubscriptionTracking(), error (e, s)', () async {
     final events = <SubscriptionEvent>[];
+    final completer = Completer<void>();
     Stream<int> gen() async* {
-      for (var i = 0; i < 3; i++) {
-        if (i == 2) {
-          throw error;
-        } else {
-          yield i;
-        }
+      try {
+        for (var i = 0; i < 3; i++) {
+          if (i == 2) {
+            throw error;
+          } else {
+            yield i;
+          }
 
-        await Future<void>.delayed(Duration(milliseconds: 100));
+          await Future<void>.delayed(Duration(milliseconds: 100));
+        }
+      } finally {
+        completer.complete();
       }
     }
 
@@ -110,7 +119,8 @@ void _testWithSubscriptionTracking() {
       expect(e, error, reason: 'error');
     });
     expect(events, [SubscriptionEvent.start], reason: 'events');
-    await _delay(400);
+    await completer.future;
+    await _delay(200);
     expect(
         events,
         [
@@ -123,15 +133,20 @@ void _testWithSubscriptionTracking() {
 
   test('StreamExtension: withSubscriptionTracking(), error (e)', () async {
     final events = <SubscriptionEvent>[];
+    final completer = Completer<void>();
     Stream<int> gen() async* {
-      for (var i = 0; i < 3; i++) {
-        if (i == 2) {
-          throw error;
-        } else {
-          yield i;
-        }
+      try {
+        for (var i = 0; i < 3; i++) {
+          if (i == 2) {
+            throw error;
+          } else {
+            yield i;
+          }
 
-        await Future<void>.delayed(Duration(milliseconds: 100));
+          await Future<void>.delayed(Duration(milliseconds: 100));
+        }
+      } finally {
+        completer.complete();
       }
     }
 
@@ -142,7 +157,8 @@ void _testWithSubscriptionTracking() {
       expect(e, error, reason: 'error');
     });
     expect(events, [SubscriptionEvent.start], reason: 'events');
-    await _delay(400);
+    await completer.future;
+    await _delay(200);
     expect(
         events,
         [

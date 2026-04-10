@@ -1,5 +1,10 @@
 # Changelog
 
+## 5.4.0
+
+- The implementation of the `withCancellationHandler()` method from the `StreamExtension` extension has been changed. The implementation is now more optimized and ensures that the stream subscription has no references to the stream, including the environment of the closures used.
+- Fixed a bug in the implementation of the `_CancelableStream` class. The `asBroadcastStream()` method created a broadcast stream based on the inner stream, not the outer stream. The created stream was not a cancelable stream.
+
 ## 5.3.0
 
 - Fixed a bug in the `withSubscriptionTracking()` method of the `StreamExtension` extensions. The possibility of replacing the `onDone` and `onError` callbacks in a stream subscription was not taken into account. Setting those callbacks ​​to `null` resulted in the corresponding events (`done`, `error`) not being triggered.
