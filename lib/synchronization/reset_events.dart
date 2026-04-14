@@ -16,6 +16,11 @@ import '../src/synchronization/wait_queue.dart';
 class AutoResetEvent extends _ResetEvent {
   static final Future<bool> _true = Future.value(true);
 
+  /// Creates an instance of [AutoResetEvent].
+  ///
+  /// Parameters:
+  ///
+  /// - [isSet]: The initial state of the event (`signaled` or `non-signaled`).
   AutoResetEvent(super.isSet);
 
   /// Switches an event in the `signaled` state, allowing a single waiting code
@@ -32,6 +37,14 @@ class AutoResetEvent extends _ResetEvent {
     return _ResetEvent._void;
   }
 
+  /// Trying to wait for the `signaled` state and returns `true` if the event
+  /// was signaled before the [timeout] expires, otherwise the wait attempt is
+  /// canceled and `false` is returned.
+  ///
+  /// Parameters:
+  ///
+  /// - [timeout]: The period of time during which an attempt to wait for the
+  /// `signaled` state  will be performed.
   @useResult
   Future<bool> tryWait(Duration timeout) {
     if (_isSet) {
@@ -66,6 +79,11 @@ class AutoResetEvent extends _ResetEvent {
 /// Once switched to the `signaled` state, the event remains in the `signaled`
 /// state until it is manually [reset].
 class ManualResetEvent extends _ResetEvent {
+  /// Creates an instance of [ManualResetEvent].
+  ///
+  /// Parameters:
+  ///
+  /// - [isSet]: The initial state of the event (`signaled` or `non-signaled`).
   ManualResetEvent(super.isSet);
 
   /// Switches the event into the `signaled` state.\
@@ -80,6 +98,14 @@ class ManualResetEvent extends _ResetEvent {
     return _ResetEvent._void;
   }
 
+  /// Trying to wait for the `signaled` state and returns `true` if the event
+  /// was signaled before the [timeout] expires, otherwise the wait attempt is
+  /// canceled and `false` is returned.
+  ///
+  /// Parameters:
+  ///
+  /// - [timeout]: The period of time during which an attempt to wait for the
+  /// `signaled` state  will be performed.
   @useResult
   Future<bool> tryWait(Duration timeout) {
     return _queue.enqueue(timeout);

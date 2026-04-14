@@ -23,6 +23,7 @@ class SpeedMeter {
   /// The [reset] method resets the measurement values.\
   int get elapsedMicroseconds => _watch.elapsedMicroseconds;
 
+  /// Calculates and returns the current speed.
   double get speed {
     if (!_watch.isRunning) {
       return 0;

@@ -36,10 +36,10 @@ class _CancelableStream<T> extends Stream<T> {
   _CancelableStream(
     Stream<T> stream,
     CancellationToken token, {
-    required bool throwIfCanceled,
+    bool throwIfCanceled = true,
   })  : _stream = stream,
-        _token = token,
-        _throwIfCanceled = throwIfCanceled;
+        _throwIfCanceled = throwIfCanceled,
+        _token = token;
 
   @override
   StreamSubscription<T> listen(
@@ -111,6 +111,61 @@ class _StreamSubscriptionWithTracking<T>
     } finally {
       _onEvent(SubscriptionEvent.resume);
     }
+  }
+}
+
+class _StreamSubscriptionWrapper<T> implements StreamSubscription<T> {
+  final void Function()? _onCanceled;
+
+  final StreamSubscription<T> _subscription;
+
+  _StreamSubscriptionWrapper(StreamSubscription<T> subscription,
+      {required void Function() onCanceled})
+      : _onCanceled = onCanceled,
+        _subscription = subscription;
+
+  @override
+  bool get isPaused => _subscription.isPaused;
+
+  @override
+  Future<E> asFuture<E>([E? futureValue]) {
+    return _subscription.asFuture(futureValue);
+  }
+
+  @override
+  Future<void> cancel() {
+    try {
+      return _subscription.cancel();
+    } finally {
+      if (_onCanceled != null) {
+        _onCanceled!();
+      }
+    }
+  }
+
+  @override
+  void onData(void Function(T data)? handleData) {
+    _subscription.onData(handleData);
+  }
+
+  @override
+  void onDone(void Function()? handleDone) {
+    _subscription.onDone(handleDone);
+  }
+
+  @override
+  void onError(Function? handleError) {
+    _subscription.onError(handleError);
+  }
+
+  @override
+  void pause([Future<void>? resumeSignal]) {
+    _subscription.pause(resumeSignal);
+  }
+
+  @override
+  void resume() {
+    _subscription.resume();
   }
 }
 
@@ -198,75 +253,88 @@ class _StreamWithSubscriptionTracking<T> extends StreamView<T> {
   }
 }
 
+/// A [StreamExtension] is an extension for [Stream] with various usefu
+///  methods.
 extension StreamExtension<T> on Stream<T> {
+  /// Returns a stream whose subscriptions can be canceled using a cancellation
+  /// [token].
+  ///
+  /// Cancellation is performed by adding the error [TaskCanceledException] to
+  /// the outgoing stream.
   Stream<T> asCancelable(
     CancellationToken token, {
-    required bool throwIfCanceled,
+    bool throwIfCanceled = true,
   }) {
     return _CancelableStream(this, token, throwIfCanceled: throwIfCanceled);
   }
 
-  /// Adds a subscription to this stream.\
-  /// Immediately cancels the subscription when the token status changes to
-  /// `canceled`.
+  /// Adds a stream subscription that can be cancelled using a cancellation
+  /// [token].
   ///
-  /// Additionally, a [TaskCanceledException] error event will be sent to the
-  /// subscriber if the [throwIfCanceled] parameter has the value `true`.\
-  /// This can be useful if the code waiting for a subscription via a call to
-  /// the `asFuture()` method or via the `await for` statement, because this
-  /// clearly signals that the subscription was cancelled abnormally (that is,
-  /// upon request for cancellation).
-  ///
-  /// Example:
-  ///
-  /// ```dart
-  /// final stream = response.stream;
-  /// await stream.listenWithCancellation(token: token, throwIfCanceled: true,
-  ///     (event) {
-  ///   // Handles event
-  /// }).asFuture<void>();
-  /// ```
+  /// Cancellation is performed by adding the error [TaskCanceledException] to
+  /// the outgoing stream.
   StreamSubscription<T> listenWithCancellation(
     void Function(T event)? onData, {
     Function? onError,
     void Function()? onDone,
     bool? cancelOnError,
     required CancellationToken token,
-    required bool throwIfCanceled,
+    bool throwIfCanceled = true,
   }) {
-    final controller = StreamController<T>();
-    final iterator = StreamIterator(this);
-    var wasErrorSent = false;
-    final handler = token.addHandler(() async {
-      if (throwIfCanceled && !wasErrorSent && !controller.isClosed) {
-        controller.addError(TaskCanceledException(), StackTrace.current);
+    if (token.isCanceled) {
+      if (throwIfCanceled) {
+        return Stream<T>.error(
+          TaskCanceledException(),
+          StackTrace.current,
+        ).listen(
+          onData,
+          onDone: onDone,
+          onError: onError,
+          cancelOnError: cancelOnError,
+        );
+      } else {
+        return Stream<T>.empty().listen(
+          onData,
+          onDone: onDone,
+          onError: onError,
+          cancelOnError: cancelOnError,
+        );
       }
+    }
 
-      await iterator.cancel();
-    });
-    unawaited(() async {
-      try {
-        while (await iterator.moveNext()) {
-          controller.add(iterator.current);
-        }
-      } catch (e, s) {
-        if (e is TaskCanceledException) {
-          wasErrorSent = true;
-        }
-
-        controller.addError(e, s);
-      } finally {
-        token.removerHandler(handler);
-        await controller.close();
-      }
-    }());
-
-    final stream = controller.stream;
-    return stream.listen(
-      onData,
-      onDone: onDone,
-      onError: onError,
+    final output = StreamController<T>(sync: true);
+    final input = listen(
+      output.add,
+      onDone: output.close,
+      onError: output.addError,
       cancelOnError: cancelOnError,
+    );
+
+    final handler = token.addHandler(() async {
+      if (output.isClosed) {
+        return;
+      }
+
+      if (throwIfCanceled) {
+        output.addError(TaskCanceledException(), StackTrace.current);
+      }
+
+      await input.cancel();
+      await output.close();
+    });
+
+    final stream = output.stream;
+    return _StreamSubscriptionWrapper(
+      stream.listen(
+        onData,
+        onDone: onDone,
+        onError: onError,
+        cancelOnError: cancelOnError,
+      ),
+      onCanceled: () async {
+        await input.cancel();
+        token.removerHandler(handler);
+      },
     );
   }
 

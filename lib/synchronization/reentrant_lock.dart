@@ -20,16 +20,19 @@ class ReentrantLock extends Lock {
 
   final WaitQueue _waitQueue = WaitQueue();
 
+  /// Acquire a `lock`.
   @override
   Future<void> acquire() async {
     return _acquire(_entranceQueue);
   }
 
+  /// Reacquire a `lock`.
   @override
   Future<void> reacquire() async {
     return _acquire(_waitQueue);
   }
 
+  /// Releases a `lock`.
   @override
   Future<void> release() {
     if (_owner == null) {

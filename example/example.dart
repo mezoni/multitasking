@@ -71,8 +71,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     }
 
     final stream = response.stream;
-    await for (final event
-        in stream.asCancelable(token, throwIfCanceled: true)) {
+    await for (final event in stream.asCancelable(token)) {
       // Simulating the addition of bytes
       bytes += event.length;
     }

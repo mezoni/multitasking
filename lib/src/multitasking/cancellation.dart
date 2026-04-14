@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'errors.dart';
 
-/// A [CancellationToken] is a mechanism for graceful cancellation of
+/// A [CancellationToken] is a mechanism for cooperative cancellation of
 /// asynchronous operations.
 class CancellationToken {
   final Map<FutureOr<void> Function(), Zone> _handlers = {};
@@ -134,6 +134,7 @@ class CancellationToken {
 /// It works in conjunction with the [CancellationToken] class, providing a
 /// `cooperative` cancellation mechanism.
 class CancellationTokenSource {
+  /// The cancellation token associated with this source.
   final CancellationToken token = CancellationToken._();
 
   Timer? _timer;
@@ -187,7 +188,7 @@ class CancellationTokenSource {
   ///
   /// Parameters:
   ///
-  /// - [token]: List of tokens of other cancellation sources to link.
+  /// - [tokens]: List of tokens of other cancellation sources to link.
   ///
   /// This [CancellationTokenSource] can be canceled individually, or it will be
   /// canceled cooperatively when one of the other sources will initiate a

@@ -27,10 +27,17 @@ class MultipleWriteSingleReadObject<T> {
 
   int _writeCount = 0;
 
+  /// Creates an instance of [MultipleWriteSingleReadObject].
+  ///
+  /// Parameters:
+  ///
+  /// - [value]: Initial value of the object.
   MultipleWriteSingleReadObject(T value) : _value = value;
 
+  /// Returns `true` if the object is locked.
   bool get isLocked => _writeCount != 0;
 
+  /// Reads and returns the value of the object.
   T read() {
     if (_writeCount != 0) {
       throw StateError('Single writer object ($T) is locked');
@@ -39,6 +46,7 @@ class MultipleWriteSingleReadObject<T> {
     return _value;
   }
 
+  ///Waits until the object is unlocked.
   Future<void> wait() {
     if (_writeCount == 0) {
       return _void;
@@ -47,11 +55,16 @@ class MultipleWriteSingleReadObject<T> {
     return _lock.lock(_emptyAction);
   }
 
-  Future<void> write(FutureOr<T> Function(T value) action) async {
+  /// Writes the value of the object.
+  ///
+  /// Parameters:
+  ///
+  /// - [callback]: The callback function that performs the writing.
+  Future<void> write(FutureOr<T> Function(T value) callback) async {
     await _lock.acquire();
     try {
       _writeCount++;
-      _value = await action(_value);
+      _value = await callback(_value);
     } finally {
       _writeCount--;
       await _lock.release();

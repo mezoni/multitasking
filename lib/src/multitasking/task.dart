@@ -777,7 +777,7 @@ class TaskCompletionSource<T> {
 
 /// Represents the status of a task.
 enum TaskStatus {
-  /// The task was canceled (by throwing an exception [TaskCanceledError]).
+  /// The task was canceled (by throwing an exception [TaskCanceledException]).
   canceled,
 
   /// The task has not yet started.

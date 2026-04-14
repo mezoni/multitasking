@@ -8,9 +8,15 @@ import 'package:stack_trace/stack_trace.dart';
 class AggregateError extends _Error {
   final List<ErrorResult> _exceptions;
 
+  /// The stack trace associated with this error.
   @override
   final StackTrace stackTrace;
 
+  /// Creates an instance of [AggregateError].
+  ///
+  /// Parameters:
+  ///
+  /// - [exceptions]: List of exceptions for aggregation.
   AggregateError(List<ErrorResult> exceptions)
       : _exceptions = UnmodifiableListView(exceptions),
         stackTrace = _buildAggregateStackTrace(exceptions) {
@@ -36,8 +42,10 @@ class AggregateError extends _Error {
 
 /// Represents an exception used to signal and indicate task cancellation.
 class TaskCanceledException implements Exception {
+  /// Message associated with this exception.
   final String? message;
 
+  /// Creates an instance of [TaskCanceledException].
   TaskCanceledException([this.message]);
 
   @override
@@ -53,6 +61,11 @@ class TaskCanceledException implements Exception {
 /// Represents an error that occurs when an operation is requested on a [Task]
 /// whose current state does not allow the operation to be performed.
 class TaskStateError extends _Error {
+  /// Creates an instance of the [TaskStateError].
+  ///
+  /// Parameters:
+  ///
+  /// - [message]: Message associated with this error.
   TaskStateError([super.message]);
 }
 

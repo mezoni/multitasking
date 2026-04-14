@@ -18,12 +18,13 @@ class BinarySemaphore extends Lock {
 
   final WaitQueue _waitQueue = WaitQueue();
 
-  /// Acquires a permit from this semaphore.
+  /// Acquires a permit.
   @override
   Future<void> acquire() {
     return _acquire(_entranceQueue);
   }
 
+  /// Reacquires a permit.
   @override
   Future<void> reacquire() {
     return _acquire(_waitQueue);
@@ -47,19 +48,14 @@ class BinarySemaphore extends Lock {
     return _void;
   }
 
-  /// Tries to acquire a permit from this semaphore and waits until the
-  /// specified timeout expires.
+  /// Tries to acquire the permit and returns `true` if the permit was acquired
+  /// before the [timeout] expires, otherwise the acquisition attempt is
+  /// canceled and `false` is returned.
   ///
   /// Parameters:
   ///
-  /// - [timeout]: The period of time during which an attempt to acquire a
+  /// - [timeout]: The period of time during which an attempt to acquire the
   /// permit will be performed.
-  ///
-  /// If the semaphore is locked and timeout is zero (or not specified), `false`
-  /// is returned.\
-  /// If the timeout expires before the semaphore is unlocked, then returns
-  /// `false`.\
-  /// If permit was acquired, returns `true`.
   @override
   @useResult
   Future<bool> tryAcquire(Duration timeout) {

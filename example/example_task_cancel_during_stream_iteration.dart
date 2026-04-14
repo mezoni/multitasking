@@ -53,8 +53,7 @@ Task<int> _doWork(
   return Task.run(() async {
     token.throwIfCanceled();
     final list = <int>[];
-    await for (final event
-        in stream.asCancelable(token, throwIfCanceled: true)) {
+    await for (final event in stream.asCancelable(token)) {
       _message('Received event: $event');
       list.add(event);
       if (isFirst && list.length == 1) {

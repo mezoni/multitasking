@@ -26,6 +26,12 @@ class CountingSemaphore {
 
   final WaitQueue _queue = WaitQueue();
 
+  /// Creates an instance of [CountingSemaphore].
+  ///
+  /// Parameters:
+  ///
+  /// - [initialCount]: Initial number of permits acquired.
+  /// - [maxCount]: The maximum number of permits that can be acquired.
   CountingSemaphore(int initialCount, int maxCount) : _maxCount = maxCount {
     if (maxCount < 0) {
       throw RangeError.range(maxCount, 0, null, 'maxCount');
@@ -38,7 +44,7 @@ class CountingSemaphore {
     _count = maxCount - initialCount;
   }
 
-  /// Acquires a permit from this semaphore.
+  /// Acquires a permit.
   Future<void> acquire() {
     if (_count > 0) {
       _count--;
@@ -63,13 +69,14 @@ class CountingSemaphore {
     return _void;
   }
 
-  /// Tries to acquire a permit from this semaphore and waits until the
-  /// specified timeout expires.\
-  /// If the semaphore is locked and timeout is zero (or not specified), `false`
-  /// is returned.\
-  /// If the timeout expires before the semaphore is unlocked, then returns
-  /// `false`.\
-  /// If permit was acquired, returns `true`.
+  /// Tries to acquire the permit and returns `true` if the permit was acquired
+  /// before the [timeout] expires, otherwise the acquisition attempt is
+  /// canceled and `false` is returned.
+  ///
+  /// Parameters:
+  ///
+  /// - [timeout]: The period of time during which an attempt to acquire the
+  /// permit will be performed.
   @useResult
   Future<bool> tryAcquire(Duration timeout) {
     if (_count > 0) {

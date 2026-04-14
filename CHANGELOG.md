@@ -1,5 +1,10 @@
 # Changelog
 
+## 5.5.0
+
+- Non-breaking change: Parameter `throwIfCanceled` of the `listenWithCancellation()` and `asCancelable()` methods of the `StreamExtension` extension is now optional and has a default value of `true`.
+- The implementation of the `listenWithCancellation()` method of the `StreamExtension` class has been changed. Now the operating algorithm is a little simpler and more predictable.
+
 ## 5.4.0
 
 - The implementation of the `withCancellationHandler()` method from the `StreamExtension` extension has been changed. The implementation is now more optimized and ensures that the stream subscription has no references to the stream, including the environment of the closures used.

@@ -14,10 +14,16 @@ class ConditionVariable {
 
   static final Future<void> _void = Future.value();
 
+  /// Mutex used for synchronization.
   final Lock lock;
 
   final WaitQueue _queue = WaitQueue();
 
+  /// Creates an instance of [ConditionVariable].
+  ///
+  /// Parameters:
+  ///
+  /// - [lock]: Mutex used for synchronization.
   ConditionVariable(this.lock);
 
   /// Removes an element from the wait queue and waits for the lock to be

@@ -16,13 +16,14 @@ class Progress<T> {
   ///
   /// The callback function can be defined with any required parameter type.\
   /// The function [report] must be called with the same parameter type.
-  Progress(FutureOr<void> Function(T) callback)
+  Progress(FutureOr<void> Function(T value) callback)
       : _callback = callback,
         _zone = Zone.current;
 
-  void report(T event) {
+  /// Notifies the the reporting function.
+  void report(T value) {
     _zone.scheduleMicrotask(() async {
-      await _callback(event);
+      await _callback(value);
     });
   }
 }

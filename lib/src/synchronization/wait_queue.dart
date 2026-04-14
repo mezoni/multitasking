@@ -1,15 +1,20 @@
 import 'dart:async';
 import 'dart:collection';
 
+/// A [WaitQueue] is an implementation of a wait queue for asynchronous
+/// operations.
 class WaitQueue {
   static final Future<bool> _false = Future.value(false);
 
   final LinkedList<_Node> _list = LinkedList();
 
+  /// Returns `true` if the queue is empty.
   bool get isEmpty => _list.isEmpty;
 
+  /// Returns `true` if the queue is not empty.
   bool get isNotEmpty => _list.isNotEmpty;
 
+  /// Removes the first element from the queue and activates it.
   void dequeue() {
     final node = _list.first;
     final timer = node.timer;
@@ -19,6 +24,7 @@ class WaitQueue {
     completer.complete(true);
   }
 
+  /// Adds an element to the end of the queue.
   Future<bool> enqueue([Duration? timeout]) {
     if (timeout == null) {
       final node = _Node();
@@ -44,15 +50,6 @@ class WaitQueue {
 
     _list.add(node);
     return completer.future;
-  }
-
-  Completer<bool> removeFirst() {
-    final node = _list.first;
-    final completer = node.completer;
-    final timer = node.timer;
-    timer?.cancel();
-    _list.remove(node);
-    return completer;
   }
 }
 

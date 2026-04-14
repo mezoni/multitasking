@@ -24,6 +24,13 @@ class CountdownTimer implements Timer {
 
   Timer _timer = _initialTimer;
 
+  /// Creates an instance of [CountdownTimer].
+  ///
+  /// Parameters:
+  ///
+  /// - [duration]: Timer duration.
+  /// - [callback]: A callback function that will be executed when the specified
+  /// time point is reached.
   CountdownTimer(Duration duration, void Function() callback)
       : _callback = callback,
         _duration = duration;

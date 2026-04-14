@@ -121,6 +121,7 @@ class PauseToken {
 /// It works in conjunction with the [PauseToken] class, providing a
 /// `cooperative` pause/resume mechanism.
 class PauseTokenSource {
+  /// The pause token associated with this source.
   final PauseToken token = PauseToken._();
 
   /// Signal to associated token that the operation executions should be

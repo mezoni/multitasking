@@ -50,8 +50,7 @@ Future<void> main() async {
       }
 
       final stream = response.stream;
-      await for (final event
-          in stream.asCancelable(token, throwIfCanceled: true)) {
+      await for (final event in stream.asCancelable(token)) {
         bytes.addAll(event);
       }
 
