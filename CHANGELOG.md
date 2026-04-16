@@ -3,8 +3,8 @@
 ## 5.6.0
 
 - Breaking change: Removed `listenWithCancellation()`method from `StreamExtension` extension. The reason for removing this method is the need to use a hacked stream subscription. This is now a much cleaner implementation. The closest recommended replacement is the expression `stream.asCancelable().listen()`.
-- The implementation of the `asCancelable()` method from the `StreamExtension` extension has been changed.
-- The implementation of the `withSubscriptionTracking()` method from the `StreamExtension` extension has been changed. Now uses an internal, more functional, traceable stream subscription.
+- The implementation of the `asCancelable()` method of the `StreamExtension` extension has been changed.
+- The implementation of the `withSubscriptionTracking()` method of the `StreamExtension` extension has been changed. Now it uses an internal, more functional, traceable stream subscription.
 
 ## 5.5.0
 

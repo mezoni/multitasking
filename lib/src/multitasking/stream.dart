@@ -46,14 +46,18 @@ class _CancelableStream<T> extends Stream<T> {
     bool? cancelOnError,
   }) {
     Future<void> Function()? handler;
-    final controller = StreamController<T>(onCancel: () {
-      _token.removerHandler(handler);
-    });
+    final controller = StreamController<T>(
+      onCancel: () {
+        _token.removerHandler(handler);
+      },
+      sync: true,
+    );
 
     final input = _stream.listen(
       controller.add,
       onDone: controller.close,
       onError: controller.addError,
+      cancelOnError: cancelOnError,
     );
 
     final stream = controller.stream;

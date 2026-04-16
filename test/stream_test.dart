@@ -34,11 +34,12 @@ void _testAsCancelable() {
     return '$text, throwIfCanceled: $throwIfCanceled, cancelOnError: $cancelOnError';
   }
 
-  Future<void> f(
-    bool throwIfCanceled,
-    CancellationTokenSource cts,
-    bool cancelOnError,
-  ) async {
+  Future<void> f({
+    required bool cancelOnError,
+    int? cancelValue,
+    required CancellationTokenSource cts,
+    required bool throwIfCanceled,
+  }) async {
     count1 = 0;
     count2 = 0;
     error = null;
@@ -70,6 +71,9 @@ void _testAsCancelable() {
     stream.listen(
       (event) {
         count2 = event;
+        if (event == cancelValue) {
+          cts.cancel();
+        }
       },
       onDone: complete,
       onError: (Object e) {
@@ -88,7 +92,11 @@ void _testAsCancelable() {
       for (final cancelOnError in [true, false]) {
         final cts = CancellationTokenSource();
         cts.cancel();
-        await f(throwIfCanceled, cts, cancelOnError);
+        await f(
+          cancelOnError: cancelOnError,
+          cts: cts,
+          throwIfCanceled: throwIfCanceled,
+        );
 
         throwIfCanceled
             ? expect(error, isA<TaskCanceledException>(), reason: 'error')
@@ -117,7 +125,11 @@ void _testAsCancelable() {
     for (final throwIfCanceled in [true, false]) {
       for (final cancelOnError in [true, false]) {
         final cts = CancellationTokenSource(const Duration());
-        await f(throwIfCanceled, cts, cancelOnError);
+        await f(
+          cancelOnError: cancelOnError,
+          cts: cts,
+          throwIfCanceled: throwIfCanceled,
+        );
 
         throwIfCanceled
             ? expect(error, isA<TaskCanceledException>(), reason: 'error')
@@ -145,8 +157,13 @@ void _testAsCancelable() {
   test('StreamExtension.asCancelable(): cancel between', () async {
     for (final throwIfCanceled in [true, false]) {
       for (final cancelOnError in [true, false]) {
-        final cts = CancellationTokenSource(const Duration(milliseconds: 150));
-        await f(throwIfCanceled, cts, cancelOnError);
+        final cts = CancellationTokenSource();
+        await f(
+          cancelOnError: cancelOnError,
+          cancelValue: 2,
+          cts: cts,
+          throwIfCanceled: throwIfCanceled,
+        );
 
         throwIfCanceled
             ? expect(error, isA<TaskCanceledException>(), reason: 'error')
@@ -174,8 +191,13 @@ void _testAsCancelable() {
   test('StreamExtension.asCancelable(): cancel after', () async {
     for (final throwIfCanceled in [true, false]) {
       for (final cancelOnError in [true, false]) {
-        final cts = CancellationTokenSource(const Duration(milliseconds: 600));
-        await f(throwIfCanceled, cts, cancelOnError);
+        final cts = CancellationTokenSource();
+        await f(
+          cancelOnError: cancelOnError,
+          cts: cts,
+          throwIfCanceled: throwIfCanceled,
+        );
+        cts.cancel();
 
         throwIfCanceled
             ? expect(error, isNull, reason: 'error')
@@ -194,38 +216,6 @@ void _testAsCancelable() {
     }
   });
 }
-
-/*
-void _testListenWithCancellation() {
-  test('StreamExtension.listenWithCancellation(): subscription.cancel()',
-      () async {
-    var count1 = 0;
-    Stream<int> gen() async* {
-      for (var i = 0; i < 3; i++) {
-        count1++;
-        yield i;
-        await _delay(100);
-      }
-    }
-
-    final cts = CancellationTokenSource();
-    final token = cts.token;
-    final events = <SubscriptionEvent>[];
-    var count2 = 0;
-    final sub = gen()
-        .withSubscriptionTracking(events.add)
-        .listenWithCancellation(token: token, (event) {
-      count2++;
-    });
-    await sub.cancel();
-    await _delay(400);
-    expect(count1, equals(1), reason: 'count1');
-    expect(count2, equals(0), reason: 'count2');
-    expect(events, [SubscriptionEvent.start, SubscriptionEvent.cancel],
-        reason: 'events');
-  });
-}
-*/
 
 void _testWithSubscriptionTracking() {
   final error = Exception('Error');
