@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:meta/meta.dart';
 
-/// A ([Lock]) is an abstract interface that can be used to implement unified
+/// A [Lock] is an abstract interface that can be used to implement unified
 /// mutual-exclusion synchronization primitives.
 ///
 /// Unified mutual-exclusion synchronization primitives are objects with the
@@ -56,9 +56,9 @@ abstract class Lock {
   @useResult
   Future<bool> tryAcquire(Duration timeout);
 
-  /// Tries to acquire the `lock` and returns `true` if the `lock` was acquired
-  /// before the [timeout] expires, otherwise the acquisition attempt is
-  /// canceled and `false` is returned.
+  /// Tries to acquire the `lock` to execute an [action] and returns `true` if
+  /// the `lock` was acquired before the [timeout] expires, otherwise the
+  /// acquisition attempt is canceled and `false` is returned.
   ///
   /// Parameters:
   ///
@@ -68,7 +68,9 @@ abstract class Lock {
   /// acquired.
   @useResult
   Future<bool> tryLock(
-      Duration timeout, FutureOr<void> Function() action) async {
+    Duration timeout,
+    FutureOr<void> Function() action,
+  ) async {
     final isSuccess = await tryAcquire(timeout);
     if (isSuccess) {
       try {

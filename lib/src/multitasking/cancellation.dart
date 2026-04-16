@@ -23,7 +23,7 @@ class CancellationToken {
   ///
   /// Parameters:
   ///
-  /// - [callback]: A callback that will `cancel` the execution of the [action].
+  /// - [handler]: A callback that will `cancel` the execution of the operation.
   ///
   /// Handlers should be added temporarily. For example, while waiting for the
   /// completion of I/O operation. To cancel this operation (for example,
@@ -47,29 +47,29 @@ class CancellationToken {
   ///   client.close();
   /// }
   /// ```
-  FutureOr<void> Function()? addHandler(FutureOr<void> Function() callback) {
+  FutureOr<void> Function()? addHandler(FutureOr<void> Function() handler) {
     if (_isCanceled) {
-      scheduleMicrotask(callback);
+      scheduleMicrotask(handler);
       return null;
     }
 
     final zone = Zone.current;
-    _handlers[callback] = zone;
-    return callback;
+    _handlers[handler] = zone;
+    return handler;
   }
 
   /// Removes the handler.
   ///
   /// Parameters:
   ///
-  /// - [callback]: A previously added [callback] function that should be
-  /// removed from the handlers.
+  /// - [handler]: A previously added [handler] that should be removed from the
+  /// handlers.
   ///
   /// The subscriber must call this method itself after the handler is no longer
   /// needed to free up memory.
-  void removerHandler(FutureOr<void> Function()? callback) {
-    if (callback != null) {
-      _handlers.remove(callback);
+  void removerHandler(FutureOr<void> Function()? handler) {
+    if (handler != null) {
+      _handlers.remove(handler);
     }
   }
 

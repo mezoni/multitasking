@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 5.5.0
+Version: 5.6.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -691,7 +691,7 @@ Output:
 
 ```txt
 TaskCanceledException
-main(): count: 249783
+main(): count: 225030
 
 ```
 
@@ -1017,7 +1017,7 @@ Task(5): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Task(9): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Task(13): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Task(17): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Task(13): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
+Task(17): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
 main(): Canceling
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 ----------------------------------------
@@ -1030,12 +1030,12 @@ No data
 Task(9): canceled
 No data
 ----------------------------------------
-Task(13): successful
+Task(13): canceled
+No data
+----------------------------------------
+Task(17): successful
 Data <?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:dc="http://purl.org/dc/element
-----------------------------------------
-Task(17): canceled
-No data
 
 ```
 
@@ -1147,9 +1147,9 @@ Output:
 ```txt
 Canceling...
 Task(1): canceled
-Task(1): Downloaded: 5650161
+Task(1): Downloaded: 2506752
 Task(6): canceled
-Task(6): Downloaded: 3883006
+Task(6): Downloaded: 2473984
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException)
 
 ```
@@ -1329,31 +1329,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 393198663
+Isolate started: 1049316392
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
-Isolate started: 939355306
-Isolate started: 700678509
 main(): Adding task 4
-Isolate started: 333256908
-Isolate started: 214177315
+Isolate started: 161855534
+Isolate started: 790803986
+Isolate started: 425053734
+Isolate started: 433347053
 Task(4): Received result: [12]
-Task(2): Received result: [10]
-Task(6): Received result: [14]
-Task(3): Received result: [11]
 Task(5): Received result: [13]
+Task(2): Received result: [10]
+Task(3): Received result: [11]
+Task(6): Received result: [14]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
-Isolate started: 72489514
-Isolate started: 269029931
-Isolate started: 152048425
+Isolate started: 403860519
+Isolate started: 226250783
 main(): Adding task 4
-Isolate started: 352690453
-Isolate started: 934745710
+Isolate started: 684232422
+Isolate started: 1037851276
+Isolate started: 573684639
 main(): Canceling...
 AggregateError: One or more errors occurred. (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException) (TaskCanceledException)
 
@@ -2151,8 +2151,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(1): 512
-Task(2): 514
-Task(3): 514
+Task(1): 521
+Task(2): 523
+Task(3): 523
 
 ```

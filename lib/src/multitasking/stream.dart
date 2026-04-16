@@ -1,9 +1,6 @@
 import 'dart:async';
 
-import 'package:async/async.dart';
-
-import 'cancellation.dart';
-import 'errors.dart';
+import '../../multitasking.dart';
 
 /// Represents the lifecycle events of a stream subscription.
 enum SubscriptionEvent {
@@ -48,124 +45,45 @@ class _CancelableStream<T> extends Stream<T> {
     void Function()? onDone,
     bool? cancelOnError,
   }) {
-    return _stream.listenWithCancellation(
+    Future<void> Function()? handler;
+    final controller = StreamController<T>(onCancel: () {
+      _token.removerHandler(handler);
+    });
+
+    final input = _stream.listen(
+      controller.add,
+      onDone: controller.close,
+      onError: controller.addError,
+    );
+
+    final stream = controller.stream;
+    final subscription = stream.listen(
       onData,
       onError: onError,
       onDone: onDone,
       cancelOnError: cancelOnError,
-      token: _token,
-      throwIfCanceled: _throwIfCanceled,
     );
-  }
-}
 
-class _StreamSubscriptionWithTracking<T>
-    extends DelegatingStreamSubscription<T> {
-  void Function()? _handleDone;
-
-  Function? _handleError;
-
-  final void Function(SubscriptionEvent event) _onEvent;
-
-  _StreamSubscriptionWithTracking(
-    super.source,
-    void Function(SubscriptionEvent event) onEvent, {
-    required void Function()? handleDone,
-    required Function? handleError,
-  })  : _handleDone = handleDone,
-        _handleError = handleError,
-        _onEvent = onEvent;
-
-  @override
-  Future<void> cancel() async {
-    try {
-      await super.cancel();
-    } finally {
-      _onEvent(SubscriptionEvent.cancel);
-    }
-  }
-
-  @override
-  void onDone(void Function()? handleDone) {
-    _handleDone = handleDone;
-  }
-
-  @override
-  void onError(Function? handleError) {
-    _handleError = handleError;
-  }
-
-  @override
-  void pause([Future<dynamic>? resumeFuture]) {
-    try {
-      super.pause(resumeFuture);
-    } finally {
-      _onEvent(SubscriptionEvent.pause);
-    }
-  }
-
-  @override
-  void resume() {
-    try {
-      super.resume();
-    } finally {
-      _onEvent(SubscriptionEvent.resume);
-    }
-  }
-}
-
-class _StreamSubscriptionWrapper<T> implements StreamSubscription<T> {
-  final void Function()? _onCanceled;
-
-  final StreamSubscription<T> _subscription;
-
-  _StreamSubscriptionWrapper(StreamSubscription<T> subscription,
-      {required void Function() onCanceled})
-      : _onCanceled = onCanceled,
-        _subscription = subscription;
-
-  @override
-  bool get isPaused => _subscription.isPaused;
-
-  @override
-  Future<E> asFuture<E>([E? futureValue]) {
-    return _subscription.asFuture(futureValue);
-  }
-
-  @override
-  Future<void> cancel() {
-    try {
-      return _subscription.cancel();
-    } finally {
-      if (_onCanceled != null) {
-        _onCanceled!();
+    Future<void> cancel() async {
+      if (controller.isClosed) {
+        return;
       }
+
+      if (_throwIfCanceled) {
+        controller.addError(TaskCanceledException(), StackTrace.current);
+      }
+
+      await input.cancel();
+      await controller.close();
     }
-  }
 
-  @override
-  void onData(void Function(T data)? handleData) {
-    _subscription.onData(handleData);
-  }
+    if (_token.isCanceled) {
+      unawaited(cancel());
+    } else {
+      _token.addHandler(cancel);
+    }
 
-  @override
-  void onDone(void Function()? handleDone) {
-    _subscription.onDone(handleDone);
-  }
-
-  @override
-  void onError(Function? handleError) {
-    _subscription.onError(handleError);
-  }
-
-  @override
-  void pause([Future<void>? resumeSignal]) {
-    _subscription.pause(resumeSignal);
-  }
-
-  @override
-  void resume() {
-    _subscription.resume();
+    return subscription;
   }
 }
 
@@ -187,73 +105,260 @@ class _StreamWithSubscriptionTracking<T> extends StreamView<T> {
     void Function()? onDone,
     bool? cancelOnError,
   }) {
-    return _createSubscription(
+    Future<void> beforeCancel() async {
+      _onEvent(SubscriptionEvent.cancel);
+    }
+
+    void beforeDone() {
+      _onEvent(SubscriptionEvent.done);
+    }
+
+    void beforeError(Object error, StackTrace stackTrace) {
+      _onEvent(SubscriptionEvent.error);
+    }
+
+    void beforePause([Future<void>? resumeSignal]) {
+      _onEvent(SubscriptionEvent.pause);
+    }
+
+    void beforeResume() {
+      _onEvent(SubscriptionEvent.resume);
+    }
+
+    _onEvent(SubscriptionEvent.start);
+    return _TraceableStreamSubscription(
       _stream,
-      _onEvent,
       onData,
       onDone: onDone,
       onError: onError,
       cancelOnError: cancelOnError,
+      beforeCancel: beforeCancel,
+      beforeDone: beforeDone,
+      beforeError: beforeError,
+      beforePause: beforePause,
+      beforeResume: beforeResume,
     );
-  }
-
-  static _StreamSubscriptionWithTracking<T> _createSubscription<T>(
-    Stream<T> stream,
-    void Function(SubscriptionEvent event) onEvent,
-    void Function(T value)? onData, {
-    Function? onError,
-    void Function()? onDone,
-    bool? cancelOnError,
-  }) {
-    _StreamSubscriptionWithTracking<T>? subscription;
-
-    void handleDone() {
-      final handleDone = subscription!._handleDone;
-      try {
-        if (handleDone != null) {
-          handleDone();
-        }
-      } finally {
-        onEvent(SubscriptionEvent.done);
-      }
-    }
-
-    void handleError(Object error, StackTrace stackTrace) {
-      final handleError = subscription!._handleError;
-      try {
-        if (handleError != null) {
-          if (handleError is void Function(Object, StackTrace)) {
-            handleError(error, stackTrace);
-          } else if (handleError is void Function(Object)) {
-            handleError(error);
-          } else {
-            throw StateError(
-              'Error handler must accept one Object or one Object and a StackTrace as arguments',
-            );
-          }
-        }
-      } finally {
-        onEvent(SubscriptionEvent.error);
-      }
-    }
-
-    onEvent(SubscriptionEvent.start);
-    subscription = _StreamSubscriptionWithTracking(
-      stream.listen(
-        onData,
-        onError: handleError,
-        onDone: handleDone,
-        cancelOnError: cancelOnError,
-      ),
-      onEvent,
-      handleDone: onDone,
-      handleError: onError,
-    );
-    return subscription;
   }
 }
 
-/// A [StreamExtension] is an extension for [Stream] with various usefu
+class _TraceableStreamSubscription<T> implements StreamSubscription<T> {
+  final Future<void> Function()? _afterCancel;
+
+  final void Function(T event)? _afterData;
+
+  final void Function()? _afterDone;
+
+  final void Function(Object error, StackTrace stackTrace)? _afterError;
+
+  final void Function([Future<void>? resumeSignal])? _afterPause;
+
+  final void Function()? _afterResume;
+
+  final Future<void> Function()? _beforeCancel;
+
+  final void Function()? _beforeDone;
+
+  final void Function([Future<void>? resumeSignal])? _beforePause;
+
+  final void Function()? _beforeResume;
+
+  final void Function(Object error, StackTrace stackTrace)? _beforeError;
+
+  final void Function(T event)? _beforeData;
+
+  void Function(T event)? _onData;
+
+  void Function()? _onDone;
+
+  void Function(Object error, StackTrace stackTrace)? _onError;
+
+  late final StreamSubscription<T> _source;
+
+  _TraceableStreamSubscription(
+    Stream<T> stream,
+    void Function(T event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+    Future<void> Function()? afterCancel,
+    void Function(T event)? afterData,
+    void Function()? afterDone,
+    void Function(Object error, StackTrace stackTrace)? afterError,
+    void Function([Future<void>? resumeSignal])? afterPause,
+    void Function()? afterResume,
+    Future<void> Function()? beforeCancel,
+    void Function(T event)? beforeData,
+    void Function()? beforeDone,
+    void Function(Object error, StackTrace stackTrace)? beforeError,
+    void Function([Future<void>? resumeSignal])? beforePause,
+    void Function()? beforeResume,
+  })  : _afterCancel = afterCancel,
+        _afterData = afterData,
+        _afterDone = afterDone,
+        _afterError = afterError,
+        _afterPause = afterPause,
+        _afterResume = afterResume,
+        _beforeCancel = beforeCancel,
+        _beforeData = beforeData,
+        _beforeDone = beforeDone,
+        _beforeError = beforeError,
+        _beforePause = beforePause,
+        _beforeResume = beforeResume,
+        _onData = onData,
+        _onDone = onDone,
+        _onError = onError == null ? null : _convertToErrorHandler(onError) {
+    _source = stream.listen(
+      _handleData,
+      onDone: _handleDone,
+      onError: _handleError,
+      cancelOnError: cancelOnError,
+    );
+  }
+
+  @override
+  bool get isPaused => _source.isPaused;
+
+  @override
+  Future<E> asFuture<E>([E? futureValue]) {
+    return _source.asFuture(futureValue);
+  }
+
+  @override
+  Future<void> cancel() async {
+    try {
+      if (_beforeCancel != null) {
+        await _beforeCancel!();
+      }
+    } finally {
+      try {
+        return await _source.cancel();
+      } finally {
+        if (_afterCancel != null) {
+          await _afterCancel!();
+        }
+      }
+    }
+  }
+
+  @override
+  void onData(void Function(T data)? handleData) {
+    _onData = handleData;
+  }
+
+  @override
+  void onDone(void Function()? handleDone) {
+    _onDone = handleDone;
+  }
+
+  @override
+  void onError(Function? handleError) {
+    _onError = handleError == null ? null : _convertToErrorHandler(handleError);
+  }
+
+  @override
+  void pause([Future<void>? resumeSignal]) {
+    try {
+      if (_beforePause != null) {
+        _beforePause!(resumeSignal);
+      }
+    } finally {
+      try {
+        _source.pause(resumeSignal);
+      } finally {
+        if (_afterPause != null) {
+          _afterPause!(resumeSignal);
+        }
+      }
+    }
+  }
+
+  @override
+  void resume() {
+    try {
+      if (_beforeResume != null) {
+        _beforeResume!();
+      }
+    } finally {
+      try {
+        _source.resume();
+      } finally {
+        if (_afterResume != null) {
+          _afterResume!();
+        }
+      }
+    }
+  }
+
+  void _handleData(T event) {
+    try {
+      if (_beforeData != null) {
+        _beforeData!(event);
+      }
+    } finally {
+      try {
+        if (_onData != null) {
+          _onData!(event);
+        }
+      } finally {
+        if (_afterData != null) {
+          _afterData!(event);
+        }
+      }
+    }
+  }
+
+  void _handleDone() {
+    try {
+      if (_beforeDone != null) {
+        _beforeDone!();
+      }
+    } finally {
+      try {
+        if (_onDone != null) {
+          _onDone!();
+        }
+      } finally {
+        if (_afterDone != null) {
+          _afterDone!();
+        }
+      }
+    }
+  }
+
+  void _handleError(Object error, StackTrace stackTrace) {
+    try {
+      if (_beforeError != null) {
+        _beforeError!(error, stackTrace);
+      }
+    } finally {
+      try {
+        if (_onError != null) {
+          _onError!(error, stackTrace);
+        }
+      } finally {
+        if (_afterError != null) {
+          _afterError!(error, stackTrace);
+        }
+      }
+    }
+  }
+
+  static void Function(Object error, StackTrace stackTrace)
+      _convertToErrorHandler(Function handleError) {
+    if (handleError is void Function(Object, StackTrace)) {
+      return handleError;
+    } else if (handleError is void Function(Object)) {
+      return (Object error, StackTrace _) {
+        return handleError(error);
+      };
+    } else {
+      throw ArgumentError(
+          "The 'handleError' callback function must accept either one parameter (Object error) or two parameters (Object error, StackTrace stackTrace)");
+    }
+  }
+}
+
+/// A [StreamExtension] is an extension for [Stream] with various useful
 ///  methods.
 extension StreamExtension<T> on Stream<T> {
   /// Returns a stream whose subscriptions can be canceled using a cancellation
@@ -266,76 +371,6 @@ extension StreamExtension<T> on Stream<T> {
     bool throwIfCanceled = true,
   }) {
     return _CancelableStream(this, token, throwIfCanceled: throwIfCanceled);
-  }
-
-  /// Adds a stream subscription that can be cancelled using a cancellation
-  /// [token].
-  ///
-  /// Cancellation is performed by adding the error [TaskCanceledException] to
-  /// the outgoing stream.
-  StreamSubscription<T> listenWithCancellation(
-    void Function(T event)? onData, {
-    Function? onError,
-    void Function()? onDone,
-    bool? cancelOnError,
-    required CancellationToken token,
-    bool throwIfCanceled = true,
-  }) {
-    if (token.isCanceled) {
-      if (throwIfCanceled) {
-        return Stream<T>.error(
-          TaskCanceledException(),
-          StackTrace.current,
-        ).listen(
-          onData,
-          onDone: onDone,
-          onError: onError,
-          cancelOnError: cancelOnError,
-        );
-      } else {
-        return Stream<T>.empty().listen(
-          onData,
-          onDone: onDone,
-          onError: onError,
-          cancelOnError: cancelOnError,
-        );
-      }
-    }
-
-    final output = StreamController<T>(sync: true);
-    final input = listen(
-      output.add,
-      onDone: output.close,
-      onError: output.addError,
-      cancelOnError: cancelOnError,
-    );
-
-    final handler = token.addHandler(() async {
-      if (output.isClosed) {
-        return;
-      }
-
-      if (throwIfCanceled) {
-        output.addError(TaskCanceledException(), StackTrace.current);
-      }
-
-      await input.cancel();
-      await output.close();
-    });
-
-    final stream = output.stream;
-    return _StreamSubscriptionWrapper(
-      stream.listen(
-        onData,
-        onDone: onDone,
-        onError: onError,
-        cancelOnError: cancelOnError,
-      ),
-      onCanceled: () async {
-        await input.cancel();
-        token.removerHandler(handler);
-      },
-    );
   }
 
   /// Wraps this [Stream] and returns the wrapper that monitors its own

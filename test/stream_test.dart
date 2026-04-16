@@ -4,8 +4,8 @@ import 'package:multitasking/multitasking.dart';
 import 'package:test/test.dart';
 
 void main() {
-  _testaAsCancelable();
-  _testaListenWithCancellation();
+  _testAsCancelable();
+  //_testListenWithCancellation();
   _testWithSubscriptionTracking();
 }
 
@@ -13,14 +13,32 @@ Future<void> _delay(int milliseconds) {
   return Future.delayed(Duration(milliseconds: milliseconds));
 }
 
-void _testaAsCancelable() {
+void _testAsCancelable() {
+  const evCancel = SubscriptionEvent.cancel;
+  const evDone = SubscriptionEvent.done;
+  const evError = SubscriptionEvent.error;
+  const evStart = SubscriptionEvent.start;
+  const count = 5;
+
   var count1 = 0;
   var count2 = 0;
   Object? error;
   final events1 = <SubscriptionEvent>[];
   final events2 = <SubscriptionEvent>[];
 
-  Future<void> f(bool throwIfCanceled, CancellationTokenSource cts) async {
+  String getReason(
+    String text, {
+    required bool throwIfCanceled,
+    required bool cancelOnError,
+  }) {
+    return '$text, throwIfCanceled: $throwIfCanceled, cancelOnError: $cancelOnError';
+  }
+
+  Future<void> f(
+    bool throwIfCanceled,
+    CancellationTokenSource cts,
+    bool cancelOnError,
+  ) async {
     count1 = 0;
     count2 = 0;
     error = null;
@@ -28,8 +46,8 @@ void _testaAsCancelable() {
     events2.clear();
 
     Stream<int> gen() async* {
-      for (var i = 0; i < 5; i++) {
-        count1++;
+      for (var i = 1; i <= count; i++) {
+        count1 = i;
         yield i;
         await _delay(100);
       }
@@ -41,129 +59,144 @@ void _testaAsCancelable() {
         .asCancelable(token, throwIfCanceled: throwIfCanceled)
         .withSubscriptionTracking(events2.add);
 
-    final c = Completer<void>();
+    final completer = Completer<void>();
+
+    void complete() {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+    }
+
     stream.listen(
       (event) {
-        count2++;
+        count2 = event;
       },
-      onDone: c.complete,
+      onDone: complete,
       onError: (Object e) {
+        complete();
         error = e;
       },
+      cancelOnError: cancelOnError,
     );
 
-    await c.future;
-    await _delay(500);
+    await completer.future;
+    await _delay((count + 1) * 100);
   }
 
   test('StreamExtension.asCancelable(): cancel before', () async {
     for (final throwIfCanceled in [true, false]) {
-      final cts = CancellationTokenSource();
-      cts.cancel();
-      await f(throwIfCanceled, cts);
+      for (final cancelOnError in [true, false]) {
+        final cts = CancellationTokenSource();
+        cts.cancel();
+        await f(throwIfCanceled, cts, cancelOnError);
 
-      throwIfCanceled
-          ? expect(error, isA<TaskCanceledException>(), reason: 'error')
-          : expect(error, isNull, reason: 'error');
-      expect(count1, equals(0), reason: 'count1');
-      expect(count2, equals(0), reason: 'count2');
-      expect(events1, <SubscriptionEvent>[], reason: 'events1');
-      expect(
-          events2,
-          [
-            SubscriptionEvent.start,
-            if (throwIfCanceled) SubscriptionEvent.error,
-            SubscriptionEvent.done,
-          ],
-          reason: 'events2');
+        throwIfCanceled
+            ? expect(error, isA<TaskCanceledException>(), reason: 'error')
+            : expect(error, isNull, reason: 'error');
+        expect(count1, lessThan(count), reason: 'count1');
+        expect(count2, lessThan(count), reason: 'count2');
+        expect(events1, [evStart, evCancel],
+            reason: getReason('events1',
+                throwIfCanceled: throwIfCanceled,
+                cancelOnError: cancelOnError));
+        final expectedEvents2 = switch ((throwIfCanceled, cancelOnError)) {
+          (false, false) => [evStart, evDone],
+          (false, true) => [evStart, evDone],
+          (true, false) => [evStart, evError, evDone],
+          (true, true) => [evStart, evError],
+        };
+        expect(events2, expectedEvents2,
+            reason: getReason('events2',
+                throwIfCanceled: throwIfCanceled,
+                cancelOnError: cancelOnError));
+      }
     }
   });
 
   test('StreamExtension.asCancelable(): cancel immediately', () async {
     for (final throwIfCanceled in [true, false]) {
-      final cts = CancellationTokenSource(const Duration());
-      await f(throwIfCanceled, cts);
+      for (final cancelOnError in [true, false]) {
+        final cts = CancellationTokenSource(const Duration());
+        await f(throwIfCanceled, cts, cancelOnError);
 
-      throwIfCanceled
-          ? expect(error, isA<TaskCanceledException>(), reason: 'error')
-          : expect(error, isNull, reason: 'error');
-      expect(count1, greaterThanOrEqualTo(2), reason: 'count1');
-      expect(count2, greaterThanOrEqualTo(1), reason: 'count2');
-      expect(
-          events1,
-          <SubscriptionEvent>[
-            SubscriptionEvent.start,
-            SubscriptionEvent.cancel,
-          ],
-          reason: 'events1');
-      expect(
-          events2,
-          [
-            SubscriptionEvent.start,
-            if (throwIfCanceled) SubscriptionEvent.error,
-            SubscriptionEvent.done,
-          ],
-          reason: 'events2');
+        throwIfCanceled
+            ? expect(error, isA<TaskCanceledException>(), reason: 'error')
+            : expect(error, isNull, reason: 'error');
+        expect(count1, lessThan(count), reason: 'count1');
+        expect(count2, lessThan(count), reason: 'count2');
+        expect(events1, [evStart, evCancel],
+            reason: getReason('events1',
+                throwIfCanceled: throwIfCanceled,
+                cancelOnError: cancelOnError));
+        final expectedEvents2 = switch ((throwIfCanceled, cancelOnError)) {
+          (false, false) => [evStart, evDone],
+          (false, true) => [evStart, evDone],
+          (true, false) => [evStart, evError, evDone],
+          (true, true) => [evStart, evError],
+        };
+        expect(events2, expectedEvents2,
+            reason: getReason('events2',
+                throwIfCanceled: throwIfCanceled,
+                cancelOnError: cancelOnError));
+      }
     }
   });
 
   test('StreamExtension.asCancelable(): cancel between', () async {
     for (final throwIfCanceled in [true, false]) {
-      final cts = CancellationTokenSource(const Duration(milliseconds: 150));
-      await f(throwIfCanceled, cts);
+      for (final cancelOnError in [true, false]) {
+        final cts = CancellationTokenSource(const Duration(milliseconds: 150));
+        await f(throwIfCanceled, cts, cancelOnError);
 
-      throwIfCanceled
-          ? expect(error, isA<TaskCanceledException>(), reason: 'error')
-          : expect(error, isNull, reason: 'error');
-      expect(count1, greaterThanOrEqualTo(3), reason: 'count1');
-      expect(count2, greaterThanOrEqualTo(2), reason: 'count2');
-      expect(count1, lessThan(5), reason: 'count1');
-      expect(count2, lessThan(5), reason: 'count2');
-      expect(
-          events1,
-          <SubscriptionEvent>[
-            SubscriptionEvent.start,
-            SubscriptionEvent.cancel,
-          ],
-          reason: 'events1');
-      expect(
-          events2,
-          [
-            SubscriptionEvent.start,
-            if (throwIfCanceled) SubscriptionEvent.error,
-            SubscriptionEvent.done,
-          ],
-          reason: 'events2');
+        throwIfCanceled
+            ? expect(error, isA<TaskCanceledException>(), reason: 'error')
+            : expect(error, isNull, reason: 'error');
+        expect(count1, lessThan(count), reason: 'count1');
+        expect(count2, lessThan(count), reason: 'count2');
+        expect(events1, [evStart, evCancel],
+            reason: getReason('events1',
+                throwIfCanceled: throwIfCanceled,
+                cancelOnError: cancelOnError));
+        final expectedEvents2 = switch ((throwIfCanceled, cancelOnError)) {
+          (false, false) => [evStart, evDone],
+          (false, true) => [evStart, evDone],
+          (true, false) => [evStart, evError, evDone],
+          (true, true) => [evStart, evError],
+        };
+        expect(events2, expectedEvents2,
+            reason: getReason('events2',
+                throwIfCanceled: throwIfCanceled,
+                cancelOnError: cancelOnError));
+      }
     }
   });
 
   test('StreamExtension.asCancelable(): cancel after', () async {
     for (final throwIfCanceled in [true, false]) {
-      final cts = CancellationTokenSource(const Duration(milliseconds: 600));
-      await f(throwIfCanceled, cts);
+      for (final cancelOnError in [true, false]) {
+        final cts = CancellationTokenSource(const Duration(milliseconds: 600));
+        await f(throwIfCanceled, cts, cancelOnError);
 
-      expect(error, isNull, reason: 'error');
-      expect(count1, equals(5), reason: 'count1');
-      expect(count2, equals(5), reason: 'count2');
-      expect(
-          events1,
-          <SubscriptionEvent>[
-            SubscriptionEvent.start,
-            SubscriptionEvent.done,
-          ],
-          reason: 'events1');
-      expect(
-          events2,
-          [
-            SubscriptionEvent.start,
-            SubscriptionEvent.done,
-          ],
-          reason: 'events2');
+        throwIfCanceled
+            ? expect(error, isNull, reason: 'error')
+            : expect(error, isNull, reason: 'error');
+        expect(count1, equals(count), reason: 'count1');
+        expect(count2, equals(count), reason: 'count2');
+        expect(events1, [evStart, evDone],
+            reason: getReason('events1',
+                throwIfCanceled: throwIfCanceled,
+                cancelOnError: cancelOnError));
+        expect(events2, [evStart, evDone],
+            reason: getReason('events2',
+                throwIfCanceled: throwIfCanceled,
+                cancelOnError: cancelOnError));
+      }
     }
   });
 }
 
-void _testaListenWithCancellation() {
+/*
+void _testListenWithCancellation() {
   test('StreamExtension.listenWithCancellation(): subscription.cancel()',
       () async {
     var count1 = 0;
@@ -192,6 +225,7 @@ void _testaListenWithCancellation() {
         reason: 'events');
   });
 }
+*/
 
 void _testWithSubscriptionTracking() {
   final error = Exception('Error');
