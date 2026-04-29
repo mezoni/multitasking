@@ -1,12 +1,12 @@
+import 'dart:async';
 import 'dart:collection';
 
-import 'package:async/async.dart';
 import 'package:stack_trace/stack_trace.dart';
 
 /// Represents an error that aggregates other errors amd exceptions and
 /// their stack traces.
 class AggregateError extends _Error {
-  final List<ErrorResult> _exceptions;
+  final List<AsyncError> _exceptions;
 
   /// The stack trace associated with this error.
   @override
@@ -17,7 +17,7 @@ class AggregateError extends _Error {
   /// Parameters:
   ///
   /// - [exceptions]: List of exceptions for aggregation.
-  AggregateError(List<ErrorResult> exceptions)
+  AggregateError(List<AsyncError> exceptions)
       : _exceptions = UnmodifiableListView(exceptions),
         stackTrace = _buildAggregateStackTrace(exceptions) {
     if (exceptions.isEmpty) {
@@ -33,28 +33,28 @@ class AggregateError extends _Error {
     return '$buffer';
   }
 
-  static StackTrace _buildAggregateStackTrace(List<ErrorResult> exceptions) {
+  static StackTrace _buildAggregateStackTrace(List<AsyncError> exceptions) {
     final frames = exceptions.map((e) => e.stackTrace).map(Trace.from);
     final chain = Chain(frames);
     return chain;
   }
 }
 
-/// Represents an exception used to signal and indicate task cancellation.
-class TaskCanceledException implements Exception {
+/// Represents an exception used to indicate that a cancellation has occurred.
+class CancellationException implements Exception {
   /// Message associated with this exception.
   final String? message;
 
-  /// Creates an instance of [TaskCanceledException].
-  TaskCanceledException([this.message]);
+  /// Creates an instance of [CancellationException].
+  CancellationException([this.message]);
 
   @override
   String toString() {
     if (message == null) {
-      return 'TaskCanceledException';
+      return 'CancellationException';
     }
 
-    return 'TaskCanceledException: $message';
+    return 'CancellationException: $message';
   }
 }
 

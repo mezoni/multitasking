@@ -38,7 +38,7 @@ Future<void> main() async {
   }
 
   for (final task in tasks) {
-    if (task.isSuccessful) {
+    if (task.isSucceeded) {
       final filename = await task;
       print('Done: $filename');
     }
@@ -60,7 +60,7 @@ Task<String> _download(Uri uri, String filename, CancellationToken token) {
     StreamedResponse response;
     try {
       response = await task.withCancellation(token);
-    } on TaskCanceledException {
+    } on CancellationException {
       unawaited(() async {
         try {
           await (await task).stream.listen((_) {}).cancel();

@@ -11,8 +11,8 @@ class Progress<T> {
   ///
   /// Parameters:
   ///
-  /// - [callback]: A callback function that will be called when the [report]
-  /// method is called.
+  /// - [callback]: A callback that will be invoked when the [report] method is
+  /// called.
   ///
   /// The callback function can be defined with any required parameter type.\
   /// The function [report] must be called with the same parameter type.

@@ -1,8 +1,27 @@
 # Changelog
 
+## 6.0.0
+
+- Breaking change: Removed `withSubscriptionTracking()` method from `StreamExtension` extension.
+- Breaking change: The use of class `ErrorResult` from package `async` has been replaced with the use of class `AsyncError` from package `dart:async`.
+- Breaking change: The `TaskCanceledException` class has been renamed to `CancellationException`.
+- Breaking change: Code normalization, the `successful` value of the `TaskStatus` enum has been renamed to `succeeded`.
+- Breaking change: Code normalization, the `incomplete` value of the `TaskStatus` enum has been renamed to `pending`.
+- Breaking change: The `isSuccessful` getter of the `Task` class has been renamed to `isSucceeded`.
+- Breaking change: The `isIncomplete` getter of the `Task` class has been renamed to `isPending`.
+- Breaking change: The `throwIfCanceled` parameter of the `asCancelable()` method of the `StreamExtension` extension has been renamed.
+- Breaking change: The stream subscription cancellation mechanism has been changed. The breaking change is that canceling outgoing subscriptions without the `cancelOnError` parameter set no longer works (it did not work properly before either due to the fact that in the Dart SDK, stream subscriptions are cancelled upstream but not downstream).
+- Fixed a bug in the `asCancelable()` method of the `StreamExtension` extensions. Implementation defects have been corrected.
+- Added classes `CancellationException` and `CancellationTransformer`.
+- Added method `asPausable()` to the `StreamExtension` extension.
+- Added parameter `blockOnCancel` to the `asCancelable()` method of the `StreamExtension` extension.
+- Added example `example_stream_pause_subscription.dart`.
+- Added example `example_task_pause.dart`.
+- Added example `example_stream_non_blocking_cancellation.dart`.
+
 ## 5.6.0
 
-- Breaking change: Removed `listenWithCancellation()`method from `StreamExtension` extension. The reason for removing this method is the need to use a hacked stream subscription. This is now a much cleaner implementation. The closest recommended replacement is the expression `stream.asCancelable().listen()`.
+- Breaking change: Removed `listenWithCancellation()` method from `StreamExtension` extension. The reason for removing this method is the need to use a hacked stream subscription. This is now a much cleaner implementation. The closest recommended replacement is the expression `stream.asCancelable().listen()`.
 - The implementation of the `asCancelable()` method of the `StreamExtension` extension has been changed.
 - The implementation of the `withSubscriptionTracking()` method of the `StreamExtension` extension has been changed. Now it uses an internal, more functional, traceable stream subscription.
 

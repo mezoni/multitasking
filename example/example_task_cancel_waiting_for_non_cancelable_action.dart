@@ -6,8 +6,8 @@ Future<void> main() async {
   try {
     final result = await task.withCancellation(cts.token);
     print('Result: $result');
-  } on TaskCanceledException {
-    print('TaskCanceledException');
+  } on CancellationException {
+    print('CancellationException');
     if (!task.isTerminated) {
       print('Task still running');
     }

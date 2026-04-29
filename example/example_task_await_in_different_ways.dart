@@ -42,7 +42,7 @@ Future<void> main() async {
   for (var i = 0; i < tasks.length; i++) {
     final task = tasks[i];
     var s = '${task.toString()}: ${task.status.name}';
-    if (task.isSuccessful) {
+    if (task.isSucceeded) {
       s += ', result: ${task.result}';
     } else {
       s += ', exception: ${task.exception!.error}';

@@ -11,7 +11,7 @@ import 'dart:async';
 /// - Cancel timer ([cancel])
 /// - Check if the timer is active ([isActive])
 ///
-/// When the timer reaches the countdown point, the callback will be called
+/// When the timer reaches the countdown point, the callback will be invoked
 /// without any protection (unguarded) for performance reasons.
 class CountdownTimer implements Timer {
   static final Timer _initialTimer = Timer(const Duration(), () {});

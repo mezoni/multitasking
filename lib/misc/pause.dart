@@ -88,10 +88,10 @@ class PauseToken {
 
   void _executeHandlers(Map<FutureOr<void> Function(), Zone> handlers) {
     final entries = handlers.entries.toList();
-    handlers.clear();
     for (final entry in entries) {
       final callback = entry.key;
-      entry.value.scheduleMicrotask(callback);
+      final zone = entry.value;
+      zone.runGuarded(callback);
     }
   }
 

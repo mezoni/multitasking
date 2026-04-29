@@ -17,7 +17,7 @@ class CancellationToken {
   }
 
   /// Adds and returns a handler if the token is not in the `canceled` state.\
-  /// If the token is in the `canceled` state, the handler will be called
+  /// If the token is in the `canceled` state, the handler will be invoked
   /// immediately. In this case, the handler will not be added and `null` will
   /// be returned.
   ///
@@ -105,11 +105,11 @@ class CancellationToken {
     }
   }
 
-  /// Throw the exception [TaskCanceledException] if the token is in the
+  /// Throw the exception [CancellationException] if the token is in the
   /// `canceled` state.
   void throwIfCanceled() {
     if (_isCanceled) {
-      throw TaskCanceledException();
+      throw CancellationException();
     }
   }
 
@@ -124,7 +124,15 @@ class CancellationToken {
     for (final entry in entries) {
       final callback = entry.key;
       final zone = entry.value;
-      zone.scheduleMicrotask(callback);
+      zone.scheduleMicrotask(() async {
+        await () async {
+          try {
+            await callback();
+          } catch (e) {
+            rethrow;
+          }
+        }();
+      });
     }
   }
 }

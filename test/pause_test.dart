@@ -69,6 +69,6 @@ void main() {
       error = e;
     }
 
-    expect(error, isA<TaskCanceledException>(), reason: 'error');
+    expect(error, isA<CancellationException>(), reason: 'error');
   });
 }

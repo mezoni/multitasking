@@ -39,7 +39,7 @@ Future<void> main() async {
       StreamedResponse response;
       try {
         response = await task.withCancellation(token);
-      } on TaskCanceledException {
+      } on CancellationException {
         unawaited(() async {
           try {
             await (await task).stream.listen((_) {}).cancel();
@@ -81,7 +81,7 @@ Future<void> main() async {
   for (final task in tasks) {
     print('-' * 40);
     print('${task.toString()}: ${task.status.name}');
-    if (task.isSuccessful) {
+    if (task.isSucceeded) {
       final value = await task;
       final text = value;
       final length = text.length < 80 ? text.length : 80;

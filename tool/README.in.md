@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 5.6.0
+Version: 6.0.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -43,7 +43,9 @@ Table of Contents:
     - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
     - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
     - [The waiting for a non-cancelable task can be canceled](#the-waiting-for-a-non-cancelable-task-can-be-canceled)
-    - [The stream can track subscription changes](#the-stream-can-track-subscription-changes)
+    - [Tasks can be paused and resumed](#tasks-can-be-paused-and-resumed)
+    - [A stream subscription can be paused and resumed using a token](#a-stream-subscription-can-be-paused-and-resumed-using-a-token)
+    - [A stream subscription can be cancelled using a non-blocking cancellation](#a-stream-subscription-can-be-cancelled-using-a-non-blocking-cancellation)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -142,10 +144,10 @@ BEGIN_EXAMPLE
 example_task_await
 END_EXAMPLE
 
-A failed task does not affect the execution of other code (`Do some work`) if the task object instance is referenced.  
-The task will not throw an exception until the executing code accesses the `future` field (directly or indirectly, e.g. using `await task`).
+A failed (or canceled) task does not affect the execution of other code (`Do some work`) if the task object instance is referenced.  
+The task will not throw an exception until it is `awaited` in some way (e.g. `tasks.then()`, `await task`, etc.).
 
-If the executing code do not access the `future` field and there are no references to the task object instance, an exception will be thrown during garbage collection when the task is finalized.  
+If the executing code do not `await` the task and there are no references to the task object instance, an exception will be thrown during garbage collection when the task is finalized.  
 Or it will never be thrown if the task finalization will not be performed (e.g. when the application terminates its work).
 
 ### For the current task, it is possible to specify the `onExit` handler inside the task body
@@ -294,12 +296,28 @@ BEGIN_EXAMPLE
 example_task_cancel_waiting_for_non_cancelable_action
 END_EXAMPLE
 
-### The stream can track subscription changes
+### Tasks can be paused and resumed
 
-An example of tracking changes in a stream subscription:
+Example of pausing and resuming the task
 
 BEGIN_EXAMPLE
-example_stream_with_subscription_tracking
+example_task_pause
+END_EXAMPLE
+
+### A stream subscription can be paused and resumed using a token
+
+Example of pausing and resuming a stream subscription using a token:
+
+BEGIN_EXAMPLE
+example_stream_pause_subscription
+END_EXAMPLE
+
+### A stream subscription can be cancelled using a non-blocking cancellation
+
+Example of canceling a stream subscription using a non-blocking cancellation:
+
+BEGIN_EXAMPLE
+example_stream_non_blocking_cancellation
 END_EXAMPLE
 
 ## Synchronization primitives

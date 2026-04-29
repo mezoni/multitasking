@@ -64,7 +64,7 @@ void _testFailed() {
 }
 
 void _testWaitAll() {
-  test('Task.wait.All(): success', () async {
+  test('Task.waitAll(): success', () async {
     final tasks = <Task<int>>[];
     for (var i = 0; i < 4; i++) {
       final t = Task.run<int>(name: 'task $i', () async {
@@ -90,12 +90,12 @@ void _testWaitAll() {
     }
 
     expect(tasks.map((e) => e.status),
-        List.filled(tasks.length, TaskStatus.successful),
+        List.filled(tasks.length, TaskStatus.succeeded),
         reason: 'Not all task state succeeded');
     expect(results, [0, 1, 2, 3], reason: 'Not all results valid');
   });
 
-  test('Task.wait.All(): success and failure', () async {
+  test('Task.waitAll(): success and failure', () async {
     final error = Exception('Error');
     final tasks = <Task<int>>[];
     for (var i = 0; i < 4; i++) {

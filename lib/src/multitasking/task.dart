@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:core';
 
-import 'package:async/async.dart';
 import 'package:meta/meta.dart';
 
 import '../../misc/progress.dart';
@@ -48,7 +47,7 @@ final class Task<T> implements Future<T> {
 
   static final Expando<AnyTask> _tempTasks = Expando();
 
-  static final Finalizer<ErrorResult> _finalizer = Finalizer((result) {
+  static final Finalizer<AsyncError> _finalizer = Finalizer((result) {
     Zone.root.scheduleMicrotask(() {
       Error.throwWithStackTrace(result.error, result.stackTrace);
     });
@@ -93,7 +92,7 @@ final class Task<T> implements Future<T> {
 
   FutureOr<T> Function()? _action;
 
-  ErrorResult? _exception;
+  AsyncError? _exception;
 
   FutureOr<void> Function(AnyTask)? _onExit;
 
@@ -129,7 +128,7 @@ final class Task<T> implements Future<T> {
   /// returned.\
   /// If an exception is available, it is returned and the exception is
   /// considered to have been observed.
-  ErrorResult? get exception {
+  AsyncError? get exception {
     switch (_status) {
       case TaskStatus.canceled:
       case TaskStatus.failed:
@@ -164,10 +163,10 @@ final class Task<T> implements Future<T> {
     return _status == TaskStatus.failed;
   }
 
-  /// Returns `true` if the task status is [TaskStatus.incomplete]; otherwise,
+  /// Returns `true` if the task status is [TaskStatus.pending]; otherwise,
   /// returns `false`.
-  bool get isIncomplete {
-    return _status == TaskStatus.incomplete;
+  bool get isPending {
+    return _status == TaskStatus.pending;
   }
 
   /// Returns `true` if the task status is [TaskStatus.running]; otherwise,
@@ -176,10 +175,10 @@ final class Task<T> implements Future<T> {
     return _status == TaskStatus.running;
   }
 
-  /// Returns `true` if the task status is [TaskStatus.successful]; otherwise,
+  /// Returns `true` if the task status is [TaskStatus.succeeded]; otherwise,
   /// returns `false`.
-  bool get isSuccessful {
-    return _status == TaskStatus.successful;
+  bool get isSucceeded {
+    return _status == TaskStatus.succeeded;
   }
 
   /// Returns `true` if the task was terminated; otherwise, returns `false`.
@@ -187,7 +186,7 @@ final class Task<T> implements Future<T> {
     switch (_status) {
       case TaskStatus.canceled:
       case TaskStatus.failed:
-      case TaskStatus.successful:
+      case TaskStatus.succeeded:
         return true;
       default:
         return false;
@@ -198,7 +197,7 @@ final class Task<T> implements Future<T> {
   ///
   /// If the task result is not yet available, a [TaskStateError] exception will
   /// be thrown.\
-  /// If the task was canceled, a [TaskCanceledException] exception will be
+  /// If the task was canceled, a [CancellationException] exception will be
   /// thrown.\
   /// If the task was failed, a task [exception] will be thrown.
   ///
@@ -206,7 +205,7 @@ final class Task<T> implements Future<T> {
   /// observed.
   T get result {
     switch (_status) {
-      case TaskStatus.successful:
+      case TaskStatus.succeeded:
         return _result as T;
       case TaskStatus.canceled:
       case TaskStatus.failed:
@@ -235,7 +234,7 @@ final class Task<T> implements Future<T> {
 
     completer = Completer();
     switch (_status) {
-      case TaskStatus.successful:
+      case TaskStatus.succeeded:
         completer.complete(_result);
         break;
       case TaskStatus.canceled:
@@ -285,12 +284,12 @@ final class Task<T> implements Future<T> {
       try {
         final value = await action();
         _result = value;
-        _status = TaskStatus.successful;
+        _status = TaskStatus.succeeded;
         _resultCompleter?.complete(value);
       } catch (error, stackTrace) {
-        final exception = ErrorResult(error, stackTrace);
+        final exception = AsyncError(error, stackTrace);
         _exception = exception;
-        if (error is TaskCanceledException) {
+        if (error is CancellationException) {
           _status = TaskStatus.canceled;
         } else {
           _status = TaskStatus.failed;
@@ -341,7 +340,7 @@ final class Task<T> implements Future<T> {
 
   /// Waits for the task to complete and returns the result (or error) if the
   /// task completes (successfully or with error) before cancellation request;
-  /// otherwise, throws a [TaskCanceledException] exception.
+  /// otherwise, throws a [CancellationException] exception.
   ///
   /// Parameters:
   ///
@@ -357,7 +356,7 @@ final class Task<T> implements Future<T> {
         } else {
           tcs.trySetCanceled();
         }
-      } on TaskCanceledException {
+      } on CancellationException {
         tcs.trySetCanceled();
       } catch (e, s) {
         tcs.trySetError(e, s);
@@ -461,7 +460,7 @@ final class Task<T> implements Future<T> {
   }
 
   /// Sleeps at specified time in milliseconds, thereby giving up control to
-  /// the event loop. A [TaskCanceledException] exception may be thrown if a
+  /// the event loop. A [CancellationException] exception may be thrown if a
   /// cancellation request was initiated before or after calling this method.
   ///
   /// Parameters:
@@ -498,7 +497,7 @@ final class Task<T> implements Future<T> {
       handler = token.addHandler(() {
         timer.cancel();
         if (!completer.isCompleted) {
-          completer.completeError(TaskCanceledException(), StackTrace.current);
+          completer.completeError(CancellationException(), StackTrace.current);
         }
       });
     }
@@ -536,7 +535,7 @@ final class Task<T> implements Future<T> {
       return tcs.task;
     }
 
-    final exceptions = <ErrorResult>[];
+    final exceptions = <AsyncError>[];
     var hasFailed = true;
     var count = 0;
     tasks = tasks.toList();
@@ -546,8 +545,8 @@ final class Task<T> implements Future<T> {
         try {
           await task;
         } catch (e, s) {
-          exceptions.add(ErrorResult(e, s));
-          if (e is! TaskCanceledException) {
+          exceptions.add(AsyncError(e, s));
+          if (e is! CancellationException) {
             hasFailed = true;
           }
         } finally {
@@ -674,7 +673,7 @@ class TaskCompletionSource<T> {
   final Completer<T> _completer = Completer();
 
   /// The task produced by this source.
-  final Task<T> task = Task._raw(TaskStatus.incomplete);
+  final Task<T> task = Task._raw(TaskStatus.pending);
 
   /// Creates an instance of [TaskCompletionSource].
   TaskCompletionSource() {
@@ -688,7 +687,7 @@ class TaskCompletionSource<T> {
   void setCanceled() {
     if (!_completer.isCompleted) {
       task._status = TaskStatus.canceled;
-      _completer.completeError(TaskCanceledException(), StackTrace.current);
+      _completer.completeError(CancellationException(), StackTrace.current);
       return;
     }
 
@@ -714,7 +713,7 @@ class TaskCompletionSource<T> {
     _errorSetTaskStatus();
   }
 
-  /// Completes the [task] with the status [TaskStatus.successful].
+  /// Completes the [task] with the status [TaskStatus.succeeded].
   ///
   /// Parameters:
   ///
@@ -724,7 +723,7 @@ class TaskCompletionSource<T> {
   /// [TaskStateError] exception.
   void setResult(T result) {
     if (!_completer.isCompleted) {
-      task._status = TaskStatus.successful;
+      task._status = TaskStatus.succeeded;
       _completer.complete(result);
       return;
     }
@@ -736,7 +735,7 @@ class TaskCompletionSource<T> {
   void trySetCanceled() {
     if (!_completer.isCompleted) {
       task._status = TaskStatus.canceled;
-      _completer.completeError(TaskCanceledException(), StackTrace.current);
+      _completer.completeError(CancellationException(), StackTrace.current);
       return;
     }
   }
@@ -757,14 +756,14 @@ class TaskCompletionSource<T> {
     }
   }
 
-  /// Tries to complete the [task] with the status [TaskStatus.successful].
+  /// Tries to complete the [task] with the status [TaskStatus.succeeded].
   ///
   /// - [result]: A value that represents a result.
   ///
   /// If the task has already been completed, this method does nothing.
   void trySetResult(T result) {
     if (!_completer.isCompleted) {
-      task._status = TaskStatus.successful;
+      task._status = TaskStatus.succeeded;
       _completer.complete(result);
       return;
     }
@@ -777,21 +776,21 @@ class TaskCompletionSource<T> {
 
 /// Represents the status of a task.
 enum TaskStatus {
-  /// The task was canceled (by throwing an exception [TaskCanceledException]).
+  /// The task was canceled.
   canceled,
 
-  /// The task has not yet started.
+  /// The task was created but is not running.
   created,
 
   /// The task was completed with an error.
   failed,
 
-  /// The task is waiting for completion from the task completion source.
-  incomplete,
+  /// The promised task awaits completion.
+  pending,
 
   /// The task is running.
   running,
 
   /// The task was completed successfully.
-  successful,
+  succeeded,
 }
