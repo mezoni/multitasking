@@ -134,6 +134,55 @@ void _testStreamAsCancelable() {
       await completer2.future;
     }
   });
+
+  test('StreamExtension.asCancelable(): timeout before first', () async {
+    final s1 = Stream<void>.periodic(Duration(milliseconds: 100));
+    final cts = CancellationTokenSource();
+    final s2 = s1.asCancelable(
+      cts.token,
+      timeout: Duration(milliseconds: 50),
+    );
+    Object? error;
+    cts.cancelAfter(Duration(milliseconds: 200));
+    try {
+      await for (final _ in s2) {
+        //
+      }
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<TimeoutException>(), reason: 'error');
+  });
+
+  test('StreamExtension.asCancelable(): timeout after first', () async {
+    Stream<int> gen() async* {
+      await _delay(10);
+      yield 1;
+      await _delay(150);
+      yield 2;
+    }
+
+    final s1 = gen();
+    final cts = CancellationTokenSource();
+    final s2 = s1.asCancelable(
+      cts.token,
+      timeout: Duration(milliseconds: 50),
+    );
+    Object? error;
+    var value = 0;
+    cts.cancelAfter(Duration(milliseconds: 200));
+    try {
+      await for (final event in s2) {
+        value = event;
+      }
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<TimeoutException>(), reason: 'error');
+    expect(value, equals(1), reason: 'value');
+  });
 }
 
 void _testStreamAsPausable() {

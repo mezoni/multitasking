@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 6.0.0
+Version: 6.1.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -46,6 +46,8 @@ Table of Contents:
     - [Tasks can be paused and resumed](#tasks-can-be-paused-and-resumed)
     - [A stream subscription can be paused and resumed using a token](#a-stream-subscription-can-be-paused-and-resumed-using-a-token)
     - [A stream subscription can be cancelled using a non-blocking cancellation](#a-stream-subscription-can-be-cancelled-using-a-non-blocking-cancellation)
+    - [A stream with cancellation token support can be created using the `async*` generator](#a-stream-with-cancellation-token-support-can-be-created-using-the-async-generator)
+    - [A stream subscription can be canceled on `timeout`](#a-stream-subscription-can-be-canceled-on-timeout)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -693,7 +695,7 @@ Output:
 
 ```txt
 CancellationException
-main(): count: 232338
+main(): count: 234593
 
 ```
 
@@ -1019,19 +1021,19 @@ Task(5): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Task(9): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Task(13): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Task(17): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Task(9): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Task(1): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 main(): Canceling
 AggregateError: One or more errors occurred. (CancellationException) (CancellationException) (CancellationException) (CancellationException)
 ----------------------------------------
-Task(1): canceled
-No data
+Task(1): succeeded
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(5): canceled
 No data
 ----------------------------------------
-Task(9): succeeded
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(9): canceled
+No data
 ----------------------------------------
 Task(13): canceled
 No data
@@ -1149,9 +1151,9 @@ Output:
 ```txt
 Canceling...
 Task(6): canceled
-Task(6): Downloaded: 3031040
+Task(6): Downloaded: 2416639
 Task(1): canceled
-Task(1): Downloaded: 3211264
+Task(1): Downloaded: 2310144
 AggregateError: One or more errors occurred. (CancellationException) (CancellationException)
 
 ```
@@ -1331,18 +1333,18 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 248621282
+Isolate started: 970507559
 main(): Adding task 1
 main(): Adding task 2
-Isolate started: 822658437
 main(): Adding task 3
-Isolate started: 749411635
+Isolate started: 613587906
+Isolate started: 970068846
 main(): Adding task 4
-Isolate started: 581219414
-Isolate started: 157757087
-Task(4): Received result: [12]
+Isolate started: 51230946
+Isolate started: 756817485
 Task(3): Received result: [11]
 Task(5): Received result: [13]
+Task(4): Received result: [12]
 Task(2): Received result: [10]
 Task(6): Received result: [14]
 main(): ----------------------------------------
@@ -1351,11 +1353,11 @@ main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
 main(): Adding task 4
-Isolate started: 207170090
-Isolate started: 351225208
-Isolate started: 7200404
-Isolate started: 71325776
-Isolate started: 926147011
+Isolate started: 827043960
+Isolate started: 1027215490
+Isolate started: 446647541
+Isolate started: 607874817
+Isolate started: 872206415
 main(): Canceling...
 AggregateError: One or more errors occurred. (CancellationException) (CancellationException) (CancellationException) (CancellationException) (CancellationException)
 
@@ -1464,10 +1466,10 @@ Output:
 
 ```txt
 11: 0
-54: pause
-505: resume
-507: 1
-610: 2
+53: pause
+504: resume
+505: 1
+609: 2
 [0, 1, 2]
 
 ```
@@ -1534,17 +1536,17 @@ void _message(Object object) {
 Output:
 
 ```txt
-19: Yield: 0
-23: Event: 0
+17: Yield: 0
+22: Event: 0
 53: Pause
-127: Yield: 1
-506: Resume
-508: Event: 1
-614: Yield: 2
-615: Event: 2
-655: Cancel
-716: Yield: 3
-719: Error: CancellationException
+128: Yield: 1
+503: Resume
+505: Event: 1
+618: Yield: 2
+618: Event: 2
+654: Cancel
+720: Yield: 3
+724: Error: CancellationException
 
 ```
 
@@ -1624,29 +1626,260 @@ Output:
 ----------------------------------------
 Blocking cancellation 
 ----------------------------------------
-17: Computing
-174: Computed: 0
-176: Received: 0
+16: Computing
+173: Computed: 0
+175: Received: 0
 176: After yield: 0
 176: Computing
-202: Canceling
-328: Error computing
-332: catch(e): CancellationException
-332: Begin next work
+205: Canceling
+327: Error computing
+330: catch(e): CancellationException
+330: Begin next work
 384: End next work
 ----------------------------------------
 Non-blocking cancellation 
 ----------------------------------------
 0: Computing
-152: Computed: 0
-152: Received: 0
-152: After yield: 0
-152: Computing
-201: Canceling
-201: catch(e): CancellationException
-201: Begin next work
-253: End next work
-304: Error computing
+163: Computed: 0
+163: Received: 0
+163: After yield: 0
+163: Computing
+203: Canceling
+203: catch(e): CancellationException
+204: Begin next work
+275: End next work
+320: Error computing
+
+```
+
+### A stream with cancellation token support can be created using the `async*` generator
+
+Example of creating a stream with cancellation token support using the `async*` generator:
+
+[example/example_stream_with_cancellation_token_from_generator.dart](https://github.com/mezoni/multitasking/blob/main/example/example_stream_with_cancellation_token_from_generator.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  Stream<int> streamFromGenerator(CancellationToken token) async* {
+    _message('Before yield: 1');
+    yield 1;
+    _message('After yield: 1');
+    // await Task.delay(4000, token);
+    await _doWork(token);
+    yield 2;
+  }
+
+  _header("Cancel with 'CancellationTokenSource'");
+  final cts = CancellationTokenSource();
+  Timer(Duration(seconds: 2), cts.cancel);
+  final stream1 = CancelableStreamFactory.fromGenerator(streamFromGenerator);
+  _watch.start();
+  try {
+    await for (final event in stream1.asCancelable(cts.token)) {
+      _message('Received: $event');
+    }
+  } catch (e) {
+    _message('Error: $e');
+  }
+
+  _header("Cancel with 'StreamSubscription.cancel()'");
+  final stream2 = CancelableStreamFactory.fromGenerator(streamFromGenerator);
+  _watch.reset();
+  _watch.start();
+  final subscription = stream2.listen(
+    (event) {
+      _message('Received: $event');
+    },
+    onError: (Object e) {
+      _message('Error: $e');
+    },
+  );
+
+  Timer(Duration(seconds: 2), () async {
+    try {
+      await subscription.cancel();
+    } catch (e) {
+      _message('Error: $e');
+    }
+  });
+}
+
+final _watch = Stopwatch();
+
+Future<void> _doWork(CancellationToken token) async {
+  const x = 10;
+  const y = 10;
+  const z = 40;
+  const executionTime = x * y * z;
+  _message('Begin work (about $executionTime ms)');
+  try {
+    for (var i = 0; i < x; i++) {
+      for (var j = 0; j < y; j++) {
+        token.throwIfCanceled();
+        await Future<void>.delayed(Duration(milliseconds: z));
+      }
+    }
+  } on CancellationException {
+    _message('Work canceled');
+    rethrow;
+  }
+
+  _message('End work');
+}
+
+void _header(String text) {
+  print('-' * 40);
+  print(text);
+  print('-' * 40);
+}
+
+void _message(Object object) {
+  print('${_watch.elapsedMilliseconds}: $object');
+}
+
+```
+
+Output:
+
+```txt
+----------------------------------------
+Cancel with 'CancellationTokenSource'
+----------------------------------------
+10: Before yield: 1
+16: Received: 1
+16: After yield: 1
+17: Begin work (about 4000 ms)
+2027: Work canceled
+2031: Error: CancellationException
+----------------------------------------
+Cancel with 'StreamSubscription.cancel()'
+----------------------------------------
+1: Before yield: 1
+1: Received: 1
+1: After yield: 1
+1: Begin work (about 4000 ms)
+2037: Work canceled
+2037: Error: CancellationException
+
+```
+
+### A stream subscription can be canceled on `timeout`
+
+Example of canceling a stream subscription on `timeout`
+
+[example/example_stream_cancel_on_timeout.dart](https://github.com/mezoni/multitasking/blob/main/example/example_stream_cancel_on_timeout.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  Stream<int> streamFromGenerator(CancellationToken token) async* {
+    _message('Before yield: 1');
+    yield 1;
+    _message('After yield: 1');
+    // await Task.delay(4000, token);
+    await _doWork(token);
+    yield 2;
+  }
+
+  _header('Cancelling a cancellable stream');
+  final cts1 = CancellationTokenSource();
+  final stream1 = CancelableStreamFactory.fromGenerator(streamFromGenerator);
+  _watch.start();
+  try {
+    await for (final event
+        in stream1.asCancelable(cts1.token, timeout: Duration(seconds: 2))) {
+      _message('Received: $event');
+    }
+  } catch (e) {
+    _message('Error: $e');
+  }
+
+  _message('End');
+
+  _header('Cancelling a non-cancellable stream');
+  final cts2 = CancellationTokenSource();
+  final stream2 = streamFromGenerator(cts2.token);
+  _watch.start();
+  try {
+    await for (final event in stream2.asCancelable(
+      cts1.token,
+      blockOnCancel: false,
+      timeout: Duration(seconds: 2),
+    )) {
+      _message('Received: $event');
+    }
+  } catch (e) {
+    _message('Error: $e');
+  }
+
+  _message('End');
+}
+
+void _header(String text) {
+  print('-' * 40);
+  print(text);
+  print('-' * 40);
+}
+
+final _watch = Stopwatch();
+
+Future<void> _doWork(CancellationToken token) async {
+  const x = 10;
+  const y = 10;
+  const z = 40;
+  const executionTime = x * y * z;
+  _message('Begin work (about $executionTime ms)');
+  try {
+    for (var i = 0; i < x; i++) {
+      for (var j = 0; j < y; j++) {
+        token.throwIfCanceled();
+        await Future<void>.delayed(Duration(milliseconds: z));
+      }
+    }
+  } on CancellationException {
+    _message('Work canceled');
+    rethrow;
+  }
+
+  _message('End work');
+}
+
+void _message(Object object) {
+  print('${_watch.elapsedMilliseconds}: $object');
+}
+
+```
+
+Output:
+
+```txt
+----------------------------------------
+Cancelling a cancellable stream
+----------------------------------------
+16: Before yield: 1
+21: Received: 1
+23: After yield: 1
+23: Begin work (about 4000 ms)
+2034: Work canceled
+2037: Error: TimeoutException
+2037: End
+----------------------------------------
+Cancelling a non-cancellable stream
+----------------------------------------
+2038: Before yield: 1
+2038: Received: 1
+2038: After yield: 1
+2038: Begin work (about 4000 ms)
+4041: Error: TimeoutException
+4041: End
+6390: End work
 
 ```
 
@@ -2269,8 +2502,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(1): 513
-Task(2): 515
-Task(3): 515
+Task(1): 512
+Task(2): 513
+Task(3): 514
 
 ```

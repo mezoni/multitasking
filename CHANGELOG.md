@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.1.0
+
+- Added class `CancelableStreamFactory`.
+- Added parameter `timeout` to the default constructor of the `CancellationTransformer` class.
+- Added parameter `timeout` to the `asCancelable()` method of the `StreamExtension` extension.
+- Added example `example_stream_from_generator_with_cancellation_token.dart`.
+- Added example `example_stream_cancel_on_timeout.dart`.
+
 ## 6.0.0
 
 - Breaking change: Removed `withSubscriptionTracking()` method from `StreamExtension` extension.
@@ -9,7 +17,7 @@
 - Breaking change: Code normalization, the `incomplete` value of the `TaskStatus` enum has been renamed to `pending`.
 - Breaking change: The `isSuccessful` getter of the `Task` class has been renamed to `isSucceeded`.
 - Breaking change: The `isIncomplete` getter of the `Task` class has been renamed to `isPending`.
-- Breaking change: The `throwIfCanceled` parameter of the `asCancelable()` method of the `StreamExtension` extension has been renamed.
+- Breaking change: The `throwIfCanceled` parameter of the `asCancelable()` method of the `StreamExtension` extension has been removed.
 - Breaking change: The stream subscription cancellation mechanism has been changed. The breaking change is that canceling outgoing subscriptions without the `cancelOnError` parameter set no longer works (it did not work properly before either due to the fact that in the Dart SDK, stream subscriptions are cancelled upstream but not downstream).
 - Fixed a bug in the `asCancelable()` method of the `StreamExtension` extensions. Implementation defects have been corrected.
 - Added classes `CancellationException` and `CancellationTransformer`.
