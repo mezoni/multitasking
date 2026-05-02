@@ -254,6 +254,50 @@ class PauseTransformer<T> extends StreamTransformerBase<T, T> {
   }
 }
 
+class _StreamSubscriptionWrapper<T> implements StreamSubscription<T> {
+  final StreamSubscription<T> _subscription;
+
+  _StreamSubscriptionWrapper(this._subscription);
+
+  @override
+  bool get isPaused => _subscription.isPaused;
+
+  @override
+  Future<E> asFuture<E>([E? futureValue]) {
+    return _subscription.asFuture(futureValue);
+  }
+
+  @override
+  Future<void> cancel() {
+    return _subscription.cancel();
+  }
+
+  @override
+  void onData(void Function(T data)? handleData) {
+    _subscription.onData(handleData);
+  }
+
+  @override
+  void onDone(void Function()? handleDone) {
+    _subscription.onDone(handleDone);
+  }
+
+  @override
+  void onError(Function? handleError) {
+    _subscription.onError(handleError);
+  }
+
+  @override
+  void pause([Future<void>? resumeSignal]) {
+    _subscription.pause(resumeSignal);
+  }
+
+  @override
+  void resume() {
+    _subscription.resume();
+  }
+}
+
 class _StreamWithCancellationToken<T> extends Stream<T> {
   final Stream<T> Function(CancellationToken token) _generate;
 
@@ -269,31 +313,29 @@ class _StreamWithCancellationToken<T> extends Stream<T> {
     bool? cancelOnError,
   }) {
     final cts = CancellationTokenSource();
-    final controller = StreamController<T>();
-    controller.onListen = () {
-      final stream = _generate(cts.token);
-      final subscription = stream.listen(
-        controller.add,
-        onDone: controller.close,
-        onError: controller.addError,
+    final stream = _generate(cts.token);
+    return _SubscriptionWithCancellationTokenSource(
+      stream.listen(
+        onData,
+        onDone: onDone,
+        onError: onError,
         cancelOnError: cancelOnError,
-      );
-
-      controller.onPause = subscription.pause;
-      controller.onResume = subscription.resume;
-      controller.onCancel = () {
-        cts.cancel();
-        return subscription.cancel();
-      };
-    };
-
-    final stream = controller.stream;
-    return stream.listen(
-      onData,
-      onDone: onDone,
-      onError: onError,
-      cancelOnError: cancelOnError,
+      ),
+      cts,
     );
+  }
+}
+
+class _SubscriptionWithCancellationTokenSource<T>
+    extends _StreamSubscriptionWrapper<T> {
+  final CancellationTokenSource _cts;
+
+  _SubscriptionWithCancellationTokenSource(super._subscription, this._cts);
+
+  @override
+  Future<void> cancel() {
+    _cts.cancel();
+    return _subscription.cancel();
   }
 }
 

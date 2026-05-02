@@ -1,5 +1,9 @@
 # Changelog
 
+## 6.3.0
+
+- Changed the implementation of `CancelableStreamFactory` due to strange behavior of `_AsyncStarStreamController`.
+
 ## 6.2.0
 
 - Fixed a bug in the implementation of the mechanism for working with `timeout` in the `CancellationTransformer` class. Added check for the `timeout` parameter for a valid value. When the `pause` event occurs, the timeout timer is cancelled, when the `resume` event occurs, the timeout timer is restarted, which guarantees full compatibility and correct operation with the `await for` statement.
