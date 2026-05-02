@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 6.1.0
+Version: 6.2.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -48,6 +48,7 @@ Table of Contents:
     - [A stream subscription can be cancelled using a non-blocking cancellation](#a-stream-subscription-can-be-cancelled-using-a-non-blocking-cancellation)
     - [A stream with cancellation token support can be created using the `async*` generator](#a-stream-with-cancellation-token-support-can-be-created-using-the-async-generator)
     - [A stream subscription can be canceled on `timeout`](#a-stream-subscription-can-be-canceled-on-timeout)
+    - [A stream subscription can process data longer than the timeout](#a-stream-subscription-can-process-data-longer-than-the-timeout)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -695,7 +696,7 @@ Output:
 
 ```txt
 CancellationException
-main(): count: 234593
+main(): count: 241845
 
 ```
 
@@ -1150,10 +1151,10 @@ Output:
 
 ```txt
 Canceling...
-Task(6): canceled
-Task(6): Downloaded: 2416639
 Task(1): canceled
-Task(1): Downloaded: 2310144
+Task(1): Downloaded: 4437779
+Task(6): canceled
+Task(6): Downloaded: 4079614
 AggregateError: One or more errors occurred. (CancellationException) (CancellationException)
 
 ```
@@ -1333,31 +1334,31 @@ Output:
 ```txt
 main(): ----------------------------------------
 main(): Adding task 0
-Isolate started: 970507559
+Isolate started: 79556054
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
-Isolate started: 613587906
-Isolate started: 970068846
+Isolate started: 532605485
+Isolate started: 416483187
 main(): Adding task 4
-Isolate started: 51230946
-Isolate started: 756817485
+Isolate started: 443472370
+Isolate started: 651320611
+Task(6): Received result: [14]
 Task(3): Received result: [11]
-Task(5): Received result: [13]
 Task(4): Received result: [12]
 Task(2): Received result: [10]
-Task(6): Received result: [14]
+Task(5): Received result: [13]
 main(): ----------------------------------------
 main(): Adding task 0
 main(): Adding task 1
 main(): Adding task 2
 main(): Adding task 3
 main(): Adding task 4
-Isolate started: 827043960
-Isolate started: 1027215490
-Isolate started: 446647541
-Isolate started: 607874817
-Isolate started: 872206415
+Isolate started: 44024471
+Isolate started: 676877005
+Isolate started: 325202187
+Isolate started: 360041733
+Isolate started: 577419397
 main(): Canceling...
 AggregateError: One or more errors occurred. (CancellationException) (CancellationException) (CancellationException) (CancellationException) (CancellationException)
 
@@ -1465,11 +1466,11 @@ void _message(Object object) {
 Output:
 
 ```txt
-11: 0
-53: pause
+10: 0
+54: pause
 504: resume
-505: 1
-609: 2
+506: 1
+608: 2
 [0, 1, 2]
 
 ```
@@ -1537,16 +1538,16 @@ Output:
 
 ```txt
 17: Yield: 0
-22: Event: 0
-53: Pause
-128: Yield: 1
-503: Resume
-505: Event: 1
-618: Yield: 2
-618: Event: 2
-654: Cancel
-720: Yield: 3
-724: Error: CancellationException
+21: Event: 0
+61: Pause
+144: Yield: 1
+509: Resume
+511: Event: 1
+623: Yield: 2
+623: Event: 2
+657: Cancel
+741: Yield: 3
+744: Error: CancellationException
 
 ```
 
@@ -1626,29 +1627,29 @@ Output:
 ----------------------------------------
 Blocking cancellation 
 ----------------------------------------
-16: Computing
-173: Computed: 0
-175: Received: 0
-176: After yield: 0
-176: Computing
-205: Canceling
-327: Error computing
-330: catch(e): CancellationException
+14: Computing
+170: Computed: 0
+172: Received: 0
+173: After yield: 0
+174: Computing
+203: Canceling
+326: Error computing
+329: catch(e): CancellationException
 330: Begin next work
-384: End next work
+382: End next work
 ----------------------------------------
 Non-blocking cancellation 
 ----------------------------------------
 0: Computing
-163: Computed: 0
-163: Received: 0
-163: After yield: 0
-163: Computing
-203: Canceling
-203: catch(e): CancellationException
-204: Begin next work
-275: End next work
-320: Error computing
+154: Computed: 0
+154: Received: 0
+154: After yield: 0
+154: Computing
+206: Canceling
+206: catch(e): CancellationException
+206: Begin next work
+260: End next work
+307: Error computing
 
 ```
 
@@ -1749,21 +1750,21 @@ Output:
 ----------------------------------------
 Cancel with 'CancellationTokenSource'
 ----------------------------------------
-10: Before yield: 1
-16: Received: 1
-16: After yield: 1
-17: Begin work (about 4000 ms)
-2027: Work canceled
-2031: Error: CancellationException
+13: Before yield: 1
+19: Received: 1
+20: After yield: 1
+21: Begin work (about 4000 ms)
+2043: Work canceled
+2046: Error: CancellationException
 ----------------------------------------
 Cancel with 'StreamSubscription.cancel()'
 ----------------------------------------
-1: Before yield: 1
-1: Received: 1
-1: After yield: 1
-1: Begin work (about 4000 ms)
-2037: Work canceled
-2037: Error: CancellationException
+0: Before yield: 1
+0: Received: 1
+0: After yield: 1
+0: Begin work (about 4000 ms)
+2036: Work canceled
+2036: Error: CancellationException
 
 ```
 
@@ -1864,22 +1865,83 @@ Output:
 Cancelling a cancellable stream
 ----------------------------------------
 16: Before yield: 1
-21: Received: 1
-23: After yield: 1
-23: Begin work (about 4000 ms)
-2034: Work canceled
-2037: Error: TimeoutException
-2037: End
+23: Received: 1
+24: After yield: 1
+24: Begin work (about 4000 ms)
+2035: Work canceled
+2038: Error: TimeoutException
+2039: End
 ----------------------------------------
 Cancelling a non-cancellable stream
 ----------------------------------------
-2038: Before yield: 1
-2038: Received: 1
-2038: After yield: 1
-2038: Begin work (about 4000 ms)
-4041: Error: TimeoutException
-4041: End
-6390: End work
+2039: Before yield: 1
+2040: Received: 1
+2040: After yield: 1
+2040: Begin work (about 4000 ms)
+4043: Error: TimeoutException
+4043: End
+6420: End work
+
+```
+
+### A stream subscription can process data longer than the timeout
+
+Example of data processing longer than the timeout:
+
+[example/example_stream_timeout_compatibility_with_await_for.dart](https://github.com/mezoni/multitasking/blob/main/example/example_stream_timeout_compatibility_with_await_for.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  const interval = 50;
+  const timeout = interval * 3;
+
+  Stream<int> gen() async* {
+    for (var i = 0; i < 5; i++) {
+      final int delay;
+      if (i < 4) {
+        delay = interval;
+      } else {
+        print('Oh, long work...');
+        delay = timeout;
+      }
+
+      await Future<void>.delayed(Duration(milliseconds: delay));
+      yield i;
+    }
+  }
+
+  final cts = CancellationTokenSource();
+  final stream = gen().asCancelable(
+    cts.token,
+    timeout: Duration(milliseconds: timeout),
+  );
+
+  try {
+    await for (final event in stream) {
+      print(event);
+      // Performing the work longer than the timeout
+      await Future<void>.delayed(const Duration(milliseconds: timeout * 2));
+    }
+  } catch (e) {
+    print('Error: $e');
+  }
+}
+
+```
+
+Output:
+
+```txt
+0
+1
+2
+3
+Oh, long work...
+Error: TimeoutException
 
 ```
 
@@ -2502,8 +2564,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(1): 512
-Task(2): 513
-Task(3): 514
+Task(1): 514
+Task(2): 516
+Task(3): 516
 
 ```

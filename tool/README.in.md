@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 6.1.0
+Version: 6.2.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -48,6 +48,7 @@ Table of Contents:
     - [A stream subscription can be cancelled using a non-blocking cancellation](#a-stream-subscription-can-be-cancelled-using-a-non-blocking-cancellation)
     - [A stream with cancellation token support can be created using the `async*` generator](#a-stream-with-cancellation-token-support-can-be-created-using-the-async-generator)
     - [A stream subscription can be canceled on `timeout`](#a-stream-subscription-can-be-canceled-on-timeout)
+    - [A stream subscription can process data longer than the timeout](#a-stream-subscription-can-process-data-longer-than-the-timeout)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -336,6 +337,14 @@ Example of canceling a stream subscription on `timeout`
 
 BEGIN_EXAMPLE
 example_stream_cancel_on_timeout
+END_EXAMPLE
+
+### A stream subscription can process data longer than the timeout
+
+Example of data processing longer than the timeout:
+
+BEGIN_EXAMPLE
+example_stream_timeout_compatibility_with_await_for
 END_EXAMPLE
 
 ## Synchronization primitives

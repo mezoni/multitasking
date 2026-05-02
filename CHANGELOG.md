@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.2.0
+
+- Fixed a bug in the implementation of the mechanism for working with `timeout` in the `CancellationTransformer` class. Added check for the `timeout` parameter for a valid value. When the `pause` event occurs, the timeout timer is cancelled, when the `resume` event occurs, the timeout timer is restarted, which guarantees full compatibility and correct operation with the `await for` statement.
+- Added class `PauseTransformer`.
+- Added example `example_stream_timeout_compatibility with_await_for.dart`.
+
 ## 6.1.0
 
 - Added class `CancelableStreamFactory`.

@@ -183,6 +183,35 @@ void _testStreamAsCancelable() {
     expect(error, isA<TimeoutException>(), reason: 'error');
     expect(value, equals(1), reason: 'value');
   });
+
+  test('StreamExtension.asCancelable(): timeout when paused', () async {
+    Stream<int> gen() async* {
+      await _delay(10);
+      yield 1;
+      await _delay(10);
+      yield 2;
+    }
+
+    final s1 = gen();
+    final cts = CancellationTokenSource();
+    final s2 = s1.asCancelable(
+      cts.token,
+      timeout: Duration(milliseconds: 50),
+    );
+    Object? error;
+    var value = 0;
+    try {
+      await for (final event in s2) {
+        value = event;
+        await _delay(100);
+      }
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isNull, reason: 'error');
+    expect(value, equals(2), reason: 'value');
+  });
 }
 
 void _testStreamAsPausable() {
