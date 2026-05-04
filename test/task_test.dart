@@ -4,6 +4,7 @@ import 'package:multitasking/multitasking.dart';
 import 'package:test/test.dart';
 
 void main() {
+  _tesCancellationToken();
   _testFailed();
   _testWaitAll();
 }
@@ -131,5 +132,144 @@ void _testWaitAll() {
         }
       }
     }
+  });
+}
+
+void _tesCancellationToken() {
+  test('Task.token: token.throwIfCanceled()', () async {
+    Future<void> f() async {
+      final token = Task.token;
+      for (var i = 0; i < 10; i++) {
+        await _delay(50);
+        token.throwIfCanceled();
+      }
+    }
+
+    final cts = CancellationTokenSource();
+    final task = Task.run(token: cts.token, () async {
+      await f();
+    });
+
+    Timer(Duration(milliseconds: 100), cts.cancel);
+
+    Object? error;
+    try {
+      await task;
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<CancellationException>(), reason: 'error');
+  });
+
+  test('Task token: cts1.cancel()', () async {
+    final cts1 = CancellationTokenSource();
+    Future<void> f() async {
+      return Task.run(token: cts1.token, () async {
+        final token = Task.token;
+        for (var i = 0; i < 10; i++) {
+          await _delay(50);
+          token.throwIfCanceled();
+        }
+      });
+    }
+
+    final cts2 = CancellationTokenSource();
+    final task = Task.run(token: cts2.token, () async {
+      await f();
+    });
+
+    Timer(Duration(milliseconds: 100), cts1.cancel);
+
+    Object? error;
+    try {
+      await task;
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<CancellationException>(), reason: 'error');
+  });
+
+  test('Task token: cts2.cancel()', () async {
+    final cts1 = CancellationTokenSource();
+    Future<void> f() async {
+      return Task.run(token: cts1.token, () async {
+        final token = Task.token;
+        for (var i = 0; i < 10; i++) {
+          await _delay(50);
+          token.throwIfCanceled();
+        }
+      });
+    }
+
+    final cts2 = CancellationTokenSource();
+    final task = Task.run(token: cts2.token, () async {
+      await f();
+    });
+
+    Timer(Duration(milliseconds: 100), cts2.cancel);
+
+    Object? error;
+    try {
+      await task;
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<CancellationException>(), reason: 'error');
+  });
+
+  test('Task token: combineTokens: false', () async {
+    Future<void> f() async {
+      return Task.run(combineTokens: false, () async {
+        final token = Task.token;
+        for (var i = 0; i < 10; i++) {
+          await _delay(50);
+          token.throwIfCanceled();
+        }
+      });
+    }
+
+    final cts = CancellationTokenSource();
+    final task = Task.run(token: cts.token, () async {
+      await f();
+    });
+
+    Timer(Duration(milliseconds: 100), cts.cancel);
+
+    Object? error;
+    try {
+      await task;
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isNull, reason: 'error');
+  });
+
+  test('Task.token: token = null', () async {
+    Future<void> f() async {
+      return Task.run(() async {
+        final token = Task.token;
+        for (var i = 0; i < 10; i++) {
+          await _delay(50);
+          token.throwIfCanceled();
+        }
+      });
+    }
+
+    final task = Task.run(() async {
+      await f();
+    });
+
+    Object? error;
+    try {
+      await task;
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isNull, reason: 'error');
   });
 }

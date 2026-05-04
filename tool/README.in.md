@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 6.3.0
+Version: 6.4.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -38,6 +38,7 @@ Table of Contents:
     - [The task can be canceled using a cancellation token](#the-task-can-be-canceled-using-a-cancellation-token)
     - [The task can be canceled during `Task.delay()`](#the-task-can-be-canceled-during-taskdelay)
     - [The task can be canceled as a group of tasks](#the-task-can-be-canceled-as-a-group-of-tasks)
+    - [The task can be canceled using inherited token](#the-task-can-be-canceled-using-inherited-token)
     - [The task can be canceled while listening to the stream](#the-task-can-be-canceled-while-listening-to-the-stream)
     - [The group of tasks can be safely canceled while working with the network](#the-group-of-tasks-can-be-safely-canceled-while-working-with-the-network)
     - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
@@ -255,6 +256,14 @@ Example of canceling a group of tasks in case of any failure in any task:
 
 BEGIN_EXAMPLE
 example_task_cancel_group_by_failure
+END_EXAMPLE
+
+### The task can be canceled using inherited token
+
+Example of canceling a tasks using inherited token:
+
+BEGIN_EXAMPLE
+example_task_cancel_using_inherited_token
 END_EXAMPLE
 
 ### The task can be canceled while listening to the stream

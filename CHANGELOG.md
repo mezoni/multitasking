@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.4.0
+
+- Implemented an experimental feature for canceling a task on request using an internal token.
+- Added `combineTokens` and `token` parameters to the default and `run` constructors of the `Task` class.
+- Added static getter `token` to the `Task` class.
+
 ## 6.3.0
 
 - Changed the implementation of `CancelableStreamFactory` due to strange behavior of `_AsyncStarStreamController`.

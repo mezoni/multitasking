@@ -84,6 +84,17 @@ final class Task<T> implements Future<T> {
     return task;
   }
 
+  /// Returns the cancellation token for the current task.
+  ///
+  /// If a token was not specified when creating a task, an unmanaged
+  /// [CancellationTokenSource] is created and its token is returned.\
+  /// By convention, each task has a token, but not all tokens are manageable.
+  static CancellationToken get token {
+    final task = current;
+    task._token ??= CancellationTokenSource().token;
+    return task._token!;
+  }
+
   /// Returns a unique integer identifier for the task.
   int _id = _taskId++;
 
@@ -102,6 +113,8 @@ final class Task<T> implements Future<T> {
 
   TaskStatus _status;
 
+  CancellationToken? _token;
+
   Zone? _zone;
 
   /// Creates a task with the specified callback function and [name].
@@ -109,12 +122,45 @@ final class Task<T> implements Future<T> {
   /// Parameters:
   ///
   /// - [action]: Callback function that will be executed.
+  /// - [combineTokens]: Determines if the cancellation token of the current
+  /// task ([Task.current]) should also trigger cancellation of the task being
+  /// created (this task). If another cancellation [token] is provided, it is
+  /// combined with token of the current task; otherwise, only the provided
+  /// [token] is used. If this parameter is `false` and no [token] is provided,
+  /// this task will not be linked to any external cancellation source.
   /// - [name]: The name that will be assigned to the task.
+  /// - [token]: A cancellation token specifically created for this task.
   ///
   /// To run the created task, the [start] method must be used.
-  Task(FutureOr<T> Function() action, {this.name})
-      : _action = action,
+  ///
+  /// Attaching a task to the current (outer) task does not imply that the outer
+  /// task will wait for the inner tasks to complete.\
+  /// Attaching tasks means that cancellation requests from outer tasks will
+  /// propagate to the inner tasks.\
+  /// A task can always be detached by calling the [Task.detach] method.
+  Task(
+    FutureOr<T> Function() action, {
+    bool combineTokens = true,
+    this.name,
+    CancellationToken? token,
+  })  : _action = action,
         _status = TaskStatus.created {
+    final current = Task.current;
+    if (combineTokens) {
+      final currentToken = current._token;
+      if (token != null && currentToken != null) {
+        _token = CancellationTokenSource.createLinkedTokenSource(
+          [token, currentToken],
+        ).token;
+      } else if (token != null) {
+        _token = token;
+      } else if (currentToken != null) {
+        _token = currentToken;
+      }
+    } else {
+      _token = token;
+    }
+
     _zone = Zone.current.fork(
       zoneValues: {_taskKey: this},
     );
@@ -452,9 +498,32 @@ final class Task<T> implements Future<T> {
   /// Parameters:
   ///
   /// - [action]: Callback function that will be executed.
+  /// - [combineTokens]: Determines if the cancellation token of the current
+  /// task ([Task.current]) should also trigger cancellation of the task being
+  /// created (this task). If another cancellation [token] is provided, it is
+  /// combined with token of the current task; otherwise, only the provided
+  /// [token] is used. If this parameter is `false` and no [token] is provided,
+  /// this task will not be linked to any external cancellation source.
   /// - [name]: The name that will be assigned to the task.
-  static Task<T> run<T>(FutureOr<T> Function() action, {String? name}) {
-    final task = Task<T>(action, name: name);
+  /// - [token]: A cancellation token specifically created for this task.
+  ///
+  /// Attaching a task to the current (outer) task does not imply that the outer
+  /// task will wait for the inner tasks to complete.\
+  /// Attaching tasks means that cancellation requests from outer tasks will
+  /// propagate to the inner tasks.\
+  /// A task can always be detached by calling the [Task.detach] method.
+  static Task<T> run<T>(
+    FutureOr<T> Function() action, {
+    bool combineTokens = true,
+    String? name,
+    CancellationToken? token,
+  }) {
+    final task = Task<T>(
+      action,
+      combineTokens: combineTokens,
+      name: name,
+      token: token,
+    );
     unawaited(task.start());
     return task;
   }
