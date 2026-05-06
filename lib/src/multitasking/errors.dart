@@ -40,7 +40,7 @@ class AggregateError extends _Error {
   }
 }
 
-/// Represents an exception used to indicate that a cancellation has occurred.
+/// Represents an exception used to indicate that the operation was canceled.
 class CancellationException implements Exception {
   /// Message associated with this exception.
   final String? message;

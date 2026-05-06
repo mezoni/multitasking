@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 6.4.0
+Version: 6.5.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -42,7 +42,6 @@ Table of Contents:
     - [The task can be canceled while listening to the stream](#the-task-can-be-canceled-while-listening-to-the-stream)
     - [The group of tasks can be safely canceled while working with the network](#the-group-of-tasks-can-be-safely-canceled-while-working-with-the-network)
     - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
-    - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
     - [The waiting for a non-cancelable task can be canceled](#the-waiting-for-a-non-cancelable-task-can-be-canceled)
     - [Tasks can be paused and resumed](#tasks-can-be-paused-and-resumed)
     - [A stream subscription can be paused and resumed using a token](#a-stream-subscription-can-be-paused-and-resumed-using-a-token)
@@ -50,6 +49,7 @@ Table of Contents:
     - [A stream with cancellation token support can be created using the `async*` generator](#a-stream-with-cancellation-token-support-can-be-created-using-the-async-generator)
     - [A stream subscription can be canceled on `timeout`](#a-stream-subscription-can-be-canceled-on-timeout)
     - [A stream subscription can process data longer than the timeout](#a-stream-subscription-can-process-data-longer-than-the-timeout)
+    - [The computation performed in 'Isolate' can be canceled in different ways](#the-computation-performed-in-isolate-can-be-canceled-in-different-ways)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -290,16 +290,6 @@ BEGIN_EXAMPLE
 example_task_cancel_long_network
 END_EXAMPLE
 
-### Tasks can be used with `Isolate`, and all of them can be safely canceled
-
-This example is not fundamental and is used for demonstration purposes only.
-
-An example of using tasks with isolates and their simultaneous cancellation:
-
-BEGIN_EXAMPLE
-example_task_cancel_isolate
-END_EXAMPLE
-
 ### The waiting for a non-cancelable task can be canceled
 
 An example of canceling the wait for a non-cancelable task:
@@ -354,6 +344,14 @@ Example of data processing longer than the timeout:
 
 BEGIN_EXAMPLE
 example_stream_timeout_compatibility_with_await_for
+END_EXAMPLE
+
+### The computation performed in 'Isolate' can be canceled in different ways
+
+An example of the different ways to cancel computation performed in `Isolate`:
+
+BEGIN_EXAMPLE
+example_isolate_runner_cancel_in_different_ways
 END_EXAMPLE
 
 ## Synchronization primitives

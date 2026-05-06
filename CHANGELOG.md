@@ -1,5 +1,10 @@
 # Changelog
 
+## 6.5.0
+
+- Implemented an experimental feature for running a computation in a separate `Isolate`, with the possibility of externally controlled cancellation with immediate termination, with termination when control is yielded back to the event loop, or with termination using cancellation token.
+- Added class `IsolateRunner`.
+
 ## 6.4.0
 
 - Implemented an experimental feature for canceling a task on request using an internal token.
