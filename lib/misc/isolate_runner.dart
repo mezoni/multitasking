@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'cancellation.dart';
-import 'errors.dart';
-import 'task.dart';
+import '../src/multitasking/cancellation.dart';
+import '../src/multitasking/errors.dart';
+import '../src/multitasking/task.dart';
 
 /// An [IsolateRunner] is a runner for executing a computation in a separate
 /// [Isolate], with the possibility of externally controlled cancellation with

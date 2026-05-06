@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 
+import 'package:multitasking/misc/isolate_runner.dart';
 import 'package:multitasking/multitasking.dart';
 import 'package:test/test.dart';
 

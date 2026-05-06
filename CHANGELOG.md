@@ -1,5 +1,10 @@
 # Changelog
 
+## 6.6.0
+
+- Rollback: Removed export of class `IsolateRunner` from file `multitasking.dart`.
+- The `IsolateRunner` class has been moved to the `misc/isolate_runner.dart` file.
+
 ## 6.5.0
 
 - Implemented an experimental feature for running a computation in a separate `Isolate`, with the possibility of externally controlled cancellation with immediate termination, with termination when control is yielded back to the event loop, or with termination using cancellation token.
