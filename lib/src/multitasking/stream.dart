@@ -9,7 +9,7 @@ import '../../multitasking.dart';
 /// cancellation is requested via a [CancellationToken].
 class CancelableStreamFactory {
   /// Creates a [Stream] that will support cancellation of a subscription when
-  /// cancellation is requested via a [token].
+  /// cancellation is requested via a `token`.
   ///
   /// Parameters:
   ///

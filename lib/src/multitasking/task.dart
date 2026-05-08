@@ -117,8 +117,7 @@ final class Task<T> implements Future<T> {
   /// Attaching a task to the current (outer) task does not imply that the outer
   /// task will wait for the inner tasks to complete.\
   /// Attaching tasks means that cancellation requests from outer tasks will
-  /// propagate to the inner tasks.\
-  /// A task can always be detached by calling the [Task.detach] method.
+  /// propagate to the inner tasks.
   Task(
     FutureOr<T> Function() action, {
     bool combineTokens = true,
@@ -540,8 +539,7 @@ final class Task<T> implements Future<T> {
   /// Attaching a task to the current (outer) task does not imply that the outer
   /// task will wait for the inner tasks to complete.\
   /// Attaching tasks means that cancellation requests from outer tasks will
-  /// propagate to the inner tasks.\
-  /// A task can always be detached by calling the [Task.detach] method.
+  /// propagate to the inner tasks.
   static Task<T> run<T>(
     FutureOr<T> Function() action, {
     bool combineTokens = true,
