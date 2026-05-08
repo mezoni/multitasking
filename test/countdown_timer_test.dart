@@ -31,7 +31,7 @@ void _testCountdownTimer() {
     t.cancel();
   });
 
-  test('CountdownTimer: cancel)', () async {
+  test('CountdownTimer: cancel()', () async {
     var isCalled = false;
     final t = CountdownTimer(Duration(milliseconds: 500), () {
       isCalled = true;

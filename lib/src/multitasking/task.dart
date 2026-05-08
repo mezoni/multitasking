@@ -43,9 +43,7 @@ typedef AnyTask = Task<Object?>;
 /// task, an instance of the [Future] object is created and at that moment its
 /// life cycle begins.
 final class Task<T> implements Future<T> {
-  static final Object _taskKey = Object();
-
-  static final Expando<AnyTask> _tempTasks = Expando();
+  static AnyTask _current = _main;
 
   static final Finalizer<AsyncError> _finalizer = Finalizer((result) {
     Zone.root.scheduleMicrotask(() {
@@ -64,24 +62,7 @@ final class Task<T> implements Future<T> {
   /// returned.
   @awaitNotRequired
   static AnyTask get current {
-    final zone = Zone.current;
-    if (identical(zone, Zone.root)) {
-      return _main;
-    }
-
-    AnyTask? task = zone[_taskKey] as AnyTask?;
-    if (task != null) {
-      return task;
-    }
-
-    task = _tempTasks[zone];
-    if (task != null) {
-      return task;
-    }
-
-    task = Task<void>._raw(TaskStatus.running);
-    _tempTasks[zone] = task;
-    return task;
+    return _current;
   }
 
   /// Returns the cancellation token for the current task.
@@ -90,7 +71,7 @@ final class Task<T> implements Future<T> {
   /// [CancellationTokenSource] is created and its token is returned.\
   /// By convention, each task has a token, but not all tokens are manageable.
   static CancellationToken get token {
-    final task = current;
+    final task = _current;
     task._token ??= CancellationTokenSource().token;
     return task._token!;
   }
@@ -145,7 +126,7 @@ final class Task<T> implements Future<T> {
     CancellationToken? token,
   })  : _action = action,
         _status = TaskStatus.created {
-    final current = Task.current;
+    final current = _current;
     if (combineTokens) {
       final currentToken = current._token;
       if (token != null && currentToken != null) {
@@ -162,7 +143,11 @@ final class Task<T> implements Future<T> {
     }
 
     _zone = Zone.current.fork(
-      zoneValues: {_taskKey: this},
+      specification: ZoneSpecification(
+        run: _handleRun,
+        runBinary: _handleRunBinary,
+        runUnary: _handleRunUnary,
+      ),
     );
   }
 
@@ -414,6 +399,58 @@ final class Task<T> implements Future<T> {
     return tcs.task;
   }
 
+  R _handleRun<R>(Zone self, ZoneDelegate parent, Zone zone, R Function() f) {
+    final current = _current;
+    if (identical(_zone, zone)) {
+      _current = this;
+    }
+
+    try {
+      return parent.run(zone, f);
+    } finally {
+      _current = current;
+    }
+  }
+
+  R _handleRunBinary<R, T1, T2>(
+    Zone self,
+    ZoneDelegate parent,
+    Zone zone,
+    R Function(T1 arg1, T2 arg2) f,
+    T1 arg1,
+    T2 arg2,
+  ) {
+    final current = _current;
+    if (identical(_zone, zone)) {
+      _current = this;
+    }
+
+    try {
+      return parent.runBinary(zone, f, arg1, arg2);
+    } finally {
+      _current = current;
+    }
+  }
+
+  R _handleRunUnary<R, T1>(
+    Zone self,
+    ZoneDelegate parent,
+    Zone zone,
+    R Function(T1 arg) f,
+    T1 arg,
+  ) {
+    final current = _current;
+    if (identical(_zone, zone)) {
+      _current = this;
+    }
+
+    try {
+      return parent.runUnary(zone, f, arg);
+    } finally {
+      _current = current;
+    }
+  }
+
   /// Creates a task that will complete successfully after a time delay or will
   /// be completed with status [TaskStatus.canceled] if a cancellation request
   /// was initiated before or during the execution of this method.
@@ -465,24 +502,17 @@ final class Task<T> implements Future<T> {
   /// - [handler]: A callback function that will be executed immediately after
   /// the task terminates execution.
   ///
-  /// The handler cannot be added to synthetic tasks.
+  /// The handler cannot be added to `main()` tasks.
   static void onExit(FutureOr<void> Function(AnyTask task) handler) {
-    final current = Task.current;
-    var isSynthetic = false;
+    final current = _current;
     if (identical(current, _main)) {
-      isSynthetic = true;
-    } else {
-      isSynthetic = Zone.current[_taskKey] == null;
-    }
-
-    if (isSynthetic) {
       throw TaskStateError(
-          "Failed to add 'onExit()' handler to synthetic task: ${current.toString()}");
+          "Failed to add 'onExit()' handler to (${current.toString()}) task");
     }
 
     if (current.isTerminated) {
       throw TaskStateError(
-          "'Task.onExit()' can only be called on an unterminated task: ${current.toString()}");
+          "Failed to add 'onExit()' handler to terminated task (${current.toString()})");
     }
 
     if (current._onExit != null) {
@@ -498,12 +528,12 @@ final class Task<T> implements Future<T> {
   /// Parameters:
   ///
   /// - [action]: Callback function that will be executed.
-  /// - [combineTokens]: Determines if the cancellation token of the current
-  /// task ([Task.current]) should also trigger cancellation of the task being
-  /// created (this task). If another cancellation [token] is provided, it is
-  /// combined with token of the current task; otherwise, only the provided
-  /// [token] is used. If this parameter is `false` and no [token] is provided,
-  /// this task will not be linked to any external cancellation source.
+  /// - [combineTokens]: Determines if the cancellation token of the [current]
+  /// task should also trigger cancellation of the task being created (this
+  /// task). If another cancellation [token] is provided, it is combined with
+  /// token of the [current] task; otherwise, only the provided [token] is used.
+  /// If this parameter is `false` and no [token] is provided, this task will
+  /// not be linked to any external cancellation source.
   /// - [name]: The name that will be assigned to the task.
   /// - [token]: A cancellation token specifically created for this task.
   ///

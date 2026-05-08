@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 6.6.0
+Version: 7.0.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -49,7 +49,9 @@ Table of Contents:
     - [A stream with cancellation token support can be created using the `async*` generator](#a-stream-with-cancellation-token-support-can-be-created-using-the-async-generator)
     - [A stream subscription can be canceled on `timeout`](#a-stream-subscription-can-be-canceled-on-timeout)
     - [A stream subscription can process data longer than the timeout](#a-stream-subscription-can-process-data-longer-than-the-timeout)
-    - [The computation performed in 'Isolate' can be canceled in different ways](#the-computation-performed-in-isolate-can-be-canceled-in-different-ways)
+    - [The work performed in 'Isolate' can be terminated in different ways](#the-work-performed-in-isolate-can-be-terminated-in-different-ways)
+    - [The work performed in 'Zone' can be terminated in different ways](#the-work-performed-in-zone-can-be-terminated-in-different-ways)
+    - [The work can be executed on different platforms](#the-work-can-be-executed-on-different-platforms)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -346,12 +348,28 @@ BEGIN_EXAMPLE
 example_stream_timeout_compatibility_with_await_for
 END_EXAMPLE
 
-### The computation performed in 'Isolate' can be canceled in different ways
+### The work performed in 'Isolate' can be terminated in different ways
 
-An example of the different ways to cancel computation performed in `Isolate`:
+An example of the different ways to terminated work performed in `Isolate`:
 
 BEGIN_EXAMPLE
-example_isolate_runner_cancel_in_different_ways
+example_isolated_work_terminate_in_different_ways
+END_EXAMPLE
+
+### The work performed in 'Zone' can be terminated in different ways
+
+An example of the different ways to terminated work performed in `Zone`:
+
+BEGIN_EXAMPLE
+example_zoned_work_terminate_in_different_ways
+END_EXAMPLE
+
+### The work can be executed on different platforms
+
+An example of executing the work on different platforms:
+
+BEGIN_EXAMPLE
+example_work_executing_on_different_platforms
 END_EXAMPLE
 
 ## Synchronization primitives

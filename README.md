@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 6.6.0
+Version: 7.0.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -42,7 +42,6 @@ Table of Contents:
     - [The task can be canceled while listening to the stream](#the-task-can-be-canceled-while-listening-to-the-stream)
     - [The group of tasks can be safely canceled while working with the network](#the-group-of-tasks-can-be-safely-canceled-while-working-with-the-network)
     - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
-    - [Tasks can be used with `Isolate`, and all of them can be safely canceled](#tasks-can-be-used-with-isolate-and-all-of-them-can-be-safely-canceled)
     - [The waiting for a non-cancelable task can be canceled](#the-waiting-for-a-non-cancelable-task-can-be-canceled)
     - [Tasks can be paused and resumed](#tasks-can-be-paused-and-resumed)
     - [A stream subscription can be paused and resumed using a token](#a-stream-subscription-can-be-paused-and-resumed-using-a-token)
@@ -50,7 +49,9 @@ Table of Contents:
     - [A stream with cancellation token support can be created using the `async*` generator](#a-stream-with-cancellation-token-support-can-be-created-using-the-async-generator)
     - [A stream subscription can be canceled on `timeout`](#a-stream-subscription-can-be-canceled-on-timeout)
     - [A stream subscription can process data longer than the timeout](#a-stream-subscription-can-process-data-longer-than-the-timeout)
-    - [The computation performed in 'Isolate' can be canceled in different ways](#the-computation-performed-in-isolate-can-be-canceled-in-different-ways)
+    - [The work performed in 'Isolate' can be terminated in different ways](#the-work-performed-in-isolate-can-be-terminated-in-different-ways)
+    - [The work performed in 'Zone' can be terminated in different ways](#the-work-performed-in-zone-can-be-terminated-in-different-ways)
+    - [The work can be executed on different platforms](#the-work-can-be-executed-on-different-platforms)
   - [Synchronization primitives](#synchronization-primitives)
     - [Counting semaphore](#counting-semaphore)
     - [Binary semaphore](#binary-semaphore)
@@ -698,7 +699,7 @@ Output:
 
 ```txt
 CancellationException
-main(): count: 241176
+main(): count: 236158
 
 ```
 
@@ -1101,19 +1102,19 @@ Task(6): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Task(10): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Task(14): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Task(18): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Task(10): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
+Task(1): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 main(): Canceling
 AggregateError: One or more errors occurred. (CancellationException) (CancellationException) (CancellationException) (CancellationException)
 ----------------------------------------
-Task(1): canceled
-No data
+Task(1): succeeded
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(6): canceled
 No data
 ----------------------------------------
-Task(10): succeeded
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(10): canceled
+No data
 ----------------------------------------
 Task(14): canceled
 No data
@@ -1231,215 +1232,10 @@ Output:
 ```txt
 Canceling...
 Task(1): canceled
-Task(1): Downloaded: 4628479
+Task(1): Downloaded: 4096000
 Task(6): canceled
-Task(6): Downloaded: 4767744
+Task(6): Downloaded: 3997696
 AggregateError: One or more errors occurred. (CancellationException) (CancellationException)
-
-```
-
-### Tasks can be used with `Isolate`, and all of them can be safely canceled
-
-This example is not fundamental and is used for demonstration purposes only.
-
-An example of using tasks with isolates and their simultaneous cancellation:
-
-[example/example_task_cancel_isolate.dart](https://github.com/mezoni/multitasking/blob/main/example/example_task_cancel_isolate.dart)
-
-```dart
-import 'dart:async';
-import 'dart:isolate';
-
-import 'package:defer/defer.dart';
-import 'package:multitasking/multitasking.dart';
-
-void main() async {
-  var cts = CancellationTokenSource();
-  await bigWork(cts);
-
-  cts = CancellationTokenSource();
-  Timer(Duration(seconds: 2), () {
-    _message('Canceling...');
-    cts.cancel();
-  });
-
-  await bigWork(cts);
-}
-
-Future<void> bigWork(CancellationTokenSource cts) async {
-  _message('-' * 40);
-  final token = cts.token;
-
-  final tasks = <AnyTask>[];
-  for (var i = 0; i < 5; i++) {
-    final task = Task.run(() async {
-      token.throwIfCanceled();
-      final controller = StreamController<int>();
-      final results = <int>[];
-      controller.stream.listen(results.add);
-
-      await defer(controller.close, () async {
-        await _computeUsingIsolate(doWork, i, controller.sink, token);
-      });
-
-      _message('Received result: $results');
-    });
-
-    _message('Adding task $i');
-    tasks.add(task);
-    // Allow task to start
-    await Task.sleep();
-  }
-
-  try {
-    await Task.whenAll(tasks);
-  } catch (e) {
-    print(e);
-  }
-}
-
-Future<void> doWork((SendPort, int) message) async {
-  final (sendPort, arg) = message;
-  final port = ReceivePort();
-  try {
-    final cts = _createCancellationTokenSource(port, sendPort);
-    final token = cts.token;
-    print("Isolate started: ${Isolate.current.hashCode}");
-    var result = arg;
-
-    for (var i = 0; i < 10; i++) {
-      await Future<void>.delayed(Duration(milliseconds: 250));
-      token.throwIfCanceled();
-      result++;
-      //throw 'Error';
-    }
-
-    //throw 'Error';
-    sendPort.send(result);
-  } finally {
-    port.close();
-  }
-}
-
-Future<void> _computeUsingIsolate<T, R>(
-  void Function((SendPort, T)) computation,
-  T argument,
-  Sink<R> sink,
-  CancellationToken token,
-) async {
-  final port = ReceivePort();
-  final errorPort = ReceivePort();
-  final exitPort = ReceivePort();
-  final barrier = Completer<SendPort>();
-  final resultCompleter = Completer<void>();
-  void Function()? handler;
-
-  final isolate = await Isolate.spawn(
-    computation,
-    (port.sendPort, argument),
-    paused: true,
-    onError: errorPort.sendPort,
-    onExit: exitPort.sendPort,
-  );
-
-  void closeAll() {
-    if (!resultCompleter.isCompleted) {
-      resultCompleter.complete();
-    }
-
-    token.removerHandler(handler);
-    port.close();
-    errorPort.close();
-    exitPort.close();
-  }
-
-  errorPort.listen((message) {
-    if (!resultCompleter.isCompleted) {
-      final exception = message as List<Object?>;
-      final error = exception[0]!;
-      final stackTraceString = exception[1];
-      StackTrace? stackTrace;
-      if (stackTraceString is String) {
-        stackTrace = StackTrace.fromString(stackTraceString);
-      }
-
-      resultCompleter.completeError(error, stackTrace);
-    }
-  });
-
-  exitPort.listen((message) {
-    closeAll();
-  });
-
-  isolate.resume(isolate.pauseCapability!);
-  port.listen((message) {
-    if (message is SendPort) {
-      barrier.complete(message);
-    } else {
-      sink.add(message as R);
-    }
-  });
-
-  final cancelPort = await barrier.future;
-  handler = token.addHandler(() {
-    cancelPort.send(null);
-  });
-
-  return resultCompleter.future;
-}
-
-CancellationTokenSource _createCancellationTokenSource(
-  ReceivePort port,
-  SendPort sendPort,
-) {
-  final cts = CancellationTokenSource();
-  sendPort.send(port.sendPort);
-  port.listen((message) {
-    cts.cancel();
-  });
-
-  return cts;
-}
-
-void _message(String text) {
-  final task = Task.current.name ?? '${Task.current}';
-  print('$task: $text');
-}
-
-```
-
-Output:
-
-```txt
-main(): ----------------------------------------
-main(): Adding task 0
-Isolate started: 845991808
-main(): Adding task 1
-main(): Adding task 2
-main(): Adding task 3
-main(): Adding task 4
-Isolate started: 431273572
-Isolate started: 532380314
-Isolate started: 452335075
-Isolate started: 357047941
-Task(6): Received result: [14]
-Task(3): Received result: [11]
-Task(4): Received result: [12]
-Task(2): Received result: [10]
-Task(5): Received result: [13]
-main(): ----------------------------------------
-main(): Adding task 0
-main(): Adding task 1
-Isolate started: 516211118
-Isolate started: 216586289
-main(): Adding task 2
-main(): Adding task 3
-Isolate started: 732321283
-main(): Adding task 4
-Isolate started: 160672377
-Isolate started: 884348879
-main(): Canceling...
-AggregateError: One or more errors occurred. (CancellationException) (CancellationException) (CancellationException) (CancellationException) (CancellationException)
 
 ```
 
@@ -1545,10 +1341,10 @@ void _message(Object object) {
 Output:
 
 ```txt
-14: 0
-54: pause
+10: 0
+56: pause
 506: resume
-508: 1
+507: 1
 610: 2
 [0, 1, 2]
 
@@ -1616,17 +1412,17 @@ void _message(Object object) {
 Output:
 
 ```txt
-19: Yield: 0
-24: Event: 0
+17: Yield: 0
+20: Event: 0
 54: Pause
-129: Yield: 1
+126: Yield: 1
 505: Resume
-508: Event: 1
-610: Yield: 2
-610: Event: 2
-656: Cancel
-712: Yield: 3
-714: Error: CancellationException
+509: Event: 1
+613: Yield: 2
+614: Event: 2
+654: Cancel
+719: Yield: 3
+723: Error: CancellationException
 
 ```
 
@@ -1707,15 +1503,15 @@ Output:
 Blocking cancellation 
 ----------------------------------------
 17: Computing
-175: Computed: 0
-178: Received: 0
-179: After yield: 0
-179: Computing
-205: Canceling
-331: Error computing
-334: catch(e): CancellationException
-335: Begin next work
-388: End next work
+180: Computed: 0
+186: Received: 0
+187: After yield: 0
+187: Computing
+203: Canceling
+340: Error computing
+350: catch(e): CancellationException
+350: Begin next work
+403: End next work
 ----------------------------------------
 Non-blocking cancellation 
 ----------------------------------------
@@ -1724,11 +1520,11 @@ Non-blocking cancellation
 153: Received: 0
 153: After yield: 0
 153: Computing
-202: Canceling
-203: catch(e): CancellationException
-203: Begin next work
-257: End next work
-306: Error computing
+201: Canceling
+202: catch(e): CancellationException
+202: Begin next work
+255: End next work
+305: Error computing
 
 ```
 
@@ -1829,10 +1625,10 @@ Output:
 ----------------------------------------
 Cancel with 'CancellationTokenSource'
 ----------------------------------------
-11: Before yield: 1
-16: Received: 1
-16: After yield: 1
-17: Begin work (about 4000 ms)
+12: Before yield: 1
+17: Received: 1
+21: After yield: 1
+21: Begin work (about 4000 ms)
 2021: Work canceled
 2025: Error: CancellationException
 ----------------------------------------
@@ -1842,8 +1638,8 @@ Cancel with 'StreamSubscription.cancel()'
 0: Received: 1
 0: After yield: 1
 0: Begin work (about 4000 ms)
-2043: Work canceled
-2043: Error: CancellationException
+2021: Work canceled
+2021: Error: CancellationException
 
 ```
 
@@ -1943,23 +1739,23 @@ Output:
 ----------------------------------------
 Cancelling a cancellable stream
 ----------------------------------------
-15: Before yield: 1
-21: Received: 1
-22: After yield: 1
-23: Begin work (about 4000 ms)
-2052: Work canceled
-2055: Error: TimeoutException
-2055: End
+14: Before yield: 1
+18: Received: 1
+20: After yield: 1
+20: Begin work (about 4000 ms)
+2054: Work canceled
+2057: Error: TimeoutException
+2058: End
 ----------------------------------------
 Cancelling a non-cancellable stream
 ----------------------------------------
-2056: Before yield: 1
-2056: Received: 1
-2056: After yield: 1
-2056: Begin work (about 4000 ms)
-4059: Error: TimeoutException
-4059: End
-6263: End work
+2058: Before yield: 1
+2059: Received: 1
+2059: After yield: 1
+2059: Begin work (about 4000 ms)
+4062: Error: TimeoutException
+4062: End
+6270: End work
 
 ```
 
@@ -2062,69 +1858,70 @@ Output:
 ----------------------------------------
 Basic functionality: true
 ----------------------------------------
-26: Begin work
-83: Work complete: 0
-85: Enter await 0
-391: Exit await 0
-394: After sent: 0
-395: Begin work
-395: Oh, long work...
-552: Error: TimeoutException
-552: Begin new work
-1148: Work complete: 1
+10: Begin work
+69: Work complete: 0
+70: Enter await 0
+372: Exit await 0
+373: After sent: 0
+373: Begin work
+373: Oh, long work...
+531: Error: TimeoutException
+531: Begin new work
+1125: Work complete: 1
 ----------------------------------------
 Basic functionality: false
 ----------------------------------------
 0: Begin work
-53: Work complete: 0
-54: Enter await 0
-355: Exit await 0
-355: After sent: 0
-355: Begin work
-355: Oh, long work...
-512: Error: TimeoutException
-512: Begin new work
-512: Gen error: CancellationException
+51: Work complete: 0
+52: Enter await 0
+353: Exit await 0
+353: After sent: 0
+353: Begin work
+353: Oh, long work...
+508: Error: TimeoutException
+508: Begin new work
+508: Gen error: CancellationException
 
 ```
 
-### The computation performed in 'Isolate' can be canceled in different ways
+### The work performed in 'Isolate' can be terminated in different ways
 
-An example of the different ways to cancel computation performed in `Isolate`:
+An example of the different ways to terminated work performed in `Isolate`:
 
-[example/example_isolate_runner_cancel_in_different_ways.dart](https://github.com/mezoni/multitasking/blob/main/example/example_isolate_runner_cancel_in_different_ways.dart)
+[example/example_isolated_work_terminate_in_different_ways.dart](https://github.com/mezoni/multitasking/blob/main/example/example_isolated_work_terminate_in_different_ways.dart)
 
 ```dart
 import 'dart:async';
 import 'dart:isolate';
 
 import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/work/isolated_work.dart';
 
 Future<void> main(List<String> args) async {
-  _header('Terminate immediately');
-  final runner1 = IsolateRunner(_computeSync);
-  Timer(Duration(milliseconds: 100), () => runner1.terminate(immediate: true));
+  _header('Terminate (force = true)');
+  final work1 = IsolatedWork(_computeSync);
+  Timer(Duration(milliseconds: 100), () => work1.terminate(force: true));
   try {
-    await runner1.run();
+    await work1.run();
   } catch (e) {
     print('Error: $e');
   }
 
-  _header('Terminate via the event queue');
-  final runner2 = IsolateRunner(_computeAsync);
-  Timer(Duration(milliseconds: 100), runner2.terminate);
+  _header('Terminate (force = false)');
+  final work2 = IsolatedWork(_computeAsync);
+  Timer(Duration(milliseconds: 100), work2.terminate);
   try {
-    await runner2.run();
+    await work2.run();
   } catch (e) {
     print('Error: $e');
   }
 
   _header('Terminate using a cancellation token');
   final cts = CancellationTokenSource();
-  final runner3 = IsolateRunner(_computeWithToken, token: cts.token);
+  final work3 = IsolatedWork(_computeWithToken, token: cts.token);
   Timer(Duration(milliseconds: 500), cts.cancel);
   try {
-    await runner3.run();
+    await work3.run();
   } catch (e) {
     print('Error: $e');
   }
@@ -2166,16 +1963,168 @@ Output:
 
 ```txt
 ----------------------------------------
-Terminate immediately
-Isolate(1042729312): Start
+Terminate (force = true)
+Isolate(49098815): Start
 Error: CancellationException
 ----------------------------------------
-Terminate via the event queue
-Isolate(1003139385): Start
+Terminate (force = false)
+Isolate(34556323): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
-Isolate(379613769): Start
+Isolate(487798053): Start
+Error: CancellationException
+
+```
+
+### The work performed in 'Zone' can be terminated in different ways
+
+An example of the different ways to terminated work performed in `Zone`:
+
+[example/example_zoned_work_terminate_in_different_ways.dart](https://github.com/mezoni/multitasking/blob/main/example/example_zoned_work_terminate_in_different_ways.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/work/zoned_work.dart';
+
+Future<void> main(List<String> args) async {
+  _header('Terminate (force = false)');
+  final work1 = ZonedWork(_computeAsync);
+  Timer(Duration(milliseconds: 100), work1.terminate);
+  try {
+    await work1.run();
+  } catch (e) {
+    print('Error: $e');
+  }
+
+  _header('Terminate using a cancellation token');
+  final cts = CancellationTokenSource();
+  final work2 = ZonedWork(_computeWithToken, token: cts.token);
+  Timer(Duration(milliseconds: 500), cts.cancel);
+  try {
+    await work2.run();
+  } catch (e) {
+    print('Error: $e');
+  }
+}
+
+Future<int> _computeAsync() async {
+  _message('Start');
+  while (true) {
+    await Future<void>.delayed(Duration(milliseconds: 100));
+  }
+}
+
+Future<int> _computeWithToken() async {
+  _message('Start');
+  final token = Task.token;
+  while (true) {
+    await Future<void>.delayed(Duration(milliseconds: 100));
+    token.throwIfCanceled();
+  }
+}
+
+void _header(String text) {
+  print('-' * 40);
+  print(text);
+}
+
+void _message(Object object) {
+  print('Zone(${Zone.current.hashCode}): $object');
+}
+
+```
+
+Output:
+
+```txt
+----------------------------------------
+Terminate (force = false)
+Zone(84920242): Start
+Error: CancellationException
+----------------------------------------
+Terminate using a cancellation token
+Zone(1046267724): Start
+Error: CancellationException
+
+```
+
+### The work can be executed on different platforms
+
+An example of executing the work on different platforms:
+
+[example/example_work_executing_on_different_platforms.dart](https://github.com/mezoni/multitasking/blob/main/example/example_work_executing_on_different_platforms.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/work/work.dart';
+
+Future<void> main(List<String> args) async {
+  _header('Terminate (force = false)');
+  final work1 = Work.create(_computeAsync);
+  print('work1 is ${work1.runtimeType}');
+  Timer(Duration(milliseconds: 100), work1.terminate);
+  try {
+    await work1.run();
+  } catch (e) {
+    print('Error: $e');
+  }
+
+  _header('Terminate using a cancellation token');
+  final cts = CancellationTokenSource();
+  final work2 = Work.create(_computeWithToken, token: cts.token);
+  print('work2 is ${work2.runtimeType}');
+  Timer(Duration(milliseconds: 500), cts.cancel);
+  try {
+    await work2.run();
+  } catch (e) {
+    print('Error: $e');
+  }
+}
+
+Future<int> _computeAsync() async {
+  _message('Start');
+  while (true) {
+    await Future<void>.delayed(Duration(milliseconds: 100));
+  }
+}
+
+Future<int> _computeWithToken() async {
+  _message('Start');
+  final token = Task.token;
+  while (true) {
+    await Future<void>.delayed(Duration(milliseconds: 100));
+    token.throwIfCanceled();
+  }
+}
+
+void _header(String text) {
+  print('-' * 40);
+  print(text);
+}
+
+void _message(Object object) {
+  print('Zone(${Zone.current.hashCode}): $object');
+}
+
+```
+
+Output:
+
+```txt
+----------------------------------------
+Terminate (force = false)
+work1 is IsolatedWork<int>
+Zone(849010473): Start
+Error: CancellationException
+----------------------------------------
+Terminate using a cancellation token
+work2 is IsolatedWork<int>
+Zone(292283719): Start
 Error: CancellationException
 
 ```
@@ -2799,8 +2748,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(1): 514
-Task(3): 515
-Task(4): 515
+Task(1): 511
+Task(3): 512
+Task(4): 512
 
 ```

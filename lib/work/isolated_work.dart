@@ -4,12 +4,12 @@ import 'dart:isolate';
 import '../src/multitasking/cancellation.dart';
 import '../src/multitasking/errors.dart';
 import '../src/multitasking/task.dart';
+import 'work.dart';
 
-/// An [IsolateRunner] is a runner for executing a computation in a separate
-/// [Isolate], with the possibility of externally controlled cancellation with
-/// immediate termination, with termination when control is yielded back to the
-/// event loop, or with termination using cancellation token.
-class IsolateRunner<T> {
+/// A [IsolatedWork] is an operation for executing a computation inside the
+/// [Isolate] container with the possibility of externally controlled
+/// termination.
+class IsolatedWork<T> implements Work<T> {
   final FutureOr<T> Function() _computation;
 
   Isolate? _isolate;
@@ -20,7 +20,7 @@ class IsolateRunner<T> {
 
   final CancellationToken? _token;
 
-  /// Creates an instance of [IsolateRunner].
+  /// Creates an instance of [IsolatedWork].
   ///
   /// Parameters:
   ///
@@ -32,7 +32,7 @@ class IsolateRunner<T> {
   /// computation] body by calling [Task.token].\
   /// Token-based cancellation is a very flexible cancellation method,
   /// implemented solely based on the cancellation request processing logic.
-  IsolateRunner(
+  IsolatedWork(
     FutureOr<T> Function() computation, {
     CancellationToken? token,
   })  : _computation = computation,
@@ -41,9 +41,19 @@ class IsolateRunner<T> {
   /// Executes the computation and returns the computation result (or throws the
   /// exception), or throws the [CancellationException] exception if the [terminate]
   /// method was called before the computation was completed.
+  @override
   Future<T> run() async {
     if (_isStarted) {
       throw StateError('The computation can be run only once');
+    }
+
+    _isStarted = true;
+    if (_isTerminationRequested) {
+      throw CancellationException();
+    }
+
+    if (_token != null) {
+      _token!.throwIfCanceled();
     }
 
     final completer = Completer<void>();
@@ -85,7 +95,6 @@ class IsolateRunner<T> {
           case 'cancellation':
             isCanceled = true;
             break;
-          default:
         }
       }
 
@@ -93,7 +102,6 @@ class IsolateRunner<T> {
       completer.complete();
     }
 
-    _isStarted = true;
     port.handler = handle;
     _token?.addHandler(sendCancellationRequest);
     final isolate =
@@ -115,19 +123,20 @@ class IsolateRunner<T> {
     } else if (isCanceled) {
       throw CancellationException();
     } else {
-      throw RemoteError('Computation ended without result', '');
+      throw StateError('Computation ended without result');
     }
   }
 
   /// Requests to terminate the execution of a computation.
   ///
   /// Parameters:
-  /// - [immediate]: Determines whether the execution of the computation will be
+  /// - [force]: Determines whether the execution of the computation will be
   /// terminate immediately or when control is yielded back to the event loop.
-  void terminate({bool immediate = false}) {
+  @override
+  void terminate({bool force = false}) {
     _isTerminationRequested = true;
     _isolate?.kill(
-        priority: immediate ? Isolate.immediate : Isolate.beforeNextEvent);
+        priority: force ? Isolate.immediate : Isolate.beforeNextEvent);
   }
 
   static void _compute<T>(

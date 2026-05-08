@@ -1,34 +1,34 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'package:multitasking/misc/isolate_runner.dart';
 import 'package:multitasking/multitasking.dart';
+import 'package:multitasking/work/isolated_work.dart';
 
 Future<void> main(List<String> args) async {
-  _header('Terminate immediately');
-  final runner1 = IsolateRunner(_computeSync);
-  Timer(Duration(milliseconds: 100), () => runner1.terminate(immediate: true));
+  _header('Terminate (force = true)');
+  final work1 = IsolatedWork(_computeSync);
+  Timer(Duration(milliseconds: 100), () => work1.terminate(force: true));
   try {
-    await runner1.run();
+    await work1.run();
   } catch (e) {
     print('Error: $e');
   }
 
-  _header('Terminate via the event queue');
-  final runner2 = IsolateRunner(_computeAsync);
-  Timer(Duration(milliseconds: 100), runner2.terminate);
+  _header('Terminate (force = false)');
+  final work2 = IsolatedWork(_computeAsync);
+  Timer(Duration(milliseconds: 100), work2.terminate);
   try {
-    await runner2.run();
+    await work2.run();
   } catch (e) {
     print('Error: $e');
   }
 
   _header('Terminate using a cancellation token');
   final cts = CancellationTokenSource();
-  final runner3 = IsolateRunner(_computeWithToken, token: cts.token);
+  final work3 = IsolatedWork(_computeWithToken, token: cts.token);
   Timer(Duration(milliseconds: 500), cts.cancel);
   try {
-    await runner3.run();
+    await work3.run();
   } catch (e) {
     print('Error: $e');
   }

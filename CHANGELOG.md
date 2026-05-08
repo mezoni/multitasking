@@ -1,5 +1,14 @@
 # Changelog
 
+## 7.0.0
+
+- Breaking change: Class `IsolateRunner` has been renamed to `IsolatedWork` and moved to directory `work`.
+- Implemented an experimental feature called `Work`. A `Work` is an operation for executing a computation inside the container with the possibility of externally controlled termination.
+- Implemented an experimental feature `ZonedWork`, for running a computation in a separate `Zone`, with the possibility of externally controlled termination when control is yielded back to the event loop or using cancellation token.
+- Added class `Work`.
+- Added class `IsolatedWork`.
+- Added class `ZonedWork`.
+
 ## 6.6.0
 
 - Rollback: Removed export of class `IsolateRunner` from file `multitasking.dart`.
