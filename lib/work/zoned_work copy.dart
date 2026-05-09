@@ -47,7 +47,6 @@ class ZonedWork<T> implements Work<T> {
       specification: ZoneSpecification(
         createPeriodicTimer: _createPeriodicTimer,
         createTimer: _createTimer,
-        handleUncaughtError: _handleUncaughtError,
         scheduleMicrotask: _scheduleMicrotask,
       ),
     );
@@ -75,9 +74,18 @@ class ZonedWork<T> implements Work<T> {
     unawaited(() async {
       try {
         await Future<void>.delayed(Duration.zero);
-        result = await _zone.run(() {
-          return Task.run(token: _token, _computation);
+        await runZonedGuarded(() async {
+          result = await _zone.run(() {
+            return Task.run(token: _token, _computation);
+          });
+        }, (error, stack) {
+          if (_error == null) {
+            _error = error;
+            _stackTrace = stack;
+            _terminate();
+          }
         });
+
         hasResult = true;
       } catch (e, s) {
         if (_error == null) {
@@ -151,20 +159,6 @@ class ZonedWork<T> implements Work<T> {
 
     timer = parent.createTimer(zone, period, callback);
     return timer;
-  }
-
-  void _handleUncaughtError(
-    Zone self,
-    ZoneDelegate parent,
-    Zone zone,
-    Object error,
-    StackTrace stackTrace,
-  ) {
-    if (_error == null) {
-      _error = error;
-      _stackTrace = stackTrace;
-      _terminate();
-    }
   }
 
   void _scheduleMicrotask(

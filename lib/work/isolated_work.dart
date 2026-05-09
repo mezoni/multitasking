@@ -139,6 +139,27 @@ class IsolatedWork<T> implements Work<T> {
         priority: force ? Isolate.immediate : Isolate.beforeNextEvent);
   }
 
+  /// Creates an instance of [ZonedWork].
+  ///
+  /// Parameters:
+  ///
+  /// - [argument]: Argument to pass to the [computation] function.
+  /// - [computation]: A function that represents a computation.
+  /// - [token]: Cancellation token used for canceling the execution of
+  /// computation.
+  ///
+  /// If the [token] parameter is specified, it can be retrieved in the
+  /// computation] body by calling [Task.token].\
+  /// Token-based cancellation is a very flexible cancellation method,
+  /// implemented solely based on the cancellation request processing logic.
+  static IsolatedWork<R> withArgument<T, R>(
+    T argument,
+    FutureOr<R> Function(T arg) computation, {
+    CancellationToken? token,
+  }) {
+    return IsolatedWork(() => computation(argument), token: token);
+  }
+
   static void _compute<T>(
     (SendPort sendPort, FutureOr<T> Function() computation) arg,
   ) {

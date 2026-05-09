@@ -41,10 +41,34 @@ abstract class Work<T> {
     FutureOr<T> Function() computation, {
     CancellationToken? token,
   }) {
-    return _createPlatformSpecificContext(computation, token: token);
+    return _createPlatformSpecificWork(computation, token: token);
   }
 
-  static Work<T> _createPlatformSpecificContext<T>(
+  /// Returns an instance of [Work] depending on the platform (for
+  /// the `native` platform it is `IsolatedContext`, for the `web` platform it
+  /// is `ZonedContext`).
+  ///
+  /// Parameters:
+  ///
+  /// - [argument]: Argument to pass to the [computation] function.
+  /// - [computation]: A function that represents a computation.
+  /// - [token]: Cancellation token used for canceling the execution of
+  /// computation.
+  ///
+  /// If the [token] parameter is specified, it can be retrieved in the
+  /// [computation] body by calling [Task.token].\
+  /// Token-based cancellation is a very flexible cancellation method,
+  /// implemented solely based on the cancellation request processing logic.
+  static Work<R> createWithArgument<T, R>(
+    T argument,
+    FutureOr<R> Function(T arg) computation, {
+    CancellationToken? token,
+  }) {
+    return _createPlatformSpecificWork(() => computation(argument),
+        token: token);
+  }
+
+  static Work<T> _createPlatformSpecificWork<T>(
     FutureOr<T> Function() computation, {
     CancellationToken? token,
   }) {

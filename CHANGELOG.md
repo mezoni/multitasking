@@ -1,5 +1,10 @@
 # Changelog
 
+## 7.1.0
+
+- Static methods `withArgument()` were added to the `IsolatedWork` and `ZonedWork` classes.
+- Static methods `createWithArgument()` has been added to the `Work` class.
+
 ## 7.0.0
 
 - Breaking change: Class `IsolateRunner` has been renamed to `IsolatedWork` and moved to directory `work`.
