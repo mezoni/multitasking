@@ -17,6 +17,7 @@ void _testCountdownTimer() {
 
     t.start();
     t.stop();
+    await _delay(0);
     final elapsedMicroseconds = t.elapsedMicroseconds;
     final remainingMicroseconds = t.remainingMicroseconds;
     expect(elapsedMicroseconds, equals(t.elapsedMicroseconds),
@@ -24,6 +25,7 @@ void _testCountdownTimer() {
     expect(remainingMicroseconds, equals(t.remainingMicroseconds),
         reason: 'remainingMicroseconds');
     t.start();
+    await _delay(0);
     expect(elapsedMicroseconds, isNot(t.elapsedMicroseconds),
         reason: 'elapsedMicroseconds');
     expect(remainingMicroseconds, isNot(t.remainingMicroseconds),

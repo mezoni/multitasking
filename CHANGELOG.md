@@ -1,5 +1,11 @@
 # Changelog
 
+## 7.2.0
+
+- Added information to the documentation regarding limitations when using `ZonedWork` due to inherent limitations of the Dart SDK.
+- Added file `tool/test_on_web_platform.dart` to simplify testing in the browser.
+- An experimental, more aggressive `ZonedWork` termination mechanism has been implemented.
+
 ## 7.1.0
 
 - Static methods `withArgument()` were added to the `IsolatedWork` and `ZonedWork` classes.

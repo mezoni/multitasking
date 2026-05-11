@@ -5,6 +5,20 @@ import 'work.dart';
 
 /// A [ZonedWork] is an operation for executing a computation inside the [Zone]
 /// container with the possibility of externally controlled termination.
+///
+/// ⚠️ Warning:\
+/// When using [ZonedWork], the following limitation should be taken into
+/// account.\
+/// Because [ZonedWork] runs in a separate zone with its own uncaught errors
+/// handler [ZoneSpecification.handleUncaughtError] due to limitations of the
+/// Dart SDK, when using such a handler, in some cases, errors from the parent
+/// zone may not leave the parent zone and may lead to the fact that it will be
+/// physically impossible to catch them (and `shut down` the [Zone] correctly).
+///
+/// More detailed information can be found here:
+///
+/// - https://github.com/dart-lang/sdk/issues/49457
+/// - https://github.com/dart-lang/sdk/issues/63353
 class ZonedWork<T> implements Work<T> {
   final FutureOr<T> Function() _computation;
 
@@ -48,6 +62,9 @@ class ZonedWork<T> implements Work<T> {
         createPeriodicTimer: _createPeriodicTimer,
         createTimer: _createTimer,
         handleUncaughtError: _handleUncaughtError,
+        run: _handleRun,
+        runBinary: _handleRunBinary,
+        runUnary: _handleRunUnary,
         scheduleMicrotask: _scheduleMicrotask,
       ),
     );
@@ -153,6 +170,60 @@ class ZonedWork<T> implements Work<T> {
     return timer;
   }
 
+  R _handleRun<R>(
+    Zone self,
+    ZoneDelegate parent,
+    Zone zone,
+    R Function() f,
+  ) {
+    R callback() {
+      if (_isDeactivated && _isNullable<R>()) {
+        return null as R;
+      }
+
+      return f();
+    }
+
+    return parent.run(zone, callback);
+  }
+
+  R _handleRunBinary<R, T1, T2>(
+    Zone self,
+    ZoneDelegate parent,
+    Zone zone,
+    R Function(T1 arg1, T2 arg2) f,
+    T1 arg1,
+    T2 arg2,
+  ) {
+    R callback(T1 arg1, T2 arg2) {
+      if (_isDeactivated && _isNullable<R>()) {
+        return null as R;
+      }
+
+      return f(arg1, arg2);
+    }
+
+    return parent.runBinary(zone, callback, arg1, arg2);
+  }
+
+  R _handleRunUnary<R, T1>(
+    Zone self,
+    ZoneDelegate parent,
+    Zone zone,
+    R Function(T1 arg) f,
+    T1 arg,
+  ) {
+    R callback(T1 arg1) {
+      if (_isDeactivated && _isNullable<R>()) {
+        return null as R;
+      }
+
+      return f(arg1);
+    }
+
+    return parent.runUnary(zone, callback, arg);
+  }
+
   void _handleUncaughtError(
     Zone self,
     ZoneDelegate parent,
@@ -222,6 +293,8 @@ class ZonedWork<T> implements Work<T> {
   }) {
     return ZonedWork(() => computation(argument), token: token);
   }
+
+  static bool _isNullable<T>() => null is T;
 }
 
 class _Timer implements Timer {

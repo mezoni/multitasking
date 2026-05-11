@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 7.1.0
+Version: 7.2.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -89,7 +89,7 @@ This task only adds the ability (to `Future<T>`) to start its execution on deman
 
 The main purpose of tasks is to conveniently manage a large number of asynchronous tasks with nested subtasks running simultaneously and cooperatively, with the ability to perform their soft, controlled, and broadly functional stop (cancellation), and the ability to write a task destructor in the body of the task itself.  
 In this way, a request to cancel tasks (and all nested subtasks and all internal critically important operations) can be handled in such a way that everything happens harmoniously and completely safely.  
-A cancellation request is made using a special token. A task cancellation token can be used synchronously (blocking) or asynchronously (via a subscription, which attaches a handler only for the duration of a critical and potentially very long operation).
+A cancellation request is made using a special token. A task cancellation token can be used synchronously or asynchronously (via a subscription, which attaches a handler only for the duration of a critical and potentially very long operation).
 
 ## Practical use
 
@@ -99,7 +99,7 @@ A `Task` is an object representing some operation that will complete in the futu
 Tasks are executed asynchronously and cooperatively.\
 Cooperative multitasking is a concurrency model where tasks voluntarily yield control (using `await`).
 
-The result of a task execution is the result of computing the value of the task action. It can be either a value or an exception.\
+The result of a task execution is the result of computing the value of the task action. It can be either a value or an error.\
 The task itself is an object of `Future` that wraps the result of the computation.\
 The main difference between the task and the `Future` is as follows:
 
@@ -168,7 +168,7 @@ END_EXAMPLE
 
 ### The task immediately propagates an exception if it is an unhandled exception
 
-An unhandled exception is considered to be an exception (except `TaskCanceledError`) that occurs after a task has completed.  
+An unhandled exception is considered to be an exception (except `CancellationException`) that occurs after a task has completed.  
 Since each task is executed in a separate zone, after the task is completed, timers (if any were created) may remain in the zone created for the task execution.  
 If an exception occurs within these timers, it is considered unhandled and will be immediately propagated to the parent zone.
 
@@ -233,7 +233,7 @@ token.throwIfCanceled();
 ```dart
 if (token.isCanceled) {
   // Handle cancellation
-  throw TaskCanceledError();
+  throw CancellationException();
 }
 ```
 

@@ -63,7 +63,7 @@ class PauseToken {
   /// Parameters:
   ///
   /// - [token]: A cancellation token. If a [token] value is specified, the
-  /// method will throw a `TaskCanceledError` exception if cancellation was
+  /// method will throw a `CancellationException` exception if cancellation was
   /// requested.
   Future<void> wait({CancellationToken? token}) async {
     if (token != null) {

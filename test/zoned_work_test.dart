@@ -229,6 +229,120 @@ void _testZonedWork() {
     expect(count, count2, reason: 'count');
   });
 
+  test('ZonedWork: terminate awaiting function', () async {
+    var count = 0;
+    late ZonedWork<void> work;
+    Future<void> f1() async {
+      count++;
+    }
+
+    Future<void> f() async {
+      while (true) {
+        await f1();
+        if (count > 100) {
+          // An infinite flow of microtasks (scheduled by the `await` statement)
+          // does not allow to use of a timer, since the timer will never fire.
+          scheduleMicrotask(work.terminate);
+        }
+      }
+    }
+
+    Object? error;
+    work = ZonedWork(f);
+    try {
+      await work.run();
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<CancellationException>(), reason: 'error');
+    expect(count, greaterThan(0), reason: 'count');
+    final count2 = count;
+    await _delay(100);
+    expect(count, equals(count2), reason: 'count');
+  });
+
+  test(
+      'ZonedWork: terminate awaiting completer.future (created inside this zone)',
+      () async {
+    var count = 0;
+    late Completer<void> completer;
+    Future<void> f() async {
+      completer = Completer<void>();
+      await completer.future;
+      count++;
+    }
+
+    Object? error;
+    final work = ZonedWork(f);
+    Timer(Duration(milliseconds: 100), work.terminate);
+    try {
+      await work.run();
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<CancellationException>(), reason: 'error');
+    completer.complete();
+    await _delay(100);
+    expect(count, equals(0), reason: 'count');
+  });
+
+  test(
+      'ZonedWork: terminate awaiting completer.future with error (created inside this zone)',
+      () async {
+    Object? error1;
+    Object? error2;
+    late Completer<void> completer;
+    Future<void> f() async {
+      completer = Completer<void>();
+      try {
+        await completer.future;
+      } catch (e) {
+        error2 = e;
+      }
+    }
+
+    final work = ZonedWork(f);
+    Timer(Duration(milliseconds: 100), work.terminate);
+    try {
+      await work.run();
+    } catch (e) {
+      error1 = e;
+    }
+
+    expect(error1, isA<CancellationException>(), reason: 'error1');
+    completer.completeError(Exception());
+    await _delay(100);
+    expect(error2, isNull, reason: 'error2');
+  });
+
+  test(
+      'ZonedWork: terminate awaiting completer.future (created outside this zone)',
+      () async {
+    var count = 0;
+    final completer = Completer<void>();
+    Future<void> f() async {
+      await completer.future;
+      count++;
+    }
+
+    Object? error;
+    final work = ZonedWork(f);
+    Timer(Duration(milliseconds: 100), work.terminate);
+    try {
+      await work.run();
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<CancellationException>(), reason: 'error');
+    expect(count, equals(0), reason: 'count');
+    completer.complete();
+    await _delay(100);
+    expect(count, equals(0), reason: 'count');
+  });
+
   test('ZonedWork: sync error', () async {
     var count1 = 0;
     var count2 = 0;
@@ -402,5 +516,30 @@ void _testZonedWork() {
     }
 
     expect(error, isA<CancellationException>(), reason: 'error');
+  });
+
+  test('ZonedWork: error in periodic timer', () async {
+    var count = 0;
+    Future<void> f() async {
+      Timer.periodic(Duration(milliseconds: 50), (t) {
+        throw Exception();
+      });
+
+      await _delay(100);
+      count++;
+    }
+
+    Object? error;
+    final work = ZonedWork(f);
+    try {
+      await work.run();
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<Exception>(), reason: 'error');
+    expect(count, equals(0), reason: 'count');
+    await _delay(200);
+    expect(count, equals(0), reason: 'count');
   });
 }
