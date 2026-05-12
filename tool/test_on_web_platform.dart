@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 void main() async {
-  const exclude = ['test/isolated_work_test.dart'];
+  final pathSeparator = Platform.pathSeparator;
+  final exclude = ['test/isolated_work_test.dart'].map((e) {
+    return e.replaceAll('/', pathSeparator);
+  });
   for (final entity in Directory('test').listSync()) {
     final stat = entity.statSync();
     if (stat.type != FileSystemEntityType.file) {
