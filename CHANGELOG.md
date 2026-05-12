@@ -1,5 +1,9 @@
 # Changelog
 
+## 7.3.0
+
+- Changed the way cancellation is performed using the zone specification in the `ZonedWork` class. Now only registered callbacks that can return `null` are cancelled.
+
 ## 7.2.0
 
 - Added information to the documentation regarding limitations when using `ZonedWork` due to inherent limitations of the Dart SDK.

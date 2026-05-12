@@ -62,9 +62,9 @@ class ZonedWork<T> implements Work<T> {
         createPeriodicTimer: _createPeriodicTimer,
         createTimer: _createTimer,
         handleUncaughtError: _handleUncaughtError,
-        run: _handleRun,
-        runBinary: _handleRunBinary,
-        runUnary: _handleRunUnary,
+        registerBinaryCallback: _registerBinaryCallback,
+        registerUnaryCallback: _registerUnaryCallback,
+        registerCallback: _registerCallback,
         scheduleMicrotask: _scheduleMicrotask,
       ),
     );
@@ -170,60 +170,6 @@ class ZonedWork<T> implements Work<T> {
     return timer;
   }
 
-  R _handleRun<R>(
-    Zone self,
-    ZoneDelegate parent,
-    Zone zone,
-    R Function() f,
-  ) {
-    R callback() {
-      if (_isDeactivated && _isNullable<R>()) {
-        return null as R;
-      }
-
-      return f();
-    }
-
-    return parent.run(zone, callback);
-  }
-
-  R _handleRunBinary<R, T1, T2>(
-    Zone self,
-    ZoneDelegate parent,
-    Zone zone,
-    R Function(T1 arg1, T2 arg2) f,
-    T1 arg1,
-    T2 arg2,
-  ) {
-    R callback(T1 arg1, T2 arg2) {
-      if (_isDeactivated && _isNullable<R>()) {
-        return null as R;
-      }
-
-      return f(arg1, arg2);
-    }
-
-    return parent.runBinary(zone, callback, arg1, arg2);
-  }
-
-  R _handleRunUnary<R, T1>(
-    Zone self,
-    ZoneDelegate parent,
-    Zone zone,
-    R Function(T1 arg) f,
-    T1 arg,
-  ) {
-    R callback(T1 arg1) {
-      if (_isDeactivated && _isNullable<R>()) {
-        return null as R;
-      }
-
-      return f(arg1);
-    }
-
-    return parent.runUnary(zone, callback, arg);
-  }
-
   void _handleUncaughtError(
     Zone self,
     ZoneDelegate parent,
@@ -236,6 +182,63 @@ class ZonedWork<T> implements Work<T> {
       _stackTrace = stackTrace;
       _terminate();
     }
+  }
+
+  ZoneBinaryCallback<R, T1, T2> _registerBinaryCallback<R, T1, T2>(
+    Zone self,
+    ZoneDelegate parent,
+    Zone zone,
+    R Function(T1 arg1, T2 arg2) f,
+  ) {
+    R callback(T1 arg1, T2 arg2) {
+      if (_isDeactivated) {
+        if (null is R) {
+          return null as R;
+        }
+      }
+
+      return f(arg1, arg2);
+    }
+
+    return parent.registerBinaryCallback(zone, callback);
+  }
+
+  ZoneCallback<R> _registerCallback<R>(
+    Zone self,
+    ZoneDelegate parent,
+    Zone zone,
+    R Function() f,
+  ) {
+    R callback() {
+      if (_isDeactivated) {
+        if (null is R) {
+          return null as R;
+        }
+      }
+
+      return f();
+    }
+
+    return parent.registerCallback(zone, callback);
+  }
+
+  ZoneUnaryCallback<R, T1> _registerUnaryCallback<R, T1>(
+    Zone self,
+    ZoneDelegate parent,
+    Zone zone,
+    R Function(T1 arg) f,
+  ) {
+    R callback(T1 arg) {
+      if (_isDeactivated) {
+        if (null is R) {
+          return null as R;
+        }
+      }
+
+      return f(arg);
+    }
+
+    return parent.registerUnaryCallback(zone, callback);
   }
 
   void _scheduleMicrotask(
@@ -293,8 +296,6 @@ class ZonedWork<T> implements Work<T> {
   }) {
     return ZonedWork(() => computation(argument), token: token);
   }
-
-  static bool _isNullable<T>() => null is T;
 }
 
 class _Timer implements Timer {
