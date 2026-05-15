@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 7.3.0
+Version: 7.4.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -699,7 +699,7 @@ Output:
 
 ```txt
 CancellationException
-main(): count: 207690
+main(): count: 224617
 
 ```
 
@@ -1231,10 +1231,10 @@ Output:
 
 ```txt
 Canceling...
-Task(6): canceled
-Task(6): Downloaded: 4437772
 Task(1): canceled
-Task(1): Downloaded: 3670016
+Task(1): Downloaded: 2030318
+Task(6): canceled
+Task(6): Downloaded: 1858292
 AggregateError: One or more errors occurred. (CancellationException) (CancellationException)
 
 ```
@@ -1341,9 +1341,9 @@ void _message(Object object) {
 Output:
 
 ```txt
-14: 0
-54: pause
-505: resume
+22: 0
+55: pause
+506: resume
 507: 1
 609: 2
 [0, 1, 2]
@@ -1412,16 +1412,16 @@ void _message(Object object) {
 Output:
 
 ```txt
-18: Yield: 0
+19: Yield: 0
 22: Event: 0
-53: Pause
-126: Yield: 1
-506: Resume
-508: Event: 1
+71: Pause
+127: Yield: 1
+504: Resume
+506: Event: 1
 610: Yield: 2
-610: Event: 2
-658: Cancel
-712: Yield: 3
+611: Event: 2
+654: Cancel
+713: Yield: 3
 715: Error: CancellationException
 
 ```
@@ -1502,16 +1502,16 @@ Output:
 ----------------------------------------
 Blocking cancellation 
 ----------------------------------------
-13: Computing
-171: Computed: 0
-173: Received: 0
-173: After yield: 0
-173: Computing
-202: Canceling
-325: Error computing
-329: catch(e): CancellationException
-330: Begin next work
-382: End next work
+16: Computing
+173: Computed: 0
+177: Received: 0
+178: After yield: 0
+178: Computing
+204: Canceling
+330: Error computing
+335: catch(e): CancellationException
+335: Begin next work
+387: End next work
 ----------------------------------------
 Non-blocking cancellation 
 ----------------------------------------
@@ -1520,11 +1520,11 @@ Non-blocking cancellation
 152: Received: 0
 152: After yield: 0
 152: Computing
-201: Canceling
+202: Canceling
 202: catch(e): CancellationException
 202: Begin next work
 253: End next work
-304: Error computing
+306: Error computing
 
 ```
 
@@ -1625,12 +1625,12 @@ Output:
 ----------------------------------------
 Cancel with 'CancellationTokenSource'
 ----------------------------------------
-10: Before yield: 1
-16: Received: 1
-20: After yield: 1
+14: Before yield: 1
+19: Received: 1
+19: After yield: 1
 20: Begin work (about 4000 ms)
-2019: Work canceled
-2022: Error: CancellationException
+2008: Work canceled
+2011: Error: CancellationException
 ----------------------------------------
 Cancel with 'StreamSubscription.cancel()'
 ----------------------------------------
@@ -1638,8 +1638,8 @@ Cancel with 'StreamSubscription.cancel()'
 0: Received: 1
 0: After yield: 1
 0: Begin work (about 4000 ms)
-2042: Work canceled
-2042: Error: CancellationException
+2002: Work canceled
+2003: Error: CancellationException
 
 ```
 
@@ -1739,23 +1739,23 @@ Output:
 ----------------------------------------
 Cancelling a cancellable stream
 ----------------------------------------
-14: Before yield: 1
+15: Before yield: 1
 19: Received: 1
 20: After yield: 1
 20: Begin work (about 4000 ms)
-2053: Work canceled
-2066: Error: TimeoutException
-2066: End
+2050: Work canceled
+2053: Error: TimeoutException
+2054: End
 ----------------------------------------
 Cancelling a non-cancellable stream
 ----------------------------------------
-2067: Before yield: 1
-2067: Received: 1
-2067: After yield: 1
-2067: Begin work (about 4000 ms)
-4069: Error: TimeoutException
-4070: End
-6220: End work
+2054: Before yield: 1
+2054: Received: 1
+2054: After yield: 1
+2054: Begin work (about 4000 ms)
+4058: Error: TimeoutException
+4058: End
+6330: End work
 
 ```
 
@@ -1859,28 +1859,28 @@ Output:
 Basic functionality: true
 ----------------------------------------
 12: Begin work
-70: Work complete: 0
-72: Enter await 0
-375: Exit await 0
-376: After sent: 0
-376: Begin work
-376: Oh, long work...
-533: Error: TimeoutException
-533: Begin new work
-1128: Work complete: 1
+71: Work complete: 0
+78: Enter await 0
+381: Exit await 0
+383: After sent: 0
+383: Begin work
+383: Oh, long work...
+540: Error: TimeoutException
+541: Begin new work
+1135: Work complete: 1
 ----------------------------------------
 Basic functionality: false
 ----------------------------------------
 0: Begin work
 52: Work complete: 0
-52: Enter await 0
-353: Exit await 0
-353: After sent: 0
-353: Begin work
-353: Oh, long work...
-507: Error: TimeoutException
-507: Begin new work
-508: Gen error: CancellationException
+53: Enter await 0
+354: Exit await 0
+355: After sent: 0
+355: Begin work
+355: Oh, long work...
+512: Error: TimeoutException
+512: Begin new work
+512: Gen error: CancellationException
 
 ```
 
@@ -1964,15 +1964,15 @@ Output:
 ```txt
 ----------------------------------------
 Terminate (force = true)
-Isolate(395613569): Start
+Isolate(818300051): Start
 Error: CancellationException
 ----------------------------------------
 Terminate (force = false)
-Isolate(892512107): Start
+Isolate(964508846): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
-Isolate(221503083): Start
+Isolate(445492866): Start
 Error: CancellationException
 
 ```
@@ -2042,11 +2042,11 @@ Output:
 ```txt
 ----------------------------------------
 Terminate (force = false)
-Zone(372057761): Start
+Zone(175928785): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
-Zone(611887740): Start
+Zone(597719287): Start
 Error: CancellationException
 
 ```
@@ -2119,12 +2119,12 @@ Output:
 ----------------------------------------
 Terminate (force = false)
 work1 is IsolatedWork<int>
-Zone(688648994): Start
+Zone(323303005): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
 work2 is IsolatedWork<int>
-Zone(899037761): Start
+Zone(372179073): Start
 Error: CancellationException
 
 ```
@@ -2748,8 +2748,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(1): 511
-Task(3): 512
-Task(4): 512
+Task(1): 617
+Task(3): 623
+Task(4): 623
 
 ```

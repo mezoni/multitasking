@@ -1,5 +1,11 @@
 # Changelog
 
+## 7.4.0
+
+- `ZonedWork` are now independent of each other and can continue to execute when the outer work `shuts down` (similar to the `IsolatedWork`).
+- Experimental feature to assign `onExit()` handler to the current `ZonedWork`.
+- Added static getter `current` to the `ZonedWork` class.
+
 ## 7.3.0
 
 - Changed the way cancellation is performed using the zone specification in the `ZonedWork` class. Now only registered callbacks that can return `null` are cancelled.

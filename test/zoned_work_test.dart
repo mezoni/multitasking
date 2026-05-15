@@ -542,4 +542,129 @@ void _testZonedWork() {
     await _delay(200);
     expect(count, equals(0), reason: 'count');
   });
+
+  test('ZonedWork: onExit()', () async {
+    var count = 0;
+    var onExitCalled = false;
+    // `sink.close()` ignored.
+    // ignore: close_sinks
+    final controller = StreamController<int>.broadcast();
+    unawaited(() async {
+      for (var i = 0; i < 15; i++) {
+        controller.add(i);
+        await _delay(100);
+      }
+    }());
+
+    Future<void> f() async {
+      StreamSubscription<int>? subscription;
+      if (ZonedWork.current != null) {
+        ZonedWork.onExit((work) {
+          onExitCalled = true;
+          subscription?.cancel().ignore();
+        });
+      }
+
+      final stream = controller.stream;
+      subscription = stream.listen((event) {
+        count++;
+      });
+
+      await subscription.asFuture<void>();
+    }
+
+    Object? error;
+    final work = ZonedWork(f);
+    Timer(Duration(milliseconds: 200), work.terminate);
+    try {
+      await work.run();
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<CancellationException>(), reason: 'error');
+    expect(count, greaterThan(0), reason: 'count');
+    expect(count, lessThan(4), reason: 'count');
+    expect(onExitCalled, isTrue, reason: 'onExitCalled');
+    final count2 = count;
+    await _delay(200);
+    expect(count, equals(count2), reason: 'count');
+    expect(controller.hasListener, isFalse, reason: 'controller.hasListener');
+  });
+
+  test('ZonedWork: terminate outer work', () async {
+    Object? error;
+    var outerCount = 0;
+    var innerCount = 0;
+    var outerOnExitCalled = false;
+    var innerOnExitCalled = false;
+    Future<void> inner() async {
+      if (ZonedWork.current != null) {
+        ZonedWork.onExit((work) {
+          innerOnExitCalled = true;
+        });
+      }
+
+      await _delay(200);
+      innerCount++;
+    }
+
+    Future<void> outer() async {
+      if (ZonedWork.current != null) {
+        ZonedWork.onExit((work) {
+          outerOnExitCalled = true;
+        });
+      }
+
+      final work = ZonedWork(inner);
+      await work.run();
+      await _delay(50);
+      outerCount++;
+    }
+
+    final work = ZonedWork(outer);
+    Timer(Duration(milliseconds: 100), work.terminate);
+    try {
+      await work.run();
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<CancellationException>(), reason: 'error');
+    expect(outerCount, equals(0), reason: 'outerCount');
+    expect(outerOnExitCalled, isTrue, reason: 'outerOnExitCalled');
+    await _delay(500);
+    expect(innerCount, equals(1), reason: 'innerCount');
+    expect(innerOnExitCalled, isTrue, reason: 'innerOnExitCalled');
+  });
+
+  test('ZonedWork: current', () async {
+    ZonedWork<void>? current1;
+    ZonedWork<void>? current2;
+    ZonedWork<void>? current3;
+    ZonedWork<void>? current4;
+    final completer = Completer<void>();
+
+    final outer = ZonedWork(() async {
+      current1 = ZonedWork.current;
+
+      final inner = ZonedWork(() async {
+        current2 = ZonedWork.current;
+        runZoned(() {
+          current3 = ZonedWork.current;
+          scheduleMicrotask(() {
+            current4 = ZonedWork.current;
+            completer.complete();
+          });
+        });
+      });
+
+      await inner.run();
+    });
+
+    await Future.wait([outer.run(), completer.future]);
+    expect(current2, isNot(equals(current1)), reason: 'current2');
+    expect(current3, equals(current2), reason: 'current3');
+    expect(current4, equals(current2), reason: 'current4');
+  });
 }

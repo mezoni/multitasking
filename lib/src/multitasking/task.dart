@@ -43,13 +43,15 @@ typedef AnyTask = Task<Object?>;
 /// task, an instance of the [Future] object is created and at that moment its
 /// life cycle begins.
 final class Task<T> implements Future<T> {
-  static AnyTask _current = _main;
-
   static final Finalizer<AsyncError> _finalizer = Finalizer((result) {
-    Zone.root.scheduleMicrotask(() {
-      Error.throwWithStackTrace(result.error, result.stackTrace);
-    });
+    Error.throwWithStackTrace(result.error, result.stackTrace);
   });
+
+  static final Object _key = Object();
+
+  static Zone? _lastZone = Zone.root;
+
+  static AnyTask _lastTask = _main;
 
   static final AnyTask _main = Task._raw(TaskStatus.running, name: 'main()')
     .._id = 0;
@@ -62,7 +64,45 @@ final class Task<T> implements Future<T> {
   /// returned.
   @awaitNotRequired
   static AnyTask get current {
-    return _current;
+    final zone = Zone.current;
+    if (identical(zone, _lastZone)) {
+      return _lastTask;
+    }
+
+    _lastZone = zone;
+    _lastTask = _main;
+    if (identical(zone, Zone.root)) {
+      return _main;
+    }
+
+    // Look up the key in the zone and in the parent zone.
+    if (zone[_key] case final AnyTask task) {
+      _lastTask = task;
+      return task;
+    }
+
+    var parent = zone.parent?.parent;
+    if (parent == null) {
+      _lastTask = _main;
+      return _main;
+    }
+
+    if (parent[_key] case final AnyTask task) {
+      _lastTask = task;
+      return task;
+    }
+
+    parent = parent.parent?.parent;
+    while (parent != null) {
+      if (parent[_key] case final AnyTask task) {
+        _lastTask = task;
+        return task;
+      }
+
+      parent = parent.parent?.parent;
+    }
+
+    return _main;
   }
 
   /// Returns the cancellation token for the current task.
@@ -71,7 +111,7 @@ final class Task<T> implements Future<T> {
   /// [CancellationTokenSource] is created and its token is returned.\
   /// By convention, each task has a token, but not all tokens are manageable.
   static CancellationToken get token {
-    final task = _current;
+    final task = current;
     task._token ??= CancellationTokenSource().token;
     return task._token!;
   }
@@ -125,7 +165,7 @@ final class Task<T> implements Future<T> {
     CancellationToken? token,
   })  : _action = action,
         _status = TaskStatus.created {
-    final current = _current;
+    final current = Task.current;
     if (combineTokens) {
       final currentToken = current._token;
       if (token != null && currentToken != null) {
@@ -141,13 +181,7 @@ final class Task<T> implements Future<T> {
       _token = token;
     }
 
-    _zone = Zone.current.fork(
-      specification: ZoneSpecification(
-        run: _handleRun,
-        runBinary: _handleRunBinary,
-        runUnary: _handleRunUnary,
-      ),
-    );
+    _zone = Zone.current.fork(zoneValues: {_key: this});
   }
 
   Task._raw(this._status, {this.name});
@@ -398,58 +432,6 @@ final class Task<T> implements Future<T> {
     return tcs.task;
   }
 
-  R _handleRun<R>(Zone self, ZoneDelegate parent, Zone zone, R Function() f) {
-    final current = _current;
-    if (identical(_zone, zone)) {
-      _current = this;
-    }
-
-    try {
-      return parent.run(zone, f);
-    } finally {
-      _current = current;
-    }
-  }
-
-  R _handleRunBinary<R, T1, T2>(
-    Zone self,
-    ZoneDelegate parent,
-    Zone zone,
-    R Function(T1 arg1, T2 arg2) f,
-    T1 arg1,
-    T2 arg2,
-  ) {
-    final current = _current;
-    if (identical(_zone, zone)) {
-      _current = this;
-    }
-
-    try {
-      return parent.runBinary(zone, f, arg1, arg2);
-    } finally {
-      _current = current;
-    }
-  }
-
-  R _handleRunUnary<R, T1>(
-    Zone self,
-    ZoneDelegate parent,
-    Zone zone,
-    R Function(T1 arg) f,
-    T1 arg,
-  ) {
-    final current = _current;
-    if (identical(_zone, zone)) {
-      _current = this;
-    }
-
-    try {
-      return parent.runUnary(zone, f, arg);
-    } finally {
-      _current = current;
-    }
-  }
-
   /// Creates a task that will complete successfully after a time delay or will
   /// be completed with status [TaskStatus.canceled] if a cancellation request
   /// was initiated before or during the execution of this method.
@@ -503,7 +485,7 @@ final class Task<T> implements Future<T> {
   ///
   /// The handler cannot be added to `main()` tasks.
   static void onExit(FutureOr<void> Function(AnyTask task) handler) {
-    final current = _current;
+    final current = Task.current;
     if (identical(current, _main)) {
       throw TaskStateError(
           "Failed to add 'onExit()' handler to (${current.toString()}) task");
