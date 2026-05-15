@@ -346,25 +346,10 @@ final class Task<T> implements Future<T> {
     _status = TaskStatus.running;
     unawaited(zone.run(() async {
       try {
-        final value = await action();
-        _result = value;
-        _status = TaskStatus.succeeded;
-        _resultCompleter?.complete(value);
+        final result = await action();
+        _setResult(result);
       } catch (error, stackTrace) {
-        final exception = AsyncError(error, stackTrace);
-        _exception = exception;
-        if (error is CancellationException) {
-          _status = TaskStatus.canceled;
-        } else {
-          _status = TaskStatus.failed;
-        }
-
-        final completer = _resultCompleter;
-        if (completer == null) {
-          _finalizer.attach(this, exception, detach: this);
-        } else {
-          completer.completeError(error, stackTrace);
-        }
+        _setError(error, stackTrace);
       } finally {
         final handler = _onExit;
         if (handler != null) {
@@ -430,6 +415,29 @@ final class Task<T> implements Future<T> {
     }());
 
     return tcs.task;
+  }
+
+  void _setError(Object error, StackTrace stackTrace) {
+    final exception = AsyncError(error, stackTrace);
+    _exception = exception;
+    if (error is CancellationException) {
+      _status = TaskStatus.canceled;
+    } else {
+      _status = TaskStatus.failed;
+    }
+
+    final completer = _resultCompleter;
+    if (completer == null) {
+      _finalizer.attach(this, exception, detach: this);
+    } else {
+      completer.completeError(error, stackTrace);
+    }
+  }
+
+  void _setResult(T result) {
+    _result = result;
+    _status = TaskStatus.succeeded;
+    _resultCompleter?.complete(result);
   }
 
   /// Creates a task that will complete successfully after a time delay or will
@@ -749,28 +757,19 @@ final class Task<T> implements Future<T> {
 /// A [TaskCompletionSource] is a  producer of the tasks that can complete with
 /// a value, with an error, or in a canceled state.
 class TaskCompletionSource<T> {
-  final Completer<T> _completer = Completer();
-
   /// The task produced by this source.
   final Task<T> task = Task._raw(TaskStatus.pending);
-
-  /// Creates an instance of [TaskCompletionSource].
-  TaskCompletionSource() {
-    task._resultCompleter = _completer;
-  }
 
   /// Completes the [task] with the status [TaskStatus.canceled].
   ///
   /// If the task has already been completed, this method throws a
   /// [TaskStateError] exception.
   void setCanceled() {
-    if (!_completer.isCompleted) {
-      task._status = TaskStatus.canceled;
-      _completer.completeError(CancellationException(), StackTrace.current);
-      return;
+    if (task._status == TaskStatus.pending) {
+      task._setError(CancellationException(), StackTrace.current);
+    } else {
+      _errorSetTaskStatus();
     }
-
-    _errorSetTaskStatus();
   }
 
   /// Completes the [task] with the status [TaskStatus.failed].
@@ -783,13 +782,11 @@ class TaskCompletionSource<T> {
   /// If the task has already been completed, this method throws a
   /// [TaskStateError] exception.
   void setError(Object error, StackTrace stackTrace) {
-    if (!_completer.isCompleted) {
-      task._status = TaskStatus.failed;
-      _completer.completeError(error, stackTrace);
-      return;
+    if (task._status == TaskStatus.pending) {
+      task._setError(error, stackTrace);
+    } else {
+      _errorSetTaskStatus();
     }
-
-    _errorSetTaskStatus();
   }
 
   /// Completes the [task] with the status [TaskStatus.succeeded].
@@ -801,10 +798,10 @@ class TaskCompletionSource<T> {
   /// If the task has already been completed, this method throws a
   /// [TaskStateError] exception.
   void setResult(T result) {
-    if (!_completer.isCompleted) {
-      task._status = TaskStatus.succeeded;
-      _completer.complete(result);
-      return;
+    if (task._status == TaskStatus.pending) {
+      task._setResult(result);
+    } else {
+      _errorSetTaskStatus();
     }
   }
 
@@ -812,10 +809,8 @@ class TaskCompletionSource<T> {
   ///
   /// If the task has already been completed, this method does nothing.
   void trySetCanceled() {
-    if (!_completer.isCompleted) {
-      task._status = TaskStatus.canceled;
-      _completer.completeError(CancellationException(), StackTrace.current);
-      return;
+    if (task._status == TaskStatus.pending) {
+      task._setError(CancellationException(), StackTrace.current);
     }
   }
 
@@ -828,10 +823,8 @@ class TaskCompletionSource<T> {
   ///
   /// If the task has already been completed, this method does nothing.
   void trySetError(Object error, StackTrace stackTrace) {
-    if (!_completer.isCompleted) {
-      task._status = TaskStatus.failed;
-      _completer.completeError(error, stackTrace);
-      return;
+    if (task._status == TaskStatus.pending) {
+      task._setError(error, stackTrace);
     }
   }
 
@@ -841,10 +834,8 @@ class TaskCompletionSource<T> {
   ///
   /// If the task has already been completed, this method does nothing.
   void trySetResult(T result) {
-    if (!_completer.isCompleted) {
-      task._status = TaskStatus.succeeded;
-      _completer.complete(result);
-      return;
+    if (task._status == TaskStatus.pending) {
+      task._setResult(result);
     }
   }
 

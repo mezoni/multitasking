@@ -378,6 +378,17 @@ extension StreamExtension<T> on Stream<T> {
   /// subscription.
   ///
   /// The pausable stream is created using the [PauseTransformer] transformer.
+  ///
+  /// ⚠️ Warning:\
+  /// The stream subscription pause notification is propagated in the upstream
+  /// direction (toward the source).\
+  /// For this reason, it is strongly recommended to place this transformer at
+  /// the very end of the transformer chain.\
+  /// This will ensure that all listeners in the chain are notified.
+  ///
+  /// For example, if place this transformer before a transformer that handles
+  /// a timeout, then that transformer will not be notified of the pause and
+  /// will throw a [TimeoutException] exception.
   Stream<T> asPausable(PauseToken token) {
     return PauseTransformer<T>(token).bind(this);
   }

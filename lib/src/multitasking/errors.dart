@@ -25,6 +25,11 @@ class AggregateError extends _Error {
     }
   }
 
+  /// Returns a list of inner exceptions.
+  List<AsyncError> get exceptions {
+    return UnmodifiableListView(_exceptions);
+  }
+
   @override
   String toString() {
     final buffer = StringBuffer();

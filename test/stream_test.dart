@@ -212,6 +212,75 @@ void _testStreamAsCancelable() {
     expect(error, isNull, reason: 'error');
     expect(value, equals(2), reason: 'value');
   });
+
+  test('StreamExtension.asCancelable(): fail handle timeout after asPausable()',
+      () async {
+    final cts = CancellationTokenSource();
+    final pts = PauseTokenSource();
+    var stream = Stream.periodic(Duration(milliseconds: 100), (tick) {
+      return tick;
+    });
+    stream = stream.asPausable(pts.token);
+    stream = stream.asCancelable(
+      cts.token,
+      timeout: Duration(milliseconds: 200),
+    );
+
+    await pts.pause();
+    Object? error;
+    try {
+      await stream.listen(null).asFuture<void>();
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<TimeoutException>(), reason: 'error');
+  });
+
+  test('StreamExtension.asCancelable(): handle timeout before asPausable()',
+      () async {
+    final cts = CancellationTokenSource();
+    final pts = PauseTokenSource();
+    var stream = Stream.periodic(Duration(milliseconds: 100), (tick) {
+      return tick;
+    });
+    stream = stream.asCancelable(
+      cts.token,
+      timeout: Duration(milliseconds: 200),
+    );
+    stream = stream.asPausable(pts.token);
+
+    await pts.pause();
+    Timer(Duration(microseconds: 300), pts.resume);
+    Timer(Duration(microseconds: 350), cts.cancel);
+    Object? error;
+    try {
+      await stream.listen(null).asFuture<void>();
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<CancellationException>(), reason: 'error');
+  });
+
+  test('StreamExtension.asCancelable(): timeout <= 0', () async {
+    final cts = CancellationTokenSource();
+    var stream = Stream.periodic(Duration(milliseconds: 100), (tick) {
+      return tick;
+    });
+
+    Object? error;
+    try {
+      stream = stream.asCancelable(
+        cts.token,
+        timeout: Duration(milliseconds: 0),
+      );
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<ArgumentError>(), reason: 'error');
+  });
 }
 
 void _testStreamAsPausable() {

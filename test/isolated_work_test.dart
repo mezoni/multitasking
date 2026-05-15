@@ -1,3 +1,6 @@
+@TestOn('vm')
+library;
+
 import 'dart:async';
 import 'dart:isolate';
 
@@ -133,6 +136,17 @@ void _testIsolatedWork() {
 
     final list = [1, 2, 3];
     final work = IsolatedWork(() => f(list));
+    final result = await work.run();
+    expect(result, equals(list), reason: 'result');
+  });
+
+  test('IsolatedWork: withArgument()', () async {
+    List<int> f(List<int> result) {
+      return result;
+    }
+
+    final list = [1, 2, 3];
+    final work = IsolatedWork.withArgument(list, f);
     final result = await work.run();
     expect(result, equals(list), reason: 'result');
   });

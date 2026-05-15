@@ -1,5 +1,10 @@
 # Changelog
 
+## 7.5.0
+
+- Fixed bugs in the implementation of the `TaskCompletionSource` class.
+- Added test file `task_completion_source_test.dart`.
+
 ## 7.4.0
 
 - `ZonedWork` are now independent of each other and can continue to execute when the outer work `shuts down` (similar to the `IsolatedWork`).
