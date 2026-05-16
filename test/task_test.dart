@@ -13,11 +13,13 @@ void main() {
   _testFutureMembers();
   _testOnExit();
   _testResult();
+  _testSleep();
   _testStart();
   _testStatus();
   _testWaitAll();
   _testWhenAll();
   _testWhenAny();
+  _testWhenEach();
   _testWithCancellation();
 }
 
@@ -265,7 +267,7 @@ void _testCurrent() {
 }
 
 void _testDelay() {
-  test('Task.delay: Task.delay(100)', () async {
+  test('Task.delay(): Task.delay(100)', () async {
     var count = 0;
     Timer(Duration(milliseconds: 50), () {
       count++;
@@ -280,7 +282,7 @@ void _testDelay() {
     expect(count, equals(1), reason: 'count');
   });
 
-  test('Task.delay: Task.delay(0, token)', () async {
+  test('Task.delay(): Task.delay(0, token)', () async {
     final cts = CancellationTokenSource();
     final token = cts.token;
     cts.cancel();
@@ -295,7 +297,7 @@ void _testDelay() {
     expect(error, isA<CancellationException>(), reason: 'error');
   });
 
-  test('Task.delay: Task.delay(100 ms, token(200 ms))', () async {
+  test('Task.delay(): Task.delay(100 ms, token(200 ms))', () async {
     final cts = CancellationTokenSource();
     final token = cts.token;
     Timer(Duration(milliseconds: 200), cts.cancel);
@@ -310,7 +312,7 @@ void _testDelay() {
     expect(error, isNull, reason: 'error');
   });
 
-  test('Task.delay: Task.delay(200 ms, token(100 ms))', () async {
+  test('Task.delay(): Task.delay(200 ms, token(100 ms))', () async {
     final cts = CancellationTokenSource();
     final token = cts.token;
     Timer(Duration(milliseconds: 100), cts.cancel);
@@ -325,7 +327,7 @@ void _testDelay() {
     expect(error, isA<CancellationException>(), reason: 'error');
   });
 
-  test('Task.delay: Task.delay(-1 ms)', () async {
+  test('Task.delay(): Task.delay(-1 ms)', () async {
     Object? error;
     try {
       await Task.delay(-1);
@@ -544,7 +546,7 @@ void _testFutureMembers() {
 }
 
 void _testOnExit() {
-  test('Task onExit(): when has error', () async {
+  test('Task.onExit(): when has error', () async {
     var count = 0;
     final task = Task.run<int>(() async {
       Task.onExit((task) {
@@ -566,7 +568,7 @@ void _testOnExit() {
     expect(count, equals(1), reason: 'count');
   });
 
-  test('Task onExit(): when has no error', () async {
+  test('Task.onExit(): when has no error', () async {
     var count = 0;
     final task = Task.run<int>(() async {
       Task.onExit((task) {
@@ -589,7 +591,7 @@ void _testOnExit() {
     expect(count, equals(2), reason: 'count');
   });
 
-  test('Task onExit(): when current task == _main()', () async {
+  test('Task.onExit(): when current task == _main()', () async {
     expect(
       () => Zone.root.run(() => Task.onExit((task) {})),
       throwsA(isA<TaskStateError>()),
@@ -597,7 +599,7 @@ void _testOnExit() {
     );
   });
 
-  test('Task onExit(): when task terminated', () async {
+  test('Task.onExit(): when task terminated', () async {
     var count = 0;
     final task = Task.run(() {
       Timer(Duration(milliseconds: 50), () {
@@ -620,7 +622,7 @@ void _testOnExit() {
     expect(count, equals(1), reason: 'count');
   });
 
-  test('Task onExit(): calling more than once', () async {
+  test('Task.onExit(): calling more than once', () async {
     final task = Task.run(() {
       Task.onExit((task) {});
 
@@ -720,8 +722,81 @@ void _testResult() {
   });
 }
 
+void _testSleep() {
+  test('Task.sleep(): Task.sleep(100)', () async {
+    var count = 0;
+    Timer(Duration(milliseconds: 50), () {
+      count++;
+    });
+
+    Timer(Duration(milliseconds: 150), () {
+      count++;
+    });
+
+    await Task.sleep(100);
+
+    expect(count, equals(1), reason: 'count');
+  });
+
+  test('Task.sleep(): Task.sleep(0, token)', () async {
+    final cts = CancellationTokenSource();
+    final token = cts.token;
+    cts.cancel();
+
+    Object? error;
+    try {
+      await Task.sleep(0, token);
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<CancellationException>(), reason: 'error');
+  });
+
+  test('Task.sleep(): Task.sleep(100 ms, token(200 ms))', () async {
+    final cts = CancellationTokenSource();
+    final token = cts.token;
+    Timer(Duration(milliseconds: 200), cts.cancel);
+
+    Object? error;
+    try {
+      await Task.sleep(100, token);
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isNull, reason: 'error');
+  });
+
+  test('Task.sleep(): Task.sleep(200 ms, token(100 ms))', () async {
+    final cts = CancellationTokenSource();
+    final token = cts.token;
+    Timer(Duration(milliseconds: 100), cts.cancel);
+
+    Object? error;
+    try {
+      await Task.sleep(200, token);
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<CancellationException>(), reason: 'error');
+  });
+
+  test('Task.sleep(): Task.sleep(-1 ms)', () async {
+    Object? error;
+    try {
+      await Task.sleep(-1);
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<ArgumentError>(), reason: 'error');
+  });
+}
+
 void _testStart() {
-  test('Task.start: status != TaskStatus.created)', () async {
+  test('Task.start(): status != TaskStatus.created)', () async {
     final task = Task.run(() {
       return 42;
     });
@@ -731,7 +806,7 @@ void _testStart() {
     expect(task.start, throwsA(isA<TaskStateError>()), reason: 'start');
   });
 
-  test('Task.start: zone == null', () async {
+  test('Task.start(): zone == null', () async {
     final completer = TaskCompletionSource<int>();
     final task = completer.task;
     expect(task.start, throwsA(isA<TaskStateError>()), reason: 'start');
@@ -946,6 +1021,57 @@ void _testWhenAll() {
         reason: 'error.exceptions.length');
   });
 
+  test('Task.whenAll(): errors [failed, canceled]', () async {
+    final tasks = <Task<int>>[];
+    for (var i = 0; i < 2; i++) {
+      final t = Task.run<int>(name: 'task $i', () async {
+        if (i == 0) {
+          throw Exception();
+        } else {
+          throw CancellationException();
+        }
+      });
+
+      tasks.add(t);
+    }
+
+    Object? error;
+    try {
+      await Task.whenAll(tasks);
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<AggregateError>(), reason: 'error');
+    final exceptions = (error! as AggregateError).exceptions;
+    expect(exceptions.length, equals(2), reason: 'exceptions.length');
+    final exception1 = exceptions[0];
+    final exception2 = exceptions[1];
+    expect(exception1.error, isA<Exception>(), reason: 'exception1.error');
+    expect(exception2.error, isA<CancellationException>(),
+        reason: 'exception2.error');
+  });
+
+  test('Task.whenAll(): errors [canceled, canceled]', () async {
+    final tasks = <Task<int>>[];
+    for (var i = 0; i < 2; i++) {
+      final t = Task.run<int>(name: 'task $i', () async {
+        throw CancellationException();
+      });
+
+      tasks.add(t);
+    }
+
+    Object? error;
+    try {
+      await Task.whenAll(tasks);
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<CancellationException>(), reason: 'error');
+  });
+
   test('Task.whenAll(): progress', () async {
     var count = 0;
     var total = 0;
@@ -1045,8 +1171,104 @@ void _testWhenAny() {
   });
 }
 
+void _testWhenEach() {
+  test('Task.whenEach(): empty', () async {
+    int? count;
+    int? total;
+    final progress = Progress((({int count, int total}) value) {
+      count = value.count;
+      total = value.total;
+    });
+    final stream = Task.whenEach(<Task<int>>[], progress: progress);
+    final taskList = await stream.toList();
+    final values = taskList.map((e) => e.result).toList();
+    expect(values, equals(<int>[]), reason: 'results');
+    expect(count, equals(0), reason: 'count');
+    expect(total, equals(0), reason: 'total');
+  });
+
+  test('Task.whenEach(): has no error', () async {
+    final tasks = <Task<int>>[];
+    final delays = [200, 150, 100];
+    for (var i = 0; i < 3; i++) {
+      final index = i;
+      final task = Task.run(() async {
+        await _delay(delays[i]);
+        return index;
+      });
+
+      tasks.add(task);
+    }
+
+    final stream = Task.whenEach(tasks);
+    final taskList = await stream.toList();
+    final values = taskList.map((e) => e.result).toList();
+    expect(values, equals([2, 1, 0]), reason: 'results');
+  });
+
+  test('Task.whenEach(): has error', () async {
+    final tasks = <Task<int>>[];
+    final delays = [200, 150, 100];
+    for (var i = 0; i < 3; i++) {
+      final index = i;
+      final task = Task.run(() async {
+        await _delay(delays[i]);
+        if (index == 1) {
+          throw Exception();
+        }
+
+        return index;
+      });
+
+      tasks.add(task);
+    }
+
+    final values = <int>[];
+    final stream = Task.whenEach(tasks);
+    Object? error;
+    try {
+      final taskList = await stream.toList();
+      final results = taskList.map((e) => e.result).toList();
+      values.addAll(results);
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<Exception>(), reason: 'error');
+  });
+
+  test('Task.whenEach(): progress', () async {
+    final tasks = <Task<int>>[];
+    final delays = [200, 150, 100];
+    for (var i = 0; i < 3; i++) {
+      final index = i;
+      final task = Task.run(() async {
+        await _delay(delays[i]);
+        return index;
+      });
+
+      tasks.add(task);
+    }
+
+    final report = <({int count, int total})>[];
+    final progress = Progress(report.add);
+    final stream = Task.whenEach(tasks, progress: progress);
+    final taskList = await stream.toList();
+    final values = taskList.map((e) => e.result).toList();
+    expect(values, equals([2, 1, 0]), reason: 'results');
+    expect(
+        report,
+        equals([
+          (count: 1, total: 3),
+          (count: 2, total: 3),
+          (count: 3, total: 3),
+        ]),
+        reason: 'results');
+  });
+}
+
 void _testWithCancellation() {
-  test('Task.withCancellation: cancel before', () async {
+  test('Task.withCancellation(): cancel before', () async {
     final task = Task.run(() async {
       await _delay(100);
       return 42;
@@ -1066,7 +1288,7 @@ void _testWithCancellation() {
     expect(task.result, equals(42), reason: 'result');
   });
 
-  test('Task.withCancellation: cancel after', () async {
+  test('Task.withCancellation(): cancel after', () async {
     final task = Task.run(() async {
       await _delay(50);
       return 42;
@@ -1085,7 +1307,7 @@ void _testWithCancellation() {
     expect(task.result, equals(42), reason: 'result');
   });
 
-  test('Task.withCancellation: task throws CancellationException', () async {
+  test('Task.withCancellation(): task throws CancellationException', () async {
     final task = Task.run<int>(() async {
       throw CancellationException();
     });
@@ -1103,7 +1325,7 @@ void _testWithCancellation() {
     expect(task.status, equals(TaskStatus.canceled), reason: 'status');
   });
 
-  test('Task.withCancellation: task throws Exception', () async {
+  test('Task.withCancellation(): task throws Exception', () async {
     final task = Task.run<int>(() async {
       throw Exception();
     });

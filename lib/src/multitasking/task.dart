@@ -83,7 +83,6 @@ final class Task<T> implements Future<T> {
 
     var parent = zone.parent?.parent;
     if (parent == null) {
-      _lastTask = _main;
       return _main;
     }
 
@@ -333,15 +332,17 @@ final class Task<T> implements Future<T> {
     }
 
     final action = _action;
+    final zone = _zone;
+    // coverage:ignore-start
     if (action == null) {
       throw TaskStateError(
           'Failed to start task without action: ${toString()}');
     }
 
-    final zone = _zone;
     if (zone == null) {
       throw TaskStateError('Failed to start task without zone: ${toString()}');
     }
+    // coverage:ignore-end
 
     _status = TaskStatus.running;
     unawaited(zone.run(() async {
@@ -623,7 +624,7 @@ final class Task<T> implements Future<T> {
     }
 
     final exceptions = <AsyncError>[];
-    var hasFailed = true;
+    var hasFailed = false;
     var count = 0;
     tasks = tasks.toList();
     for (var i = 0; i < tasks.length; i++) {
@@ -736,8 +737,8 @@ final class Task<T> implements Future<T> {
       unawaited(() async {
         try {
           await task;
-        } catch (e) {
-          // Ignore exception
+        } catch (e, s) {
+          controller.addError(e, s);
         } finally {
           count++;
           progress?.report((count: count, total: tasks.length));

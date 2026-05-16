@@ -84,7 +84,7 @@ class ZonedWork<T> implements Work<T> {
         return work;
       }
 
-      parent = zone.parent?.parent;
+      parent = parent.parent?.parent;
     }
 
     return null;
@@ -192,10 +192,12 @@ class ZonedWork<T> implements Work<T> {
           completer.completeError(_error!, _stackTrace ?? StackTrace.empty);
         } else if (hasResult) {
           completer.complete(result as T);
+          // coverage:ignore-start
         } else {
           completer.completeError(
               StateError('Computation ended without result'),
               StackTrace.current);
+          // coverage:ignore-end
         }
       } finally {
         final onExit = _onExit;
@@ -227,16 +229,19 @@ class ZonedWork<T> implements Work<T> {
   ) {
     void callback(Timer timer) {
       if (!_isDeactivated) {
-        f(timer);
+        try {
+          f(timer);
+        } finally {
+          if (!timer.isActive) {
+            _periodicTimers.remove(timer);
+          }
+        }
       }
     }
 
-    void onCancel(Timer timer) {
-      _periodicTimers.remove(timer);
-    }
-
     final timer = parent.createPeriodicTimer(zone, period, callback);
-    return _Timer(timer, onCancel);
+    _periodicTimers.add(timer);
+    return timer;
   }
 
   Timer _createTimer(
@@ -255,6 +260,7 @@ class ZonedWork<T> implements Work<T> {
     }
 
     timer = parent.createTimer(zone, period, callback);
+    _timers.add(timer);
     return timer;
   }
 
@@ -351,12 +357,16 @@ class ZonedWork<T> implements Work<T> {
       for (final timer in _timers) {
         timer.cancel();
       }
+
+      _timers.clear();
     }
 
     if (_periodicTimers.isNotEmpty) {
       for (final timer in _periodicTimers) {
         timer.cancel();
       }
+
+      _periodicTimers.clear();
     }
 
     if (!_completer.isCompleted) {
@@ -425,25 +435,5 @@ class ZonedWork<T> implements Work<T> {
     CancellationToken? token,
   }) {
     return ZonedWork(() => computation(argument), token: token);
-  }
-}
-
-class _Timer implements Timer {
-  final void Function(Timer timer) _onCancel;
-
-  final Timer _timer;
-
-  _Timer(this._timer, this._onCancel);
-
-  @override
-  bool get isActive => _timer.isActive;
-
-  @override
-  int get tick => _timer.tick;
-
-  @override
-  void cancel() {
-    _onCancel(_timer);
-    _timer.cancel();
   }
 }

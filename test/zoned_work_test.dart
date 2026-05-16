@@ -13,6 +13,17 @@ Future<void> _delay(int milliseconds) {
 }
 
 void _testZonedWork() {
+  test('ZonedWork: call twice run()', () async {
+    final work = ZonedWork(() {});
+    Object? error;
+    try {
+      await Future.wait([work.run(), work.run()]);
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<StateError>(), reason: 'error');
+  });
   test('ZonedWork: sync result', () async {
     var count1 = 0;
     var count2 = 0;
@@ -546,7 +557,7 @@ void _testZonedWork() {
   test('ZonedWork: onExit()', () async {
     var count = 0;
     var onExitCalled = false;
-    // `sink.close()` ignored.
+    // Ignore lints
     // ignore: close_sinks
     final controller = StreamController<int>.broadcast();
     unawaited(() async {
@@ -590,6 +601,36 @@ void _testZonedWork() {
     await _delay(200);
     expect(count, equals(count2), reason: 'count');
     expect(controller.hasListener, isFalse, reason: 'controller.hasListener');
+  });
+
+  test('ZonedWork: onExit() when no current work', () async {
+    Object? error;
+    try {
+      ZonedWork.onExit((work) {});
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<StateError>(), reason: 'error');
+  });
+
+  test('ZonedWork: onExit() call twice', () async {
+    void f() {
+      if (ZonedWork.current != null) {
+        ZonedWork.onExit((work) {});
+        ZonedWork.onExit((work) {});
+      }
+    }
+
+    Object? error;
+    final work = ZonedWork(f);
+    try {
+      await work.run();
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<StateError>(), reason: 'error');
   });
 
   test('ZonedWork: terminate outer work', () async {
@@ -666,5 +707,76 @@ void _testZonedWork() {
     expect(current2, isNot(equals(current1)), reason: 'current2');
     expect(current3, equals(current2), reason: 'current3');
     expect(current4, equals(current2), reason: 'current4');
+  });
+
+  test('ZonedWork: current with no work', () async {
+    expect(ZonedWork.current, isNull, reason: 'current4');
+  });
+
+  test('ZonedWork: current in root zone', () async {
+    expect(Zone.root.run(() => ZonedWork.current), isNull, reason: 'current4');
+  });
+
+  test('ZonedWork: current in root.zone.zone', () async {
+    ZonedWork<Object?>? f() {
+      return runZoned(() {
+        return ZonedWork.current;
+      });
+    }
+
+    expect(Zone.root.run(f), isNull, reason: 'current4');
+  });
+
+  test('ZonedWork: cancel periodic timer inside callback', () async {
+    Timer? timer;
+    void f() {
+      timer = Timer.periodic(Duration(milliseconds: 50), (t) {
+        t.cancel();
+      });
+    }
+
+    final work = ZonedWork(f);
+    await work.run();
+    await _delay(100);
+    expect(timer?.isActive, isFalse, reason: 'timer.isActive');
+  });
+
+  test('ZonedWork: cancel registered binary callback', () async {
+    var count = 0;
+    void Function(int, int)? registered;
+
+    void callback(int a, int b) {
+      count++;
+    }
+
+    Future<void> f() async {
+      final zone = Zone.current;
+      registered = zone.bindBinaryCallback(callback);
+      await Completer<void>().future;
+    }
+
+    final work = ZonedWork(f);
+    Timer(Duration(milliseconds: 100), work.terminate);
+    Object? error;
+    try {
+      await work.run();
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<CancellationException>(), reason: 'error');
+    registered!(1, 2);
+    expect(count, equals(0), reason: 'count');
+  });
+
+  test('ZonedWork: withArgument()', () async {
+    var count = 0;
+    void f(int value) {
+      count = value;
+    }
+
+    final work = ZonedWork.withArgument(42, f);
+    await work.run();
+    expect(count, equals(42), reason: 'count');
   });
 }

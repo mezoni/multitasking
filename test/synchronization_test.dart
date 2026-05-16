@@ -175,7 +175,7 @@ void _testConditionVariable() {
     }
 
     Future<void> consume() async {
-      // Unused un test
+      // Ignore lints
       // ignore: unused_local_variable
       int? product;
       await lock.acquire();

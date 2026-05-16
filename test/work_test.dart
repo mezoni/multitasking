@@ -3,15 +3,15 @@ import 'package:multitasking/work/work.dart';
 import 'package:test/test.dart';
 
 void main() {
-  _testExecutionContext();
+  _test();
 }
 
 Future<void> _delay(int milliseconds) {
   return Future.delayed(Duration(milliseconds: milliseconds));
 }
 
-void _testExecutionContext() {
-  test('ExecutionContext: result', () async {
+void _test() {
+  test('Work: result', () async {
     Future<int> f() async {
       return 42;
     }
@@ -29,7 +29,7 @@ void _testExecutionContext() {
     expect(result, equals(42), reason: 'result');
   });
 
-  test('ExecutionContext: terminate using token', () async {
+  test('Work: terminate using token', () async {
     Future<int> f() async {
       final token = Task.token;
       for (var i = 0; i < 10; i++) {
@@ -52,5 +52,15 @@ void _testExecutionContext() {
 
     expect(error, isA<CancellationException>(), reason: 'error');
     expect(result, isNull, reason: 'result');
+  });
+
+  test('Work: createWithArgument()', () async {
+    int f(int value) {
+      return value;
+    }
+
+    final work = Work.createWithArgument(42, f);
+    final result = await work.run();
+    expect(result, equals(42), reason: 'result');
   });
 }

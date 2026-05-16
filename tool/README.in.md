@@ -91,6 +91,50 @@ The main purpose of tasks is to conveniently manage a large number of asynchrono
 In this way, a request to cancel tasks (and all nested subtasks and all internal critically important operations) can be handled in such a way that everything happens harmoniously and completely safely.  
 A cancellation request is made using a special token. A task cancellation token can be used synchronously or asynchronously (via a subscription, which attaches a handler only for the duration of a critical and potentially very long operation).
 
+Below is a complete list of features implemented in this package:
+
+**Multitasking:**
+
+- Aggregate error
+- Cancellation exception
+- Cancellation token
+- Cancellation token source
+- Task
+- Task completion source
+- Task state error
+
+**Streams:**
+
+- Cancelable stream factory
+- Cancellation transformer
+- Pause transformer
+
+**Work:**
+
+- Work
+- Isolated work
+- Zoned work
+
+**Synchronization primitives:**
+
+- Auto reset event
+- Binary semaphore
+- Condition variable
+- Counting semaphore
+- Lock
+- Manual reset event
+- Multiple write single read object
+- Reentrant lock
+- Progress
+
+**Miscellaneous:**
+
+- Countdown timer
+- Pause token
+- Pause token source
+- Progress
+- Speed meter
+
 ## Practical use
 
 Tasks are very lightweight objects. The actions performed by tasks are not much slower than those performed by futures.
