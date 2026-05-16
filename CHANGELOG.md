@@ -1,12 +1,15 @@
 # Changelog
 
-## 7.5.0
+## 7.6.0
 
-- Fixed a minor bug in the implementation of the `TaskCompletionSource` class.
 - Fixed a minor bug in the implementation of the `Task.whenAll()` method.
 - Fixed a minor bug in the implementation of the `Task.whenEach()` method.
 - Fixed a minor bug in the implementation of the `ZonedWork._createPeriodicTimer()` method.
 - Fixed a bug in the implementation of the `ZonedWork.current` getter.
+
+## 7.5.0
+
+- Fixed bugs in the implementation of the `TaskCompletionSource` class.
 - Added test file `task_completion_source_test.dart`.
 
 ## 7.4.0
