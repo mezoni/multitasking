@@ -1,10 +1,14 @@
 # Changelog
 
+## 7.8.0
+
+- Fixed a bug in the implementation of the `timeout` functionality in the `CancellationTransformer` class. The `timeout` handler was incorrectly checking for paused state. The `controller.isPaused` check has been replaced with the `subscription.isPaused` check.
+
 ## 7.7.0
 
 - Deprecated the class `PauseTransformer`.
 - Deprecated the method `asPausable()` of the `StreamExtension` extension.
-- New feature: Added `pause/resume` functionality to the `CancellationTransformer` transformer. Three in one (cancellation, pause/resume, timeout), works very harmoniously and without conflicts with each other.
+- New feature: Added `pause/resume` functionality to the `CancellationTransformer` class. Three in one (cancellation, pause/resume, timeout), works very harmoniously and without conflicts with each other.
 - Added parameter `pauseToken` to the `CancellationTransformer` class.
 - Added parameter `pauseToken` to the `asCancelable()` method of the `StreamExtension` extension.
 - Incorrect changes in the implementation of the `Task.whenEach(` method have been reverted.

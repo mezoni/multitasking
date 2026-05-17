@@ -111,7 +111,7 @@ class CancellationTransformer<T> extends StreamTransformerBase<T, T> {
         // coverage:ignore-end
 
         timer = Timer(timeout, () {
-          if (isCancellationInitiated || controller.isPaused) {
+          if (isCancellationInitiated || subscription.isPaused) {
             return;
           }
 
