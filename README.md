@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 7.6.0
+Version: 7.7.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -571,12 +571,11 @@ Task<int> doSomeWorkWithError(int ms) {
 Output:
 
 ```txt
-Unhandled exception:
-Bad state: Some error
-#0      doSomeWorkWithError.<anonymous closure> (file:///home/andrew/prj/multitasking/example/example_task_stream.dart:31:5)
-<asynchronous suspension>
-#1      Task.start.<anonymous closure> (package:multitasking/src/multitasking/task.dart:350:24)
-<asynchronous suspension>
+Task(1) failed
+Task(3) succeeded
+Task(3) result 1
+Task(4) succeeded
+Task(4) result 2
 
 ```
 
@@ -744,7 +743,7 @@ Output:
 
 ```txt
 CancellationException
-main(): count: 200630
+main(): count: 246459
 
 ```
 
@@ -1147,12 +1146,13 @@ Task(6): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
 Task(10): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml
 Task(14): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml
 Task(18): Fetching feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
-Task(18): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Music.xml
+Task(1): Processing feed: https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml
 main(): Canceling
 CancellationException
 ----------------------------------------
-Task(1): canceled
-No data
+Task(1): succeeded
+Data <?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/element
 ----------------------------------------
 Task(6): canceled
 No data
@@ -1163,9 +1163,8 @@ No data
 Task(14): canceled
 No data
 ----------------------------------------
-Task(18): succeeded
-Data <?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:dc="http://purl.org/dc/element
+Task(18): canceled
+No data
 
 ```
 
@@ -1277,9 +1276,9 @@ Output:
 ```txt
 Canceling...
 Task(1): canceled
-Task(1): Downloaded: 2097152
+Task(1): Downloaded: 3588094
 Task(6): canceled
-Task(6): Downloaded: 1915638
+Task(6): Downloaded: 3702782
 CancellationException
 
 ```
@@ -1386,11 +1385,11 @@ void _message(Object object) {
 Output:
 
 ```txt
-21: 0
-92: pause
-513: resume
-514: 1
-617: 2
+14: 0
+55: pause
+506: resume
+507: 1
+609: 2
 [0, 1, 2]
 
 ```
@@ -1436,7 +1435,7 @@ Future<void> main() async {
     cts.cancel();
   });
 
-  final stream = gen().asPausable(pts.token).asCancelable(cts.token);
+  final stream = gen().asCancelable(cts.token, pauseToken: pts.token);
   try {
     await for (final event in stream) {
       _message('Event: $event');
@@ -1457,17 +1456,17 @@ void _message(Object object) {
 Output:
 
 ```txt
-82: Yield: 0
-90: Event: 0
-110: Pause
-215: Yield: 1
-504: Resume
-506: Event: 1
-644: Yield: 2
-644: Event: 2
-673: Cancel
-747: Yield: 3
-782: Error: CancellationException
+16: Yield: 0
+19: Event: 0
+54: Pause
+132: Yield: 1
+505: Resume
+512: Event: 1
+620: Yield: 2
+620: Event: 2
+659: Cancel
+722: Yield: 3
+725: Error: CancellationException
 
 ```
 
@@ -1547,29 +1546,29 @@ Output:
 ----------------------------------------
 Blocking cancellation 
 ----------------------------------------
-55: Computing
-217: Computed: 0
-228: Received: 0
-231: After yield: 0
-231: Computing
-231: Canceling
-383: Error computing
-386: catch(e): CancellationException
-386: Begin next work
-438: End next work
+16: Computing
+175: Computed: 0
+181: Received: 0
+182: After yield: 0
+182: Computing
+203: Canceling
+333: Error computing
+341: catch(e): CancellationException
+341: Begin next work
+395: End next work
 ----------------------------------------
 Non-blocking cancellation 
 ----------------------------------------
 0: Computing
-156: Computed: 0
-156: Received: 0
-156: After yield: 0
-156: Computing
-203: Canceling
-204: catch(e): CancellationException
-204: Begin next work
-260: End next work
-322: Error computing
+153: Computed: 0
+153: Received: 0
+153: After yield: 0
+154: Computing
+202: Canceling
+202: catch(e): CancellationException
+202: Begin next work
+259: End next work
+311: Error computing
 
 ```
 
@@ -1670,21 +1669,21 @@ Output:
 ----------------------------------------
 Cancel with 'CancellationTokenSource'
 ----------------------------------------
-16: Before yield: 1
-23: Received: 1
-23: After yield: 1
-23: Begin work (about 4000 ms)
-2021: Work canceled
-2028: Error: CancellationException
+12: Before yield: 1
+16: Received: 1
+17: After yield: 1
+17: Begin work (about 4000 ms)
+2022: Work canceled
+2039: Error: CancellationException
 ----------------------------------------
 Cancel with 'StreamSubscription.cancel()'
 ----------------------------------------
 0: Before yield: 1
-0: Received: 1
-0: After yield: 1
-0: Begin work (about 4000 ms)
-2003: Work canceled
-2004: Error: CancellationException
+4: Received: 1
+4: After yield: 1
+4: Begin work (about 4000 ms)
+2029: Work canceled
+2029: Error: CancellationException
 
 ```
 
@@ -1784,23 +1783,23 @@ Output:
 ----------------------------------------
 Cancelling a cancellable stream
 ----------------------------------------
-17: Before yield: 1
-24: Received: 1
-24: After yield: 1
-24: Begin work (about 4000 ms)
-2068: Work canceled
-2071: Error: TimeoutException
-2071: End
+15: Before yield: 1
+20: Received: 1
+20: After yield: 1
+21: Begin work (about 4000 ms)
+2062: Work canceled
+2065: Error: TimeoutException
+2065: End
 ----------------------------------------
 Cancelling a non-cancellable stream
 ----------------------------------------
-2072: Before yield: 1
-2072: Received: 1
-2072: After yield: 1
-2072: Begin work (about 4000 ms)
-4077: Error: TimeoutException
-4077: End
-6308: End work
+2066: Before yield: 1
+2066: Received: 1
+2066: After yield: 1
+2066: Begin work (about 4000 ms)
+4068: Error: TimeoutException
+4068: End
+6297: End work
 
 ```
 
@@ -1903,29 +1902,29 @@ Output:
 ----------------------------------------
 Basic functionality: true
 ----------------------------------------
-9: Begin work
+10: Begin work
 74: Work complete: 0
 76: Enter await 0
-384: Exit await 0
-388: After sent: 0
-388: Begin work
-388: Oh, long work...
-556: Error: TimeoutException
-556: Begin new work
-1141: Work complete: 1
+378: Exit await 0
+380: After sent: 0
+380: Begin work
+380: Oh, long work...
+544: Error: TimeoutException
+544: Begin new work
+1133: Work complete: 1
 ----------------------------------------
 Basic functionality: false
 ----------------------------------------
 0: Begin work
 53: Work complete: 0
 53: Enter await 0
-358: Exit await 0
-358: After sent: 0
-358: Begin work
-358: Oh, long work...
-523: Error: TimeoutException
-523: Begin new work
-524: Gen error: CancellationException
+354: Exit await 0
+354: After sent: 0
+354: Begin work
+354: Oh, long work...
+508: Error: TimeoutException
+509: Begin new work
+509: Gen error: CancellationException
 
 ```
 
@@ -2009,15 +2008,15 @@ Output:
 ```txt
 ----------------------------------------
 Terminate (force = true)
-Isolate(1068698472): Start
+Isolate(105498646): Start
 Error: CancellationException
 ----------------------------------------
 Terminate (force = false)
-Isolate(882192669): Start
+Isolate(610920633): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
-Isolate(864155080): Start
+Isolate(947788995): Start
 Error: CancellationException
 
 ```
@@ -2087,11 +2086,11 @@ Output:
 ```txt
 ----------------------------------------
 Terminate (force = false)
-Zone(466078648): Start
+Zone(691979404): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
-Zone(265518798): Start
+Zone(1025175650): Start
 Error: CancellationException
 
 ```
@@ -2164,12 +2163,12 @@ Output:
 ----------------------------------------
 Terminate (force = false)
 work1 is IsolatedWork<int>
-Zone(466022254): Start
+Zone(471168347): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
 work2 is IsolatedWork<int>
-Zone(410519069): Start
+Zone(533147967): Start
 Error: CancellationException
 
 ```
@@ -2793,8 +2792,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(1): 510
-Task(3): 511
-Task(4): 511
+Task(1): 518
+Task(3): 521
+Task(4): 521
 
 ```

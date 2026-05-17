@@ -711,12 +711,12 @@ final class Task<T> implements Future<T> {
   }
 
   /// Returns a [Stream] to which each [Task] in the [tasks] list will be added,
-  /// in the order in which they were completed.
+  /// in the order in which they were completed (with any status).
   ///
   /// Parameters:
   ///
-  /// -[tasks]: A list of tasks to wait for.
-  /// -[progress]: A monitor that will be called when each task is completed.
+  /// - [tasks]: A list of tasks to wait for.
+  /// - [progress]: A monitor that will be called when each task is completed.
   ///
   /// If the [progress] parameter is specified, it will call the `report()`
   /// method whenever each task completes.
@@ -737,8 +737,8 @@ final class Task<T> implements Future<T> {
       unawaited(() async {
         try {
           await task;
-        } catch (e, s) {
-          controller.addError(e, s);
+        } catch (e) {
+          // Ignore exception
         } finally {
           count++;
           progress?.report((count: count, total: tasks.length));

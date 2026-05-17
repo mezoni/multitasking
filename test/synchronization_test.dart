@@ -143,6 +143,32 @@ void _testBinarySemaphore() {
     expect(max, equals(1), reason: 'max');
     expect(total, equals(futures.length ~/ 2), reason: 'total');
   });
+
+  test('BinarySemaphore.tryAcquire(): negative timeout', () async {
+    final sem = BinarySemaphore();
+    Object? error;
+    try {
+      if (await sem.tryAcquire(Duration(microseconds: -1))) {
+        //
+      }
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<ArgumentError>(), reason: 'error');
+  });
+
+  test('BinarySemaphore.release(): unmatched call', () async {
+    final sem = BinarySemaphore();
+    Object? error;
+    try {
+      await sem.release();
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<StateError>(), reason: 'error');
+  });
 }
 
 void _testConditionVariable() {
@@ -327,6 +353,40 @@ void _testCountingSemaphore() {
     expect(count, equals(0), reason: 'count');
     expect(max, equals(2), reason: 'max');
     expect(total, equals(3), reason: 'total');
+  });
+
+  test('CountingSemaphore(): negative initialCount', () async {
+    Object? error;
+    try {
+      CountingSemaphore(-1, 0);
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<ArgumentError>(), reason: 'error');
+  });
+
+  test('CountingSemaphore(): negative maxCount', () async {
+    Object? error;
+    try {
+      CountingSemaphore(0, -1);
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<ArgumentError>(), reason: 'error');
+  });
+
+  test('CountingSemaphore.release(): unmatched call', () async {
+    final sem = CountingSemaphore(0, 0);
+    Object? error;
+    try {
+      await sem.release();
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<StateError>(), reason: 'error');
   });
 }
 

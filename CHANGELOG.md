@@ -1,5 +1,14 @@
 # Changelog
 
+## 7.7.0
+
+- Deprecated the class `PauseTransformer`.
+- Deprecated the method `asPausable()` of the `StreamExtension` extension.
+- New feature: Added `pause/resume` functionality to the `CancellationTransformer` transformer. Three in one (cancellation, pause/resume, timeout), works very harmoniously and without conflicts with each other.
+- Added parameter `pauseToken` to the `CancellationTransformer` class.
+- Added parameter `pauseToken` to the `asCancelable()` method of the `StreamExtension` extension.
+- Incorrect changes in the implementation of the `Task.whenEach(` method have been reverted.
+
 ## 7.6.0
 
 - Fixed a minor bug in the implementation of the `Task.whenAll()` method.
@@ -152,7 +161,7 @@
 
 ## 4.4.0
 
-- Deprecated class `TokenBucket`.
+- Deprecated the class `TokenBucket`.
 - Added method `withCancellation()` to `Task` class.
 - Added example `example_task_cancel_waiting_for_non_cancelable_action.dart`.
 - Added extension `StreamExtension` with `listenWithCancellation()` method.
@@ -164,7 +173,7 @@
 - Added example `example_task_await_in_order_of_receipt.dart`.
 - Added class `TokenBucket`.
 - Added class `SpeedTest`.
-- Deprecated class `Throughput`.
+- Deprecated the class `Throughput`.
 - Added example `example_token_bucker.dart`.
 
 ## 4.2.0

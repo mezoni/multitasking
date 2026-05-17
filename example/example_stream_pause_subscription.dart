@@ -32,7 +32,7 @@ Future<void> main() async {
     cts.cancel();
   });
 
-  final stream = gen().asPausable(pts.token).asCancelable(cts.token);
+  final stream = gen().asCancelable(cts.token, pauseToken: pts.token);
   try {
     await for (final event in stream) {
       _message('Event: $event');

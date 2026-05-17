@@ -1224,17 +1224,17 @@ void _testWhenEach() {
     }
 
     final values = <int>[];
-    final stream = Task.whenEach(tasks);
-    Object? error;
-    try {
-      final taskList = await stream.toList();
-      final results = taskList.map((e) => e.result).toList();
-      values.addAll(results);
-    } catch (e) {
-      error = e;
+    await for (final task in Task.whenEach(tasks)) {
+      if (task.isSucceeded) {
+        values.add(task.result);
+      } else {
+        expect(task.exception!.error, isA<Exception>(),
+            reason: 'exception!.error');
+        values.add(-1);
+      }
     }
 
-    expect(error, isA<Exception>(), reason: 'error');
+    expect(values, equals([2, -1, 0]), reason: 'error');
   });
 
   test('Task.whenEach(): progress', () async {

@@ -23,9 +23,11 @@ class CancelableStreamFactory {
   }
 }
 
-/// A [CancellationTransformer] is a transformer which allows to cancel a
-/// subscription using a cancellation token or a specified timeout, with support for
-/// non-blocking cancellation.
+/// A [CancellationTransformer] is a transformer which allows to `cancel` a
+/// subscription using a `cancellation token` or a specified `timeout`, with
+/// support for `non-blocking` cancellation, and with support for sending a
+/// request to `pause` a stream and `resume` after a pause using a
+/// `pause token`.
 ///
 /// Everything described below applies exclusively to cancellation using a
 /// token.
@@ -55,6 +57,8 @@ class CancellationTransformer<T> extends StreamTransformerBase<T, T> {
 
   final bool _blockOnCancel;
 
+  final PauseToken? _pauseToken;
+
   final Duration? _timeout;
 
   final CancellationToken _token;
@@ -67,13 +71,16 @@ class CancellationTransformer<T> extends StreamTransformerBase<T, T> {
   /// - [blockOnCancel]: Specifies whether blocking or non-blocking cancellation
   /// should be used when a cancellation request is received using a token or
   /// the [timeout] period elapsed prior to receiving the data event.
+  /// - [pauseToken]: Token to request stream pause and resume after pause.
   /// - [timeout]: The time limit at which a [TimeoutException] error will be
   /// added to the stream if no data is received within this interval.
   CancellationTransformer(
     CancellationToken token, {
     bool blockOnCancel = true,
+    PauseToken? pauseToken,
     Duration? timeout,
   })  : _blockOnCancel = blockOnCancel,
+        _pauseToken = pauseToken,
         _token = token,
         _timeout = timeout {
     if (timeout != null) {
@@ -86,21 +93,25 @@ class CancellationTransformer<T> extends StreamTransformerBase<T, T> {
   @override
   Stream<T> bind(Stream<T> stream) {
     final controller = StreamController<T>(sync: true);
+
     controller.onListen = () {
+      Completer<void>? pauseCompleter;
+      final pauseToken = _pauseToken;
       FutureOr<void> Function()? handler;
-      var isCanceled = false;
       var isCancellationInitiated = false;
       late final StreamSubscription<T> subscription;
       Timer? timer;
 
       void setTimeout(Duration timeout) {
         timer?.cancel();
-        if (isCancellationInitiated || isCanceled) {
+        // coverage:ignore-start
+        if (isCancellationInitiated) {
           return;
         }
+        // coverage:ignore-end
 
         timer = Timer(timeout, () {
-          if (isCancellationInitiated || isCanceled || controller.isPaused) {
+          if (isCancellationInitiated || controller.isPaused) {
             return;
           }
 
@@ -125,24 +136,36 @@ class CancellationTransformer<T> extends StreamTransformerBase<T, T> {
         cancelOnError: false,
       );
 
-      controller.onPause = () {
+      void pause() {
         timer?.cancel();
         subscription.pause();
-      };
+      }
 
-      controller.onResume = () {
+      void resume() {
         subscription.resume();
         if (!controller.isPaused) {
           if (_timeout != null) {
             setTimeout(_timeout!);
           }
         }
-      };
+      }
 
+      if (pauseToken != null) {
+        if (pauseToken.isPaused) {
+          pause();
+        }
+
+        pauseCompleter = Completer();
+        unawaited(pauseToken.runPausable(
+            pause, resume, () => pauseCompleter!.future));
+      }
+
+      controller.onPause = pause;
+      controller.onResume = resume;
       controller.onCancel = () {
-        isCanceled = true;
         _token.removerHandler(handler);
         timer?.cancel();
+        pauseCompleter?.complete();
         final result = subscription.cancel();
         if (!isCancellationInitiated) {
           return result;
@@ -157,9 +180,11 @@ class CancellationTransformer<T> extends StreamTransformerBase<T, T> {
       };
 
       void cancel() {
-        if (isCancellationInitiated || isCanceled) {
+        // coverage:ignore-start
+        if (isCancellationInitiated) {
           return;
         }
+        // coverage:ignore-end
 
         isCancellationInitiated = true;
         subscription.cancel().ignore();
@@ -172,10 +197,9 @@ class CancellationTransformer<T> extends StreamTransformerBase<T, T> {
         cancel();
       } else {
         handler = _token.addHandler(cancel);
-      }
-
-      if (_timeout != null) {
-        setTimeout(_timeout!);
+        if (_timeout != null) {
+          setTimeout(_timeout!);
+        }
       }
     };
 
@@ -193,15 +217,22 @@ class CancellationTransformer<T> extends StreamTransformerBase<T, T> {
 /// transform stream.
 ///
 /// ⚠️ Warning:\
-/// It is strongly recommended that when using this transformer, take into
-/// account that stream subscriptions are notified in the upstream direction.\
-/// Thus, placing this transformer at the very end of the chain of transformers
-/// ensures that all involved transformers are notified of the pause and
-/// resumption of stream.\
-/// For example, the [CancellationTransformer] transformer with the specified
-/// `timeout` parameter monitors `pause`/`resume` events to ensure the correct
-/// operation of this functionality.
+/// The stream subscription pause notification is propagated in the upstream
+/// direction (toward the source).\
+/// For this reason, it is strongly recommended to place this transformer at
+/// the very end of the transformer chain.\
+/// This will ensure that all listeners in the chain are notified.
+///
+/// For example, if place this transformer before a transformer that handles
+/// a timeout, then that transformer will not be notified of the pause and
+/// will throw a [TimeoutException] exception.
+///
+/// The specifics of the [PauseTokenSource] functionality do not provide the
+/// ability to track direct calls to the `pause` and `resume` subscription
+/// methods and thus do not ensure the use of both the [PauseToken] and direct
+/// calls to these methods simultaneously.
 class PauseTransformer<T> extends StreamTransformerBase<T, T> {
+  // coverage:ignore-start
   final PauseToken _token;
 
   /// Creates an instance of [PauseTransformer].
@@ -210,47 +241,16 @@ class PauseTransformer<T> extends StreamTransformerBase<T, T> {
   ///
   /// - [token]: Pause token, which is used to be pause and resume the
   /// subscription.
+  @Deprecated(
+      'This will be removed in the next version. Use CancellationTransformer() instead')
   PauseTransformer(PauseToken token) : _token = token;
 
   @override
   Stream<T> bind(Stream<T> stream) {
-    final completer = Completer<void>();
-    final controller = StreamController<T>(sync: true);
-    controller.onListen = () {
-      void complete() {
-        if (!completer.isCompleted) {
-          completer.complete();
-        }
-      }
-
-      final subscription = stream.listen(
-        controller.add,
-        onDone: controller.close,
-        onError: controller.addError,
-        cancelOnError: false,
-      );
-
-      controller.onPause = subscription.pause;
-      controller.onResume = subscription.resume;
-      controller.onCancel = () async {
-        complete();
-        return subscription.cancel();
-      };
-
-      if (_token.isPaused) {
-        subscription.pause();
-      }
-
-      unawaited(() async {
-        await _token.runPausable(
-          subscription.pause,
-          subscription.resume,
-          () => completer.future,
-        );
-      }());
-    };
-
-    return controller.stream;
+    return CancellationTransformer<T>(
+      CancellationTokenSource().token,
+      pauseToken: _token,
+    ).bind(stream);
   }
 }
 
@@ -296,6 +296,7 @@ class _StreamSubscriptionWrapper<T> implements StreamSubscription<T> {
   void resume() {
     _subscription.resume();
   }
+  // coverage:ignore-end
 }
 
 class _StreamWithCancellationToken<T> extends Stream<T> {
@@ -342,9 +343,10 @@ class _SubscriptionWithCancellationTokenSource<T>
 /// A [StreamExtension] is an extension for [Stream] with various useful
 ///  methods.
 extension StreamExtension<T> on Stream<T> {
-  /// Returns a stream which allows to cancel a subscription using a
-  /// cancellation token or a specified timeout, with support for non-blocking
-  /// cancellation.
+  /// Returns a stream which allows to `cancel` a subscription using a
+  /// `cancellation token` or a specified `timeout`, with support for
+  /// `non-blocking` cancellation, and with support for sending a request to
+  /// `pause` a stream and `resume` after a pause using a `pause token`.
   ///
   /// Parameters:
   ///
@@ -352,6 +354,7 @@ extension StreamExtension<T> on Stream<T> {
   /// - [blockOnCancel]: Specifies whether blocking or non-blocking cancellation
   /// should be used when a cancellation request is received using a token or
   /// the [timeout] period elapsed prior to receiving the data event.
+  /// - [pauseToken]: Token to request stream pause and resume after pause.
   /// - [timeout]: The time limit at which a [TimeoutException] error will be
   /// added to the stream if no data is received within this interval.
   ///
@@ -360,11 +363,13 @@ extension StreamExtension<T> on Stream<T> {
   Stream<T> asCancelable(
     CancellationToken token, {
     bool blockOnCancel = true,
+    PauseToken? pauseToken,
     Duration? timeout,
   }) {
     return CancellationTransformer<T>(
       token,
       blockOnCancel: blockOnCancel,
+      pauseToken: pauseToken,
       timeout: timeout,
     ).bind(this);
   }
@@ -389,7 +394,16 @@ extension StreamExtension<T> on Stream<T> {
   /// For example, if place this transformer before a transformer that handles
   /// a timeout, then that transformer will not be notified of the pause and
   /// will throw a [TimeoutException] exception.
+  ///
+  /// The specifics of the [PauseTokenSource] functionality do not provide the
+  /// ability to track direct calls to the `pause` and `resume` subscription
+  /// methods and thus do not ensure the use of both the [PauseToken] and direct
+  /// calls to these methods simultaneously.
+  // coverage:ignore-start
+  @Deprecated(
+      'This will be removed in the next version. Use asCancelable() instead')
   Stream<T> asPausable(PauseToken token) {
     return PauseTransformer<T>(token).bind(this);
   }
+  // coverage:ignore-end
 }

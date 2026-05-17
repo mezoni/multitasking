@@ -5,12 +5,43 @@ import 'package:multitasking/multitasking.dart';
 import 'package:test/test.dart';
 
 void main() {
+  _testCancelableStreamFactory();
   _testStreamAsCancelable();
-  _testStreamAsPausable();
 }
 
 Future<void> _delay(int milliseconds) {
   return Future.delayed(Duration(milliseconds: milliseconds));
+}
+
+void _testCancelableStreamFactory() {
+  var count = 0;
+  Stream<int> gen(CancellationToken token) async* {
+    count = 0;
+    for (var i = 0; i < 3; i++) {
+      yield i;
+      await _delay(100);
+    }
+  }
+
+  test('CancelableStreamFactory: cancel', () async {
+    final stream = CancelableStreamFactory.fromGenerator(gen);
+    final cts = CancellationTokenSource();
+    Object? error;
+    try {
+      await for (final event in stream.asCancelable(cts.token)) {
+        if (event == 1) {
+          cts.cancel();
+        }
+      }
+    } catch (e) {
+      error = e;
+    }
+
+    final count2 = count;
+    await _delay(200);
+    expect(error, isA<CancellationException>(), reason: 'error');
+    expect(count, equals(count2), reason: 'count');
+  });
 }
 
 void _testStreamAsCancelable() {
@@ -23,6 +54,8 @@ void _testStreamAsCancelable() {
   Future<void> f({
     int? cancelValue,
     required CancellationTokenSource cts,
+    PauseToken? pauseToken,
+    Duration? timeout,
   }) async {
     count1 = 0;
     count2 = 0;
@@ -36,7 +69,11 @@ void _testStreamAsCancelable() {
     }
 
     final token = cts.token;
-    final stream = gen().asCancelable(token);
+    final stream = gen().asCancelable(
+      token,
+      pauseToken: pauseToken,
+      timeout: timeout,
+    );
     try {
       await for (final event in stream) {
         count2 = event;
@@ -58,8 +95,41 @@ void _testStreamAsCancelable() {
     expect(count2, lessThanOrEqualTo(count1), reason: 'count2');
   });
 
+  test('StreamExtension.asCancelable(): cancel (paused) before', () async {
+    final cts = CancellationTokenSource();
+    final pts = PauseTokenSource();
+    cts.cancel();
+    await pts.pause();
+    await f(cts: cts);
+    expect(error, isA<CancellationException>(), reason: 'error');
+    expect(count1, lessThan(count), reason: 'count1');
+    expect(count2, lessThanOrEqualTo(count1), reason: 'count2');
+  });
+
+  test('StreamExtension.asCancelable(): cancel before with timeout', () async {
+    final cts = CancellationTokenSource();
+    cts.cancel();
+    await f(cts: cts, timeout: Duration(milliseconds: 100));
+    expect(error, isA<CancellationException>(), reason: 'error');
+    expect(count1, lessThan(count), reason: 'count1');
+    expect(count2, lessThanOrEqualTo(count1), reason: 'count2');
+  });
+
   test('StreamExtension.asCancelable(): cancel immediately', () async {
     final cts = CancellationTokenSource(const Duration());
+    await f(cts: cts);
+    expect(error, isA<CancellationException>(), reason: 'error');
+    expect(count1, lessThan(count), reason: 'count1');
+    expect(count2, lessThanOrEqualTo(count1), reason: 'count2');
+  });
+
+  test('StreamExtension.asCancelable(): cancel (paused) immediately', () async {
+    final cts = CancellationTokenSource();
+    final pts = PauseTokenSource();
+    Timer(Duration.zero, () async {
+      await pts.pause();
+      cts.cancel();
+    });
     await f(cts: cts);
     expect(error, isA<CancellationException>(), reason: 'error');
     expect(count1, lessThan(count), reason: 'count1');
@@ -69,6 +139,19 @@ void _testStreamAsCancelable() {
   test('StreamExtension.asCancelable(): cancel between', () async {
     final cts = CancellationTokenSource();
     await f(cancelValue: 2, cts: cts);
+    expect(error, isA<CancellationException>(), reason: 'error');
+    expect(count1, lessThan(count), reason: 'count1');
+    expect(count2, lessThanOrEqualTo(count1), reason: 'count2');
+  });
+
+  test('StreamExtension.asCancelable(): cancel (paused)  between', () async {
+    final cts = CancellationTokenSource();
+    final pts = PauseTokenSource();
+    Timer(Duration(milliseconds: 100), () async {
+      await pts.pause();
+      cts.cancel();
+    });
+    await f(cts: cts, pauseToken: pts.token);
     expect(error, isA<CancellationException>(), reason: 'error');
     expect(count1, lessThan(count), reason: 'count1');
     expect(count2, lessThanOrEqualTo(count1), reason: 'count2');
@@ -213,46 +296,23 @@ void _testStreamAsCancelable() {
     expect(value, equals(2), reason: 'value');
   });
 
-  test('StreamExtension.asCancelable(): fail handle timeout after asPausable()',
+  test('StreamExtension.asCancelable(): timeout when paused using token',
       () async {
+    const period = 100;
+    const timeout = period * 2;
     final cts = CancellationTokenSource();
     final pts = PauseTokenSource();
-    var stream = Stream.periodic(Duration(milliseconds: 100), (tick) {
-      return tick;
-    });
-    stream = stream.asPausable(pts.token);
-    stream = stream.asCancelable(
-      cts.token,
-      timeout: Duration(milliseconds: 200),
-    );
-
-    await pts.pause();
-    Object? error;
-    try {
-      await stream.listen(null).asFuture<void>();
-    } catch (e) {
-      error = e;
-    }
-
-    expect(error, isA<TimeoutException>(), reason: 'error');
-  });
-
-  test('StreamExtension.asCancelable(): handle timeout before asPausable()',
-      () async {
-    final cts = CancellationTokenSource();
-    final pts = PauseTokenSource();
-    var stream = Stream.periodic(Duration(milliseconds: 100), (tick) {
+    var stream = Stream.periodic(Duration(milliseconds: period), (tick) {
       return tick;
     });
     stream = stream.asCancelable(
       cts.token,
-      timeout: Duration(milliseconds: 200),
+      pauseToken: pts.token,
+      timeout: Duration(milliseconds: timeout),
     );
-    stream = stream.asPausable(pts.token);
-
     await pts.pause();
-    Timer(Duration(microseconds: 300), pts.resume);
-    Timer(Duration(microseconds: 350), cts.cancel);
+    Timer(Duration(microseconds: timeout), pts.resume);
+    Timer(Duration(microseconds: timeout * 2), cts.cancel);
     Object? error;
     try {
       await stream.listen(null).asFuture<void>();
@@ -281,9 +341,7 @@ void _testStreamAsCancelable() {
 
     expect(error, isA<ArgumentError>(), reason: 'error');
   });
-}
 
-void _testStreamAsPausable() {
   Stream<int> gen() async* {
     for (var i = 1; i < 10; i++) {
       yield i;
@@ -291,11 +349,36 @@ void _testStreamAsPausable() {
     }
   }
 
-  test('StreamExtension.asPausable()', () async {
+  test('StreamExtension.asCancelable(): pause many times, resume at one time',
+      () async {
+    final cts = CancellationTokenSource();
     final pts = PauseTokenSource();
-    final token = pts.token;
     var count = 0;
-    gen().asPausable(token).listen((event) {
+    final sub =
+        gen().asCancelable(cts.token, pauseToken: pts.token).listen((event) {
+      count = event;
+    });
+
+    var count2 = count;
+    await pts.pause();
+    await pts.pause();
+    await pts.pause();
+    await pts.pause();
+    await pts.pause();
+    count2 = count;
+    await _delay(200);
+    expect(count, equals(count2), reason: 'count');
+    await pts.resume();
+    await _delay(200);
+    expect(count, greaterThan(count2), reason: 'count');
+    await sub.cancel();
+  });
+
+  test('StreamExtension.asCancelable(): pause/resume', () async {
+    final cts = CancellationTokenSource();
+    final pts = PauseTokenSource();
+    var count = 0;
+    gen().asCancelable(cts.token, pauseToken: pts.token).listen((event) {
       count = event;
     });
 

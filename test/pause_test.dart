@@ -18,8 +18,8 @@ void main() {
       count = event;
     });
 
-    unawaited(token.runPausable(sub.pause, sub.resume, sub.asFuture<void>));
-
+    final completer = Completer<void>();
+    unawaited(token.runPausable(sub.pause, sub.resume, () => completer.future));
     await Task.sleep(500);
     await pts.pause();
     final count2 = count;
@@ -29,6 +29,7 @@ void main() {
     await Task.sleep(500);
     expect(count, isNot(count2), reason: 'resume does not works');
     await sub.cancel();
+    completer.complete();
   });
 
   test('PauseToken: wait()', () async {
@@ -70,5 +71,15 @@ void main() {
     }
 
     expect(error, isA<CancellationException>(), reason: 'error');
+  });
+
+  test('PauseToken: isPaused', () async {
+    final pts = PauseTokenSource();
+    final token = pts.token;
+    expect(token.isPaused, isFalse, reason: 'token.isPaused');
+    await pts.pause();
+    expect(token.isPaused, isTrue, reason: 'token.isPaused');
+    await pts.resume();
+    expect(token.isPaused, isFalse, reason: 'token.isPaused');
   });
 }
