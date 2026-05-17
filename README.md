@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 7.9.0
+Version: 7.10.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -1433,9 +1433,10 @@ Future<void> main() async {
 
     final s1 = Stream.fromIterable(numbers());
     final s2 = _addDemoExitHandlers(s1);
-    await for (final event in s2) {
-      print(event);
-    }
+    await s2
+        .listen(print, cancelOnError: true)
+        .asFuture<void>()
+        .catchError((e) {});
   }
 
   {
@@ -1462,7 +1463,7 @@ Stream<T> _addDemoExitHandlers<T>(Stream<T> stream) {
     onError: (error, stackTrace) {
       print('onError');
     },
-    onSuccess: () {
+    onDone: () {
       print('onSuccess');
     },
     onTerminate: () {

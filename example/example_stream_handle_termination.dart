@@ -29,9 +29,10 @@ Future<void> main() async {
 
     final s1 = Stream.fromIterable(numbers());
     final s2 = _addDemoExitHandlers(s1);
-    await for (final event in s2) {
-      print(event);
-    }
+    await s2
+        .listen(print, cancelOnError: true)
+        .asFuture<void>()
+        .catchError((e) {});
   }
 
   {

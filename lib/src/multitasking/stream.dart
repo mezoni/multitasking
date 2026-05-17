@@ -261,7 +261,7 @@ class PauseTransformer<T> extends StreamTransformerBase<T, T> {
 /// The transformer ensures that at least one of the status handlers is called
 /// before the `onTerminate` callback is called.
 ///
-/// The number of calls to the `onError` handlers depends on the value of the
+/// The number of calls to the `onError` handler depends on the value of the
 /// `cancelOnError` subscription parameter.
 class TerminationTransformer<T> extends StreamTransformerBase<T, T> {
   final void Function()? _onCancel;

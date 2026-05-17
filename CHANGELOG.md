@@ -1,5 +1,9 @@
 # Changelog
 
+## 7.10.0
+
+- Fixed a bug in the example file `example_stream_handle_termination.dart`.
+
 ## 7.9.0
 
 - New feature: Added a stream transformer (`TerminationTransformer`) which allows to define the status handlers `onCancel`, `onDone` and `onError`, and the termination handler `onTerminate`.
