@@ -1,5 +1,12 @@
 # Changelog
 
+## 7.9.0
+
+- New feature: Added a stream transformer (`TerminationTransformer`) which allows to define the status handlers `onCancel`, `onDone` and `onError`, and the termination handler `onTerminate`.
+- Added `TerminationTransformer` class.
+- Added `handleTermination()` method to the `StreamExtension` extension.
+- Added example file `example_stream_handle_termination.dart`.
+
 ## 7.8.0
 
 - Fixed a bug in the implementation of the `timeout` functionality in the `CancellationTransformer` class. The `timeout` handler was incorrectly checking for paused state. The `controller.isPaused` check has been replaced with the `subscription.isPaused` check.

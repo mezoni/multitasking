@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 void main() {
   _testCancelableStreamFactory();
   _testStreamAsCancelable();
+  _testTerminationTransformer();
 }
 
 Future<void> _delay(int milliseconds) {
@@ -429,5 +430,140 @@ void _testStreamAsCancelable() {
     count2 = count;
     await _delay(200);
     expect(count, greaterThan(count2), reason: 'count');
+  });
+}
+
+void _testTerminationTransformer() {
+  var onCancel = false;
+  var onError = false;
+  var onSuccess = false;
+  var onTerminate = false;
+  Object? handledError;
+
+  Stream<T> transform<T>(Stream<T> stream) {
+    onCancel = false;
+    onSuccess = false;
+    onError = false;
+    onTerminate = false;
+    handledError = null;
+
+    return stream.handleTermination(
+      onCancel: () {
+        onCancel = true;
+      },
+      onError: (e, s) {
+        onError = true;
+        handledError = e;
+      },
+      onDone: () {
+        onSuccess = true;
+      },
+      onTerminate: () {
+        onTerminate = true;
+      },
+    );
+  }
+
+  test('CancelableStreamFactory: cancel', () async {
+    final values = <int>[];
+    final s1 = Stream.fromIterable([1, 2, 3]);
+    final s2 = transform(s1);
+    await for (final event in s2) {
+      values.add(event);
+      if (event == 2) {
+        break;
+      }
+    }
+
+    expect(handledError, isNull, reason: 'handledError');
+    expect(onCancel, isTrue, reason: 'onCancel');
+    expect(onError, isFalse, reason: 'onError');
+    expect(onSuccess, isFalse, reason: 'onSuccess');
+    expect(onTerminate, isTrue, reason: 'onTerminate');
+    expect(values, equals([1, 2]), reason: 'error');
+  });
+
+  test('CancelableStreamFactory: done', () async {
+    final values = <int>[];
+    final s1 = Stream.fromIterable([1, 2, 3]);
+    final s2 = transform(s1);
+    await for (final event in s2) {
+      values.add(event);
+    }
+
+    expect(handledError, isNull, reason: 'handledError');
+    expect(onCancel, isFalse, reason: 'onCancel');
+    expect(onError, isFalse, reason: 'onError');
+    expect(onSuccess, isTrue, reason: 'onSuccess');
+    expect(onTerminate, isTrue, reason: 'onTerminate');
+    expect(values, equals([1, 2, 3]), reason: 'error');
+  });
+
+  test('CancelableStreamFactory: error', () async {
+    Iterable<int> gen() sync* {
+      for (var i = 1; i < 3; i++) {
+        yield i;
+      }
+
+      throw Exception();
+    }
+
+    final values = <int>[];
+    final s1 = Stream.fromIterable(gen());
+    final s2 = transform(s1);
+    Object? error;
+    try {
+      await for (final event in s2) {
+        values.add(event);
+      }
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error, isA<Exception>(), reason: 'error');
+    expect(handledError, isA<Exception>(), reason: 'handledError');
+    expect(onCancel, isFalse, reason: 'onCancel');
+    expect(onError, isTrue, reason: 'onError');
+    expect(onSuccess, isFalse, reason: 'onSuccess');
+    expect(onTerminate, isTrue, reason: 'onTerminate');
+    expect(values, equals([1, 2]), reason: 'error');
+  });
+
+  test('CancelableStreamFactory: many errors', () async {
+    final controller = StreamController<int>();
+    final s1 = controller.stream;
+    final s2 = transform(s1);
+    Object? error;
+    s2.listen(null, onError: (Object? e) {
+      error = e;
+    });
+
+    controller.addError(Exception());
+    await _delay(100);
+    expect(handledError, isA<Exception>(), reason: 'handledError');
+    expect(error, isA<Exception>(), reason: 'error');
+    expect(onCancel, isFalse, reason: 'onCancel');
+    expect(onError, isTrue, reason: 'onError');
+    expect(onSuccess, isFalse, reason: 'onSuccess');
+    expect(onTerminate, isFalse, reason: 'onTerminate');
+
+    controller.addError(StateError(''));
+    await _delay(100);
+    expect(handledError, isA<StateError>(), reason: 'handledError');
+    expect(error, isA<StateError>(), reason: 'error');
+    expect(onCancel, isFalse, reason: 'onCancel');
+    expect(onError, isTrue, reason: 'onError');
+    expect(onSuccess, isFalse, reason: 'onSuccess');
+    expect(onTerminate, isFalse, reason: 'onTerminate');
+
+    onError = false;
+    await controller.close();
+    await _delay(100);
+    expect(handledError, isA<StateError>(), reason: 'handledError');
+    expect(error, isA<StateError>(), reason: 'error');
+    expect(onCancel, isFalse, reason: 'onCancel');
+    expect(onError, isFalse, reason: 'onError');
+    expect(onSuccess, isTrue, reason: 'onSuccess');
+    expect(onTerminate, isTrue, reason: 'onTerminate');
   });
 }

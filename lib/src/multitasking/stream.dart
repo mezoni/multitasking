@@ -23,8 +23,8 @@ class CancelableStreamFactory {
   }
 }
 
-/// A [CancellationTransformer] is a transformer which allows to `cancel` a
-/// subscription using a `cancellation token` or a specified `timeout`, with
+/// A [CancellationTransformer] is a stream transformer which allows to `cancel`
+/// a subscription using a `cancellation token` or a specified `timeout`, with
 /// support for `non-blocking` cancellation, and with support for sending a
 /// request to `pause` a stream and `resume` after a pause using a
 /// `pause token`.
@@ -254,6 +254,99 @@ class PauseTransformer<T> extends StreamTransformerBase<T, T> {
   }
 }
 
+/// A [TerminationTransformer] is a stream transformer which allows to define
+/// the status handlers `onCancel`, `onDone` and `onError`, and the termination
+/// handler `onTerminate`.
+///
+/// The transformer ensures that at least one of the status handlers is called
+/// before the `onTerminate` callback is called.
+///
+/// The number of calls to the `onError` handlers depends on the value of the
+/// `cancelOnError` subscription parameter.
+class TerminationTransformer<T> extends StreamTransformerBase<T, T> {
+  final void Function()? _onCancel;
+
+  final void Function()? _onDone;
+
+  final void Function(Object error, StackTrace stackTrace)? _onError;
+
+  final void Function()? _onTerminate;
+
+  /// Creates an instance of [TerminationTransformer].
+  ///
+  /// Parameters:
+  ///
+  /// - [onCancel]: Callback which handles explicit cancellation of listening to
+  /// a stream.
+  /// - [onDone]: A callback which handles the `onDone` event.
+  /// - [onError]: A callback which handles the `onError` event.
+  /// - [onTerminate]: A callback that will be called when the stream
+  /// terminates.
+  TerminationTransformer({
+    void Function()? onCancel,
+    void Function()? onDone,
+    void Function(Object error, StackTrace stackTrace)? onError,
+    void Function()? onTerminate,
+  })  : _onCancel = onCancel,
+        _onError = onError,
+        _onDone = onDone,
+        _onTerminate = onTerminate;
+
+  @override
+  Stream<T> bind(Stream<T> stream) {
+    return StreamTransformer<T, T>((stream, cancelOnError) {
+      late StreamController<T> controller;
+      StreamSubscription<T>? subscription;
+      bool isHandled = false;
+
+      controller = StreamController<T>(
+        sync: true,
+        onListen: () {
+          subscription = stream.listen(
+            (data) => controller.add(data),
+            onError: (Object error, StackTrace stackTrace) {
+              if (!isHandled) {
+                if (cancelOnError) {
+                  isHandled = true;
+                  _onError?.call(error, stackTrace);
+                  _onTerminate?.call();
+                } else {
+                  _onError?.call(error, stackTrace);
+                }
+              }
+
+              controller.addError(error, stackTrace);
+            },
+            onDone: () {
+              if (!isHandled) {
+                isHandled = true;
+                _onDone?.call();
+                _onTerminate?.call();
+              }
+
+              unawaited(controller.close());
+            },
+            cancelOnError: cancelOnError,
+          );
+        },
+        onPause: () => subscription?.pause(),
+        onResume: () => subscription?.resume(),
+        onCancel: () {
+          if (!isHandled) {
+            isHandled = true;
+            _onCancel?.call();
+            _onTerminate?.call();
+          }
+
+          return subscription?.cancel() ?? Future.value();
+        },
+      );
+
+      return controller.stream.listen(null);
+    }).bind(stream);
+  }
+}
+
 class _StreamSubscriptionWrapper<T> implements StreamSubscription<T> {
   final StreamSubscription<T> _subscription;
 
@@ -406,4 +499,32 @@ extension StreamExtension<T> on Stream<T> {
     return PauseTransformer<T>(token).bind(this);
   }
   // coverage:ignore-end
+
+  /// Returns a stream which allows to define the status handlers `onCancel`,
+  /// `onDone` and `onError`, and the termination handler `onTerminate`.
+  ///
+  /// Parameters:
+  ///
+  /// - [onCancel]: Callback which handles explicit cancellation of listening to
+  /// a stream.
+  /// - [onDone]: A callback which handles the `onDone` event.
+  /// - [onError]: A callback which handles the `onError` event.
+  /// - [onTerminate]: A callback that will be called when the stream
+  /// terminates.
+  ///
+  /// The stream handling termination is created using the
+  /// [TerminationTransformer] transformer.
+  Stream<T> handleTermination({
+    void Function()? onCancel,
+    void Function()? onDone,
+    void Function(Object error, StackTrace stackTrace)? onError,
+    void Function()? onTerminate,
+  }) {
+    return TerminationTransformer<T>(
+      onCancel: onCancel,
+      onDone: onDone,
+      onError: onError,
+      onTerminate: onTerminate,
+    ).bind(this);
+  }
 }

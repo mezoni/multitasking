@@ -2,7 +2,7 @@
 
 Cooperative multitasking using asynchronous tasks and synchronization primitives, with the ability to safely cancel groups of nested tasks performing I/O wait or listen operations.
 
-Version: 7.8.0
+Version: 7.9.0
 
 [![Pub Package](https://img.shields.io/pub/v/multitasking.svg)](https://pub.dev/packages/multitasking)
 [![Pub Monthly Downloads](https://img.shields.io/pub/dm/multitasking.svg)](https://pub.dev/packages/multitasking/score)
@@ -44,6 +44,7 @@ Table of Contents:
     - [The tasks can be safely canceled during long running network operation](#the-tasks-can-be-safely-canceled-during-long-running-network-operation)
     - [The waiting for a non-cancelable task can be canceled](#the-waiting-for-a-non-cancelable-task-can-be-canceled)
     - [Tasks can be paused and resumed](#tasks-can-be-paused-and-resumed)
+    - [A stream can be transformed to handle termination events](#a-stream-can-be-transformed-to-handle-termination-events)
     - [A stream subscription can be paused and resumed using a token](#a-stream-subscription-can-be-paused-and-resumed-using-a-token)
     - [A stream subscription can be cancelled using a non-blocking cancellation](#a-stream-subscription-can-be-cancelled-using-a-non-blocking-cancellation)
     - [A stream with cancellation token support can be created using the `async*` generator](#a-stream-with-cancellation-token-support-can-be-created-using-the-async-generator)
@@ -350,6 +351,14 @@ Example of pausing and resuming the task
 
 BEGIN_EXAMPLE
 example_task_pause
+END_EXAMPLE
+
+### A stream can be transformed to handle termination events
+
+Example of handling a stream termination events:
+
+BEGIN_EXAMPLE
+example_stream_handle_termination
 END_EXAMPLE
 
 ### A stream subscription can be paused and resumed using a token

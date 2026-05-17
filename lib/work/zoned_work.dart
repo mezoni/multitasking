@@ -200,10 +200,7 @@ class ZonedWork<T> implements Work<T> {
           // coverage:ignore-end
         }
       } finally {
-        final onExit = _onExit;
-        if (onExit != null) {
-          onExit(this);
-        }
+        _onExit?.call(this);
       }
     }));
 
