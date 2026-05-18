@@ -45,6 +45,7 @@ Table of Contents:
     - [The waiting for a non-cancelable task can be canceled](#the-waiting-for-a-non-cancelable-task-can-be-canceled)
     - [Tasks can be paused and resumed](#tasks-can-be-paused-and-resumed)
     - [A stream can be transformed to handle termination events](#a-stream-can-be-transformed-to-handle-termination-events)
+    - [A stream can be transformed to handle completion status](#a-stream-can-be-transformed-to-handle-completion-status)
     - [A stream subscription can be paused and resumed using a token](#a-stream-subscription-can-be-paused-and-resumed-using-a-token)
     - [A stream subscription can be cancelled using a non-blocking cancellation](#a-stream-subscription-can-be-cancelled-using-a-non-blocking-cancellation)
     - [A stream with cancellation token support can be created using the `async*` generator](#a-stream-with-cancellation-token-support-can-be-created-using-the-async-generator)
@@ -359,6 +360,14 @@ Example of handling a stream termination events:
 
 BEGIN_EXAMPLE
 example_stream_handle_termination
+END_EXAMPLE
+
+### A stream can be transformed to handle completion status
+
+Example of waiting for a stream to complete:
+
+BEGIN_EXAMPLE
+example_stream_handle_completion
 END_EXAMPLE
 
 ### A stream subscription can be paused and resumed using a token

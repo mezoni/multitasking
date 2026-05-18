@@ -45,6 +45,7 @@ Table of Contents:
     - [The waiting for a non-cancelable task can be canceled](#the-waiting-for-a-non-cancelable-task-can-be-canceled)
     - [Tasks can be paused and resumed](#tasks-can-be-paused-and-resumed)
     - [A stream can be transformed to handle termination events](#a-stream-can-be-transformed-to-handle-termination-events)
+    - [A stream can be transformed to handle completion status](#a-stream-can-be-transformed-to-handle-completion-status)
     - [A stream subscription can be paused and resumed using a token](#a-stream-subscription-can-be-paused-and-resumed-using-a-token)
     - [A stream subscription can be cancelled using a non-blocking cancellation](#a-stream-subscription-can-be-cancelled-using-a-non-blocking-cancellation)
     - [A stream with cancellation token support can be created using the `async*` generator](#a-stream-with-cancellation-token-support-can-be-created-using-the-async-generator)
@@ -744,7 +745,7 @@ Output:
 
 ```txt
 CancellationException
-main(): count: 222309
+main(): count: 249190
 
 ```
 
@@ -1277,9 +1278,9 @@ Output:
 ```txt
 Canceling...
 Task(1): canceled
-Task(1): Downloaded: 2457600
+Task(1): Downloaded: 2170879
 Task(6): canceled
-Task(6): Downloaded: 2473984
+Task(6): Downloaded: 2228222
 CancellationException
 
 ```
@@ -1386,11 +1387,11 @@ void _message(Object object) {
 Output:
 
 ```txt
-11: 0
-55: pause
-506: resume
-507: 1
-610: 2
+13: 0
+58: pause
+504: resume
+506: 1
+608: 2
 [0, 1, 2]
 
 ```
@@ -1502,6 +1503,120 @@ onTerminate
 
 ```
 
+### A stream can be transformed to handle completion status
+
+Example of waiting for a stream to complete:
+
+[example/example_stream_handle_completion.dart](https://github.com/mezoni/multitasking/blob/main/example/example_stream_handle_completion.dart)
+
+```dart
+import 'dart:async';
+
+import 'package:multitasking/multitasking.dart';
+
+Future<void> main() async {
+  {
+    _header('Handle cancel');
+    final s1 = Stream.fromIterable([1, 2, 3]);
+    final completion = StreamCompletion();
+    final s2 = s1.withCompletion(completion);
+
+    unawaited(() async {
+      await for (final event in s2) {
+        print(event);
+        if (event == 2) {
+          print('break');
+          break;
+        }
+      }
+    }());
+
+    final status = await completion.wait();
+    print('Status: $status');
+  }
+
+  {
+    _header('Handle done');
+    final s1 = Stream.fromIterable([1, 2, 3]);
+    final completion = StreamCompletion();
+    final s2 = s1.withCompletion(completion);
+
+    unawaited(() async {
+      await for (final event in s2) {
+        print(event);
+      }
+    }());
+
+    final status = await completion.wait();
+    print('Status: $status');
+  }
+
+  {
+    _header('Handle error');
+    Iterable<int> numbers() sync* {
+      for (var i = 1; i < 3; i++) {
+        yield i;
+      }
+
+      print('throw Exception()');
+      throw Exception();
+    }
+
+    final s1 = Stream.fromIterable(numbers());
+    final completion = StreamCompletion();
+    final s2 = s1.withCompletion(completion);
+
+    Future<void> listen() async {
+      await for (final event in s2) {
+        print(event);
+      }
+    }
+
+    await listen().catchError((e) {});
+    final status = await completion.wait();
+    print('Status: $status');
+    if (status is StreamStatusError) {
+      print('Error: ${status.error}');
+    }
+  }
+}
+
+void _header(String text) {
+  print('-' * 40);
+  print(text);
+  print('-' * 40);
+}
+
+```
+
+Output:
+
+```txt
+----------------------------------------
+Handle cancel
+----------------------------------------
+1
+2
+break
+Status: canceled
+----------------------------------------
+Handle done
+----------------------------------------
+1
+2
+3
+Status: done
+----------------------------------------
+Handle error
+----------------------------------------
+1
+2
+throw Exception()
+Status: error
+Error: Exception
+
+```
+
 ### A stream subscription can be paused and resumed using a token
 
 Example of pausing and resuming a stream subscription using a token:
@@ -1564,14 +1679,14 @@ void _message(Object object) {
 Output:
 
 ```txt
-17: Yield: 0
-20: Event: 0
-54: Pause
-124: Yield: 1
-505: Resume
-507: Event: 1
+19: Yield: 0
+22: Event: 0
+56: Pause
+126: Yield: 1
+504: Resume
+506: Event: 1
 609: Yield: 2
-610: Event: 2
+609: Event: 2
 654: Cancel
 712: Yield: 3
 715: Error: CancellationException
@@ -1654,29 +1769,29 @@ Output:
 ----------------------------------------
 Blocking cancellation 
 ----------------------------------------
-17: Computing
-175: Computed: 0
-177: Received: 0
-178: After yield: 0
-178: Computing
-204: Canceling
-330: Error computing
-334: catch(e): CancellationException
-334: Begin next work
-387: End next work
+22: Computing
+181: Computed: 0
+183: Received: 0
+184: After yield: 0
+184: Computing
+203: Canceling
+336: Error computing
+342: catch(e): CancellationException
+342: Begin next work
+393: End next work
 ----------------------------------------
 Non-blocking cancellation 
 ----------------------------------------
 0: Computing
 151: Computed: 0
-151: Received: 0
-151: After yield: 0
-151: Computing
-201: Canceling
-201: catch(e): CancellationException
-201: Begin next work
+152: Received: 0
+152: After yield: 0
+152: Computing
+202: Canceling
+203: catch(e): CancellationException
+203: Begin next work
 254: End next work
-303: Error computing
+304: Error computing
 
 ```
 
@@ -1777,21 +1892,21 @@ Output:
 ----------------------------------------
 Cancel with 'CancellationTokenSource'
 ----------------------------------------
-11: Before yield: 1
-15: Received: 1
-15: After yield: 1
-16: Begin work (about 4000 ms)
-2009: Work canceled
-2012: Error: CancellationException
+14: Before yield: 1
+19: Received: 1
+20: After yield: 1
+20: Begin work (about 4000 ms)
+2026: Work canceled
+2031: Error: CancellationException
 ----------------------------------------
 Cancel with 'StreamSubscription.cancel()'
 ----------------------------------------
 0: Before yield: 1
-0: Received: 1
-0: After yield: 1
-0: Begin work (about 4000 ms)
-2008: Work canceled
-2008: Error: CancellationException
+1: Received: 1
+1: After yield: 1
+1: Begin work (about 4000 ms)
+2050: Work canceled
+2050: Error: CancellationException
 
 ```
 
@@ -1891,23 +2006,23 @@ Output:
 ----------------------------------------
 Cancelling a cancellable stream
 ----------------------------------------
-18: Before yield: 1
-23: Received: 1
-25: After yield: 1
-25: Begin work (about 4000 ms)
-2034: Work canceled
-2037: Error: TimeoutException
-2037: End
+15: Before yield: 1
+20: Received: 1
+21: After yield: 1
+21: Begin work (about 4000 ms)
+2035: Work canceled
+2039: Error: TimeoutException
+2039: End
 ----------------------------------------
 Cancelling a non-cancellable stream
 ----------------------------------------
-2038: Before yield: 1
-2038: Received: 1
-2038: After yield: 1
-2038: Begin work (about 4000 ms)
-4040: Error: TimeoutException
-4040: End
-6265: End work
+2039: Before yield: 1
+2040: Received: 1
+2040: After yield: 1
+2040: Begin work (about 4000 ms)
+4048: Error: TimeoutException
+4048: End
+6275: End work
 
 ```
 
@@ -2010,29 +2125,29 @@ Output:
 ----------------------------------------
 Basic functionality: true
 ----------------------------------------
-10: Begin work
-68: Work complete: 0
-70: Enter await 0
-372: Exit await 0
-373: After sent: 0
-373: Begin work
-373: Oh, long work...
-530: Error: TimeoutException
-530: Begin new work
-1125: Work complete: 1
+11: Begin work
+69: Work complete: 0
+71: Enter await 0
+373: Exit await 0
+374: After sent: 0
+374: Begin work
+374: Oh, long work...
+532: Error: TimeoutException
+532: Begin new work
+1126: Work complete: 1
 ----------------------------------------
 Basic functionality: false
 ----------------------------------------
 0: Begin work
 51: Work complete: 0
 51: Enter await 0
-355: Exit await 0
-356: After sent: 0
-356: Begin work
-356: Oh, long work...
-511: Error: TimeoutException
-511: Begin new work
-511: Gen error: CancellationException
+353: Exit await 0
+354: After sent: 0
+354: Begin work
+354: Oh, long work...
+512: Error: TimeoutException
+512: Begin new work
+512: Gen error: CancellationException
 
 ```
 
@@ -2116,15 +2231,15 @@ Output:
 ```txt
 ----------------------------------------
 Terminate (force = true)
-Isolate(27198084): Start
+Isolate(910081379): Start
 Error: CancellationException
 ----------------------------------------
 Terminate (force = false)
-Isolate(26363174): Start
+Isolate(255090703): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
-Isolate(1009171620): Start
+Isolate(52695585): Start
 Error: CancellationException
 
 ```
@@ -2194,11 +2309,11 @@ Output:
 ```txt
 ----------------------------------------
 Terminate (force = false)
-Zone(695229042): Start
+Zone(902718679): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
-Zone(379811045): Start
+Zone(276571985): Start
 Error: CancellationException
 
 ```
@@ -2271,12 +2386,12 @@ Output:
 ----------------------------------------
 Terminate (force = false)
 work1 is IsolatedWork<int>
-Zone(347916679): Start
+Zone(176244517): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
 work2 is IsolatedWork<int>
-Zone(265877912): Start
+Zone(407823912): Start
 Error: CancellationException
 
 ```
@@ -2900,8 +3015,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(1): 511
-Task(3): 513
-Task(4): 513
+Task(1): 512
+Task(3): 514
+Task(4): 514
 
 ```
