@@ -219,7 +219,7 @@ Exception: Error
 #2      Timer._createTimer.<anonymous closure> (dart:async-patch/timer_patch.dart:18:15)
 #3      _Timer._runTimers (dart:isolate-patch/timer_impl.dart:423:19)
 #4      _Timer._handleMessage (dart:isolate-patch/timer_impl.dart:454:5)
-#5      _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:192:12)
+#5      _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:193:12)
 
 ```
 
@@ -745,7 +745,7 @@ Output:
 
 ```txt
 CancellationException
-main(): count: 239366
+main(): count: 249190
 
 ```
 
@@ -1277,10 +1277,10 @@ Output:
 
 ```txt
 Canceling...
-Task(6): canceled
-Task(6): Downloaded: 3481599
 Task(1): canceled
-Task(1): Downloaded: 2457598
+Task(1): Downloaded: 2170879
+Task(6): canceled
+Task(6): Downloaded: 2228222
 CancellationException
 
 ```
@@ -1387,11 +1387,11 @@ void _message(Object object) {
 Output:
 
 ```txt
-20: 0
-56: pause
-507: resume
-509: 1
-611: 2
+13: 0
+58: pause
+504: resume
+506: 1
+608: 2
 [0, 1, 2]
 
 ```
@@ -1558,20 +1558,21 @@ Future<void> main() async {
         yield i;
       }
 
-      print('throw "Exception" in numbers');
-      throw Exception('Error in numbers');
+      print('throw Exception()');
+      throw Exception();
     }
 
     final s1 = Stream.fromIterable(numbers());
     final completion = StreamCompletion();
     final s2 = s1.withCompletion(completion);
 
-    s2.listen(
-      print,
-      onError: (e) {},
-      cancelOnError: true,
-    );
+    Future<void> listen() async {
+      await for (final event in s2) {
+        print(event);
+      }
+    }
 
+    await listen().catchError((e) {});
     final status = await completion.wait();
     print('Status: $status');
     if (status is StreamStatusError) {
@@ -1610,9 +1611,9 @@ Handle error
 ----------------------------------------
 1
 2
-throw "Exception" in numbers
+throw Exception()
 Status: error
-Error: Exception: Error in numbers
+Error: Exception
 
 ```
 
@@ -1678,17 +1679,17 @@ void _message(Object object) {
 Output:
 
 ```txt
-18: Yield: 0
+19: Yield: 0
 22: Event: 0
-54: Pause
+56: Pause
 126: Yield: 1
 504: Resume
 506: Event: 1
 609: Yield: 2
 609: Event: 2
-655: Cancel
-711: Yield: 3
-713: Error: CancellationException
+654: Cancel
+712: Yield: 3
+715: Error: CancellationException
 
 ```
 
@@ -1768,16 +1769,16 @@ Output:
 ----------------------------------------
 Blocking cancellation 
 ----------------------------------------
-24: Computing
-183: Computed: 0
-186: Received: 0
-186: After yield: 0
-187: Computing
-204: Canceling
-338: Error computing
-341: catch(e): CancellationException
-341: Begin next work
-394: End next work
+22: Computing
+181: Computed: 0
+183: Received: 0
+184: After yield: 0
+184: Computing
+203: Canceling
+336: Error computing
+342: catch(e): CancellationException
+342: Begin next work
+393: End next work
 ----------------------------------------
 Non-blocking cancellation 
 ----------------------------------------
@@ -1786,9 +1787,9 @@ Non-blocking cancellation
 152: Received: 0
 152: After yield: 0
 152: Computing
-201: Canceling
-202: catch(e): CancellationException
-202: Begin next work
+202: Canceling
+203: catch(e): CancellationException
+203: Begin next work
 254: End next work
 304: Error computing
 
@@ -1892,20 +1893,20 @@ Output:
 Cancel with 'CancellationTokenSource'
 ----------------------------------------
 14: Before yield: 1
-18: Received: 1
-19: After yield: 1
-19: Begin work (about 4000 ms)
-2025: Work canceled
-2030: Error: CancellationException
+19: Received: 1
+20: After yield: 1
+20: Begin work (about 4000 ms)
+2026: Work canceled
+2031: Error: CancellationException
 ----------------------------------------
 Cancel with 'StreamSubscription.cancel()'
 ----------------------------------------
 0: Before yield: 1
-0: Received: 1
-0: After yield: 1
-0: Begin work (about 4000 ms)
-2002: Work canceled
-2002: Error: CancellationException
+1: Received: 1
+1: After yield: 1
+1: Begin work (about 4000 ms)
+2050: Work canceled
+2050: Error: CancellationException
 
 ```
 
@@ -2005,23 +2006,23 @@ Output:
 ----------------------------------------
 Cancelling a cancellable stream
 ----------------------------------------
-21: Before yield: 1
-28: Received: 1
-29: After yield: 1
-30: Begin work (about 4000 ms)
-2052: Work canceled
-2055: Error: TimeoutException
-2055: End
+15: Before yield: 1
+20: Received: 1
+21: After yield: 1
+21: Begin work (about 4000 ms)
+2035: Work canceled
+2039: Error: TimeoutException
+2039: End
 ----------------------------------------
 Cancelling a non-cancellable stream
 ----------------------------------------
-2056: Before yield: 1
-2056: Received: 1
-2057: After yield: 1
-2057: Begin work (about 4000 ms)
-4058: Error: TimeoutException
-4058: End
-6302: End work
+2039: Before yield: 1
+2040: Received: 1
+2040: After yield: 1
+2040: Begin work (about 4000 ms)
+4048: Error: TimeoutException
+4048: End
+6275: End work
 
 ```
 
@@ -2124,29 +2125,29 @@ Output:
 ----------------------------------------
 Basic functionality: true
 ----------------------------------------
-10: Begin work
-68: Work complete: 0
-70: Enter await 0
+11: Begin work
+69: Work complete: 0
+71: Enter await 0
 373: Exit await 0
 374: After sent: 0
 374: Begin work
 374: Oh, long work...
-531: Error: TimeoutException
-531: Begin new work
-1129: Work complete: 1
+532: Error: TimeoutException
+532: Begin new work
+1126: Work complete: 1
 ----------------------------------------
 Basic functionality: false
 ----------------------------------------
 0: Begin work
-53: Work complete: 0
-53: Enter await 0
-355: Exit await 0
-355: After sent: 0
-355: Begin work
-355: Oh, long work...
-511: Error: TimeoutException
-511: Begin new work
-511: Gen error: CancellationException
+51: Work complete: 0
+51: Enter await 0
+353: Exit await 0
+354: After sent: 0
+354: Begin work
+354: Oh, long work...
+512: Error: TimeoutException
+512: Begin new work
+512: Gen error: CancellationException
 
 ```
 
@@ -2230,15 +2231,15 @@ Output:
 ```txt
 ----------------------------------------
 Terminate (force = true)
-Isolate(602957086): Start
+Isolate(910081379): Start
 Error: CancellationException
 ----------------------------------------
 Terminate (force = false)
-Isolate(402132327): Start
+Isolate(255090703): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
-Isolate(877891537): Start
+Isolate(52695585): Start
 Error: CancellationException
 
 ```
@@ -2308,11 +2309,11 @@ Output:
 ```txt
 ----------------------------------------
 Terminate (force = false)
-Zone(815676019): Start
+Zone(902718679): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
-Zone(253288087): Start
+Zone(276571985): Start
 Error: CancellationException
 
 ```
@@ -2385,12 +2386,12 @@ Output:
 ----------------------------------------
 Terminate (force = false)
 work1 is IsolatedWork<int>
-Zone(987377218): Start
+Zone(176244517): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
 work2 is IsolatedWork<int>
-Zone(1027053624): Start
+Zone(407823912): Start
 Error: CancellationException
 
 ```
@@ -3014,8 +3015,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(1): 510
-Task(3): 512
-Task(4): 512
+Task(1): 512
+Task(3): 514
+Task(4): 514
 
 ```

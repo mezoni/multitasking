@@ -46,20 +46,21 @@ Future<void> main() async {
         yield i;
       }
 
-      print('throw "Exception" in numbers');
-      throw Exception('Error in numbers');
+      print('throw Exception()');
+      throw Exception();
     }
 
     final s1 = Stream.fromIterable(numbers());
     final completion = StreamCompletion();
     final s2 = s1.withCompletion(completion);
 
-    s2.listen(
-      print,
-      onError: (e) {},
-      cancelOnError: true,
-    );
+    Future<void> listen() async {
+      await for (final event in s2) {
+        print(event);
+      }
+    }
 
+    await listen().catchError((e) {});
     final status = await completion.wait();
     print('Status: $status');
     if (status is StreamStatusError) {
