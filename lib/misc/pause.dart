@@ -37,9 +37,9 @@ class PauseToken {
   /// - Removes a resume handler [onResume]
   ///
   /// The [onPause] handler function should initiate the pause procedure
-  /// which pauses the execution of the [action] function.\
+  /// that pauses the execution of the [action] function.\
   /// The [onResume] handler function should initiate the resume procedure
-  /// which resume the execution of the [action] function.
+  /// that resume the execution of the [action] function.
   Future<T> runPausable<T>(
     FutureOr<void> Function() onPause,
     FutureOr<void> Function() onResume,

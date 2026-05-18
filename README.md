@@ -744,7 +744,7 @@ Output:
 
 ```txt
 CancellationException
-main(): count: 244494
+main(): count: 222309
 
 ```
 
@@ -1277,9 +1277,9 @@ Output:
 ```txt
 Canceling...
 Task(1): canceled
-Task(1): Downloaded: 2285567
+Task(1): Downloaded: 2457600
 Task(6): canceled
-Task(6): Downloaded: 2179070
+Task(6): Downloaded: 2473984
 CancellationException
 
 ```
@@ -1386,11 +1386,11 @@ void _message(Object object) {
 Output:
 
 ```txt
-13: 0
-54: pause
+11: 0
+55: pause
 506: resume
-509: 1
-611: 2
+507: 1
+610: 2
 [0, 1, 2]
 
 ```
@@ -1421,6 +1421,15 @@ Future<void> main() async {
   }
 
   {
+    _header('Handle done');
+    final s1 = Stream.fromIterable([1, 2, 3]);
+    final s2 = _addDemoExitHandlers(s1);
+    await for (final event in s2) {
+      print(event);
+    }
+  }
+
+  {
     _header('Handle error');
     Iterable<int> numbers() sync* {
       for (var i = 1; i < 3; i++) {
@@ -1433,19 +1442,13 @@ Future<void> main() async {
 
     final s1 = Stream.fromIterable(numbers());
     final s2 = _addDemoExitHandlers(s1);
-    await s2
-        .listen(print, cancelOnError: true)
-        .asFuture<void>()
-        .catchError((e) {});
-  }
-
-  {
-    _header('Handle success');
-    final s1 = Stream.fromIterable([1, 2, 3]);
-    final s2 = _addDemoExitHandlers(s1);
-    await for (final event in s2) {
-      print(event);
+    Future<void> listen() async {
+      await for (final event in s2) {
+        print(event);
+      }
     }
+
+    await listen().catchError((e) {});
   }
 }
 
@@ -1456,20 +1459,15 @@ void _header(String text) {
 }
 
 Stream<T> _addDemoExitHandlers<T>(Stream<T> stream) {
-  return stream.transform(TerminationTransformer(
-    onCancel: () {
-      print('onCancel');
-    },
-    onError: (error, stackTrace) {
-      print('onError');
-    },
-    onDone: () {
-      print('onSuccess');
-    },
-    onTerminate: () {
-      print('onTerminate');
-    },
-  ));
+  return stream.handleTermination(() {
+    print('onTerminate');
+  }, onCancel: () {
+    print('onCancel');
+  }, onDone: () {
+    print('onDone');
+  }, onError: (error, stackTrace) {
+    print('onError');
+  });
 }
 
 ```
@@ -1486,20 +1484,20 @@ break
 onCancel
 onTerminate
 ----------------------------------------
+Handle done
+----------------------------------------
+1
+2
+3
+onDone
+onTerminate
+----------------------------------------
 Handle error
 ----------------------------------------
 1
 2
 throw Exception()
 onError
-onTerminate
-----------------------------------------
-Handle success
-----------------------------------------
-1
-2
-3
-onSuccess
 onTerminate
 
 ```
@@ -1566,17 +1564,17 @@ void _message(Object object) {
 Output:
 
 ```txt
-15: Yield: 0
-18: Event: 0
-56: Pause
-122: Yield: 1
-507: Resume
-509: Event: 1
-612: Yield: 2
-613: Event: 2
-655: Cancel
-716: Yield: 3
-719: Error: CancellationException
+17: Yield: 0
+20: Event: 0
+54: Pause
+124: Yield: 1
+505: Resume
+507: Event: 1
+609: Yield: 2
+610: Event: 2
+654: Cancel
+712: Yield: 3
+715: Error: CancellationException
 
 ```
 
@@ -1656,29 +1654,29 @@ Output:
 ----------------------------------------
 Blocking cancellation 
 ----------------------------------------
-13: Computing
-180: Computed: 0
-182: Received: 0
-182: After yield: 0
-182: Computing
-203: Canceling
-335: Error computing
-338: catch(e): CancellationException
-338: Begin next work
-390: End next work
+17: Computing
+175: Computed: 0
+177: Received: 0
+178: After yield: 0
+178: Computing
+204: Canceling
+330: Error computing
+334: catch(e): CancellationException
+334: Begin next work
+387: End next work
 ----------------------------------------
 Non-blocking cancellation 
 ----------------------------------------
 0: Computing
-153: Computed: 0
-153: Received: 0
-154: After yield: 0
-154: Computing
-203: Canceling
-203: catch(e): CancellationException
-203: Begin next work
-259: End next work
-307: Error computing
+151: Computed: 0
+151: Received: 0
+151: After yield: 0
+151: Computing
+201: Canceling
+201: catch(e): CancellationException
+201: Begin next work
+254: End next work
+303: Error computing
 
 ```
 
@@ -1779,21 +1777,21 @@ Output:
 ----------------------------------------
 Cancel with 'CancellationTokenSource'
 ----------------------------------------
-12: Before yield: 1
-17: Received: 1
-17: After yield: 1
-18: Begin work (about 4000 ms)
-2017: Work canceled
-2020: Error: CancellationException
+11: Before yield: 1
+15: Received: 1
+15: After yield: 1
+16: Begin work (about 4000 ms)
+2009: Work canceled
+2012: Error: CancellationException
 ----------------------------------------
 Cancel with 'StreamSubscription.cancel()'
 ----------------------------------------
-1: Before yield: 1
-1: Received: 1
-1: After yield: 1
-1: Begin work (about 4000 ms)
-2042: Work canceled
-2042: Error: CancellationException
+0: Before yield: 1
+0: Received: 1
+0: After yield: 1
+0: Begin work (about 4000 ms)
+2008: Work canceled
+2008: Error: CancellationException
 
 ```
 
@@ -1893,23 +1891,23 @@ Output:
 ----------------------------------------
 Cancelling a cancellable stream
 ----------------------------------------
-13: Before yield: 1
-17: Received: 1
-17: After yield: 1
-18: Begin work (about 4000 ms)
-2036: Work canceled
-2039: Error: TimeoutException
-2040: End
+18: Before yield: 1
+23: Received: 1
+25: After yield: 1
+25: Begin work (about 4000 ms)
+2034: Work canceled
+2037: Error: TimeoutException
+2037: End
 ----------------------------------------
 Cancelling a non-cancellable stream
 ----------------------------------------
-2040: Before yield: 1
-2040: Received: 1
-2040: After yield: 1
-2040: Begin work (about 4000 ms)
-4044: Error: TimeoutException
-4044: End
-6328: End work
+2038: Before yield: 1
+2038: Received: 1
+2038: After yield: 1
+2038: Begin work (about 4000 ms)
+4040: Error: TimeoutException
+4040: End
+6265: End work
 
 ```
 
@@ -2013,28 +2011,28 @@ Output:
 Basic functionality: true
 ----------------------------------------
 10: Begin work
-78: Work complete: 0
-80: Enter await 0
-383: Exit await 0
-386: After sent: 0
-387: Begin work
-387: Oh, long work...
-551: Error: TimeoutException
-551: Begin new work
-1140: Work complete: 1
+68: Work complete: 0
+70: Enter await 0
+372: Exit await 0
+373: After sent: 0
+373: Begin work
+373: Oh, long work...
+530: Error: TimeoutException
+530: Begin new work
+1125: Work complete: 1
 ----------------------------------------
 Basic functionality: false
 ----------------------------------------
 0: Begin work
-54: Work complete: 0
-54: Enter await 0
-358: Exit await 0
-358: After sent: 0
-358: Begin work
-358: Oh, long work...
-520: Error: TimeoutException
-520: Begin new work
-520: Gen error: CancellationException
+51: Work complete: 0
+51: Enter await 0
+355: Exit await 0
+356: After sent: 0
+356: Begin work
+356: Oh, long work...
+511: Error: TimeoutException
+511: Begin new work
+511: Gen error: CancellationException
 
 ```
 
@@ -2118,15 +2116,15 @@ Output:
 ```txt
 ----------------------------------------
 Terminate (force = true)
-Isolate(1017008975): Start
+Isolate(27198084): Start
 Error: CancellationException
 ----------------------------------------
 Terminate (force = false)
-Isolate(829020298): Start
+Isolate(26363174): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
-Isolate(710781665): Start
+Isolate(1009171620): Start
 Error: CancellationException
 
 ```
@@ -2196,11 +2194,11 @@ Output:
 ```txt
 ----------------------------------------
 Terminate (force = false)
-Zone(150328209): Start
+Zone(695229042): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
-Zone(763106392): Start
+Zone(379811045): Start
 Error: CancellationException
 
 ```
@@ -2273,12 +2271,12 @@ Output:
 ----------------------------------------
 Terminate (force = false)
 work1 is IsolatedWork<int>
-Zone(6153387): Start
+Zone(347916679): Start
 Error: CancellationException
 ----------------------------------------
 Terminate using a cancellation token
 work2 is IsolatedWork<int>
-Zone(960645827): Start
+Zone(265877912): Start
 Error: CancellationException
 
 ```
@@ -2902,8 +2900,8 @@ Output:
 main(): 0
 main(): Waiting 500 ms
 main(): Start
-Task(1): 514
-Task(3): 515
-Task(4): 516
+Task(1): 511
+Task(3): 513
+Task(4): 513
 
 ```

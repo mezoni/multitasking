@@ -710,7 +710,7 @@ final class Task<T> implements Future<T> {
     return tcs.task;
   }
 
-  /// Returns a [Stream] to which each [Task] in the [tasks] list will be added,
+  /// Returns a [Stream] to that each [Task] in the [tasks] list will be added,
   /// in the order in which they were completed (with any status).
   ///
   /// Parameters:

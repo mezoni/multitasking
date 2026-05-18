@@ -86,7 +86,7 @@ class CancellationToken {
   /// - Executes the [action] callback
   /// - Removes a cancellation handler [onCancel]
   ///
-  /// The [onCancel] handler should initiate the cancellation which cancel the
+  /// The [onCancel] handler should initiate the cancellation that cancel the
   /// execution of the [action] callback.
   ///
   /// This method itself does not throw any exceptions. It simply calls the
@@ -151,7 +151,7 @@ class CancellationTokenSource {
   ///
   /// Parameters:
   ///
-  /// - [delay]: The duration after which a cancellation request is initiated,
+  /// - [delay]: The duration after that a cancellation request is initiated,
   /// if the [delay] value is specified.
   CancellationTokenSource([Duration? delay]) {
     if (delay != null) {
@@ -164,7 +164,7 @@ class CancellationTokenSource {
     token._cancel();
   }
 
-  /// Sets the [delay] time after which a cancellation request will be
+  /// Sets the [delay] time after that a cancellation request will be
   /// initiated or the time will be reset if the [delay] value is `null`.
   ///
   /// Parameters:

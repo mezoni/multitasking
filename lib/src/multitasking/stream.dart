@@ -3,7 +3,7 @@ import 'dart:async';
 import '../../misc/pause.dart';
 import '../../multitasking.dart';
 
-/// A [CancelableStreamFactory] is a [Stream] factory which delegates stream
+/// A [CancelableStreamFactory] is a [Stream] factory that delegates stream
 /// creation to a function with a `token` parameter, which takes responsibility
 /// for creating a stream that will support cancellation of a subscription when
 /// cancellation is requested via a [CancellationToken].
@@ -13,7 +13,7 @@ class CancelableStreamFactory {
   ///
   /// Parameters:
   ///
-  /// - [generate]:  Delegate function which takes responsibility for creating a
+  /// - [generate]:  Delegate function that takes responsibility for creating a
   /// stream that will support cancellation of a subscription when cancellation
   /// is requested via a [CancellationToken].
   static Stream<T> fromGenerator<T>(
@@ -23,7 +23,7 @@ class CancelableStreamFactory {
   }
 }
 
-/// A [CancellationTransformer] is a stream transformer which allows to `cancel`
+/// A [CancellationTransformer] is a stream transformer that allows to `cancel`
 /// a subscription using a `cancellation token` or a specified `timeout`, with
 /// support for `non-blocking` cancellation, and with support for sending a
 /// request to `pause` a stream and `resume` after a pause using a
@@ -209,7 +209,7 @@ class CancellationTransformer<T> extends StreamTransformerBase<T, T> {
   static void _handleError(Object _, StackTrace __) {}
 }
 
-/// A [PauseTransformer] is a transformer which allows to pause/resume
+/// A [PauseTransformer] is a transformer that allows to pause/resume
 /// a stream subscription using a [PauseToken].
 ///
 /// The transformer works the same as if the `pause()` and `resume()` methods
@@ -239,7 +239,7 @@ class PauseTransformer<T> extends StreamTransformerBase<T, T> {
   ///
   /// Parameters:
   ///
-  /// - [token]: Pause token, which is used to be pause and resume the
+  /// - [token]: Pause token that is used to be pause and resume the
   /// subscription.
   @Deprecated(
       'This will be removed in the next version. Use CancellationTransformer() instead')
@@ -254,9 +254,9 @@ class PauseTransformer<T> extends StreamTransformerBase<T, T> {
   }
 }
 
-/// A [TerminationTransformer] is a stream transformer which allows to define
-/// the status handlers `onCancel`, `onDone` and `onError`, and the termination
-/// handler `onTerminate`.
+/// A [TerminationTransformer] is a stream transformer that allows to define the
+/// termination handler `onTerminate` and the status handlers `onCancel`,
+/// `onDone` and `onError`.
 ///
 /// The transformer ensures that at least one of the status handlers is called
 /// before the `onTerminate` callback is called.
@@ -276,17 +276,17 @@ class TerminationTransformer<T> extends StreamTransformerBase<T, T> {
   ///
   /// Parameters:
   ///
-  /// - [onCancel]: Callback which handles explicit cancellation of listening to
-  /// a stream.
-  /// - [onDone]: A callback which handles the `onDone` event.
-  /// - [onError]: A callback which handles the `onError` event.
   /// - [onTerminate]: A callback that will be called when the stream
+  /// - [onCancel]: Callback that handles explicit cancellation of listening to
+  /// a stream.
+  /// - [onDone]: A callback that handles the `onDone` event.
+  /// - [onError]: A callback that handles the `onError` event.
   /// terminates.
-  TerminationTransformer({
+  TerminationTransformer(
+    void Function()? onTerminate, {
     void Function()? onCancel,
     void Function()? onDone,
     void Function(Object error, StackTrace stackTrace)? onError,
-    void Function()? onTerminate,
   })  : _onCancel = onCancel,
         _onError = onError,
         _onDone = onDone,
@@ -436,7 +436,7 @@ class _SubscriptionWithCancellationTokenSource<T>
 /// A [StreamExtension] is an extension for [Stream] with various useful
 ///  methods.
 extension StreamExtension<T> on Stream<T> {
-  /// Returns a stream which allows to `cancel` a subscription using a
+  /// Returns a stream that allows to `cancel` a subscription using a
   /// `cancellation token` or a specified `timeout`, with support for
   /// `non-blocking` cancellation, and with support for sending a request to
   /// `pause` a stream and `resume` after a pause using a `pause token`.
@@ -467,12 +467,12 @@ extension StreamExtension<T> on Stream<T> {
     ).bind(this);
   }
 
-  /// Returns a stream which allows to pause/resume a stream subscription using
+  /// Returns a stream that allows to pause/resume a stream subscription using
   /// a [PauseToken].
   ///
   /// Parameters:
   ///
-  /// - [token]: Pause token, which is used to be pause and resume the
+  /// - [token]: Pause token, that is used to be pause and resume the
   /// subscription.
   ///
   /// The pausable stream is created using the [PauseTransformer] transformer.
@@ -500,31 +500,31 @@ extension StreamExtension<T> on Stream<T> {
   }
   // coverage:ignore-end
 
-  /// Returns a stream which allows to define the status handlers `onCancel`,
-  /// `onDone` and `onError`, and the termination handler `onTerminate`.
+  /// Returns a stream that allows to define the termination handler
+  /// `onTerminate` and the status handlers `onCancel`, `onDone` and `onError`.
   ///
   /// Parameters:
   ///
-  /// - [onCancel]: Callback which handles explicit cancellation of listening to
+  /// - [onCancel]: Callback that handles explicit cancellation of listening to
   /// a stream.
-  /// - [onDone]: A callback which handles the `onDone` event.
-  /// - [onError]: A callback which handles the `onError` event.
+  /// - [onDone]: A callback that handles the `onDone` event.
+  /// - [onError]: A callback that handles the `onError` event.
   /// - [onTerminate]: A callback that will be called when the stream
   /// terminates.
   ///
   /// The stream handling termination is created using the
   /// [TerminationTransformer] transformer.
-  Stream<T> handleTermination({
+  Stream<T> handleTermination(
+    void Function()? onTerminate, {
     void Function()? onCancel,
     void Function()? onDone,
     void Function(Object error, StackTrace stackTrace)? onError,
-    void Function()? onTerminate,
   }) {
     return TerminationTransformer<T>(
+      onTerminate,
       onCancel: onCancel,
       onDone: onDone,
       onError: onError,
-      onTerminate: onTerminate,
     ).bind(this);
   }
 }

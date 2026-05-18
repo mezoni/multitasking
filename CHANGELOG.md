@@ -2,6 +2,7 @@
 
 ## 7.10.0
 
+- Breaking change:  Changes in the `TerminationTransformer` class, the `onTerminate` parameter of the constructor is now mandatory and positional (it also remains nullable). This also affects the `StreamExtension.handleTermination()` method.
 - Fixed a bug in the example file `example_stream_handle_termination.dart`.
 
 ## 7.9.0

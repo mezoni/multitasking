@@ -17,6 +17,15 @@ Future<void> main() async {
   }
 
   {
+    _header('Handle done');
+    final s1 = Stream.fromIterable([1, 2, 3]);
+    final s2 = _addDemoExitHandlers(s1);
+    await for (final event in s2) {
+      print(event);
+    }
+  }
+
+  {
     _header('Handle error');
     Iterable<int> numbers() sync* {
       for (var i = 1; i < 3; i++) {
@@ -29,19 +38,13 @@ Future<void> main() async {
 
     final s1 = Stream.fromIterable(numbers());
     final s2 = _addDemoExitHandlers(s1);
-    await s2
-        .listen(print, cancelOnError: true)
-        .asFuture<void>()
-        .catchError((e) {});
-  }
-
-  {
-    _header('Handle success');
-    final s1 = Stream.fromIterable([1, 2, 3]);
-    final s2 = _addDemoExitHandlers(s1);
-    await for (final event in s2) {
-      print(event);
+    Future<void> listen() async {
+      await for (final event in s2) {
+        print(event);
+      }
     }
+
+    await listen().catchError((e) {});
   }
 }
 
@@ -52,18 +55,13 @@ void _header(String text) {
 }
 
 Stream<T> _addDemoExitHandlers<T>(Stream<T> stream) {
-  return stream.transform(TerminationTransformer(
-    onCancel: () {
-      print('onCancel');
-    },
-    onError: (error, stackTrace) {
-      print('onError');
-    },
-    onDone: () {
-      print('onSuccess');
-    },
-    onTerminate: () {
-      print('onTerminate');
-    },
-  ));
+  return stream.handleTermination(() {
+    print('onTerminate');
+  }, onCancel: () {
+    print('onCancel');
+  }, onDone: () {
+    print('onDone');
+  }, onError: (error, stackTrace) {
+    print('onError');
+  });
 }

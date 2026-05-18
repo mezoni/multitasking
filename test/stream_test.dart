@@ -448,6 +448,9 @@ void _testTerminationTransformer() {
     handledError = null;
 
     return stream.handleTermination(
+      () {
+        onTerminate = true;
+      },
       onCancel: () {
         onCancel = true;
       },
@@ -457,9 +460,6 @@ void _testTerminationTransformer() {
       },
       onDone: () {
         onSuccess = true;
-      },
-      onTerminate: () {
-        onTerminate = true;
       },
     );
   }
