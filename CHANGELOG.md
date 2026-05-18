@@ -3,7 +3,6 @@
 ## 7.11.0
 
 - New feature: Added a stream transformer (`StreamCompletion`) which allows to wait for the stream to complete and get the completion status (including error).
-- example_stream_handle_completion
 - Added example file `example_stream_handle_completion.dart`.
 
 ## 7.10.0
