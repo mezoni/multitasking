@@ -1,12 +1,15 @@
 # Changelog
 
+## 7.11.0
+
+- New feature: Added a stream transformer (`StreamCompletion`) which allows to wait for the stream to complete and get the completion status (including error).
+- example_stream_handle_completion
+- Added example file `example_stream_handle_completion.dart`.
+
 ## 7.10.0
 
 - Breaking change:  Changes in the `TerminationTransformer` class, the `onTerminate` parameter of the constructor is now mandatory and positional (it also remains nullable). This also affects the `StreamExtension.handleTermination()` method.
 - Fixed a bug in the example file `example_stream_handle_termination.dart`.
-- New feature: Added a stream transformer (`StreamCompletion`) which allows to wait for the stream to complete and get the completion status (including error).
-- example_stream_handle_completion
-- Added example file `example_stream_handle_completion.dart`.
 
 ## 7.9.0
 
